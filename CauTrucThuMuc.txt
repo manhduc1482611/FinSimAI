@@ -1,0 +1,211 @@
+FinSimAI/
+│
+├── apps/
+│   ├── frontend/                          # Web UI (Next.js 14+ App Router + TailwindCSS + Zustand)
+│   │   ├── src/
+│   │   │   ├── app/                       # App Router Pages & Layouts
+│   │   │   │   ├── (auth)/                # Route Group cho Đăng nhập / Đăng ký
+│   │   │   │   │   ├── login/page.tsx
+│   │   │   │   │   └── register/page.tsx
+│   │   │   │   ├── (dashboard)/           # Route Group chính cho ứng dụng
+│   │   │   │   │   ├── news/              # Bước 1: Tin tức & Cảm xúc thị trường
+│   │   │   │   │   │   ├── page.tsx
+│   │   │   │   │   │   └── [id]/page.tsx
+│   │   │   │   │   ├── companies/         # Bước 2: Khám phá & Phân tích Doanh nghiệp
+│   │   │   │   │   │   ├── page.tsx
+│   │   │   │   │   │   └── [id]/page.tsx
+│   │   │   │   │   ├── trade/             # Bước 3: Đặt lệnh & Thực chiến
+│   │   │   │   │   │   ├── page.tsx
+│   │   │   │   │   │   └── mentor/page.tsx
+│   │   │   │   │   └── social/            # Luồng phụ: Mạng xã hội & Heatmap
+│   │   │   │   │       └── page.tsx
+│   │   │   │   ├── layout.tsx             # Root Layout
+│   │   │   │   └── page.tsx               # Landing page / Home
+│   │   │   ├── components/                # UI Components theo Feature
+│   │   │   │   ├── layout/                # Header, Sidebar, Footer, UserMenu
+│   │   │   │   ├── news/                  # NewsCard, NewsFilter, KnowledgeBadge
+│   │   │   │   ├── companies/             # FinancialReport, PriceChart, HealthScore
+│   │   │   │   ├── trade/                 # OrderBook, Portfolio, PriceTicker, TradePanel
+│   │   │   │   ├── chat/                  # MentorChat, CoachTip, CooldownOverlay
+│   │   │   │   ├── social/                # SocialPost, SocialHeatmap, ViralityBadge
+│   │   │   │   └── common/                # UI Primitives (Button, Modal, Toast, Skeleton)
+│   │   │   ├── store/                     # Zustand Global State
+│   │   │   │   ├── useAuthStore.ts
+│   │   │   │   ├── useTradeStore.ts
+│   │   │   │   ├── useNewsStore.ts
+│   │   │   │   └── useMentorStore.ts
+│   │   │   ├── hooks/                     # Custom React Hooks
+│   │   │   │   ├── useTrade.ts
+│   │   │   │   ├── useSocraticMentor.ts
+│   │   │   │   ├── useWebSocket.ts
+│   │   │   │   └── useKnowledge.ts
+│   │   │   ├── services/                  # API Clients
+│   │   │   │   ├── api.ts                 # Axios / Fetch Base Instance
+│   │   │   │   ├── auth.ts
+│   │   │   │   ├── news.ts
+│   │   │   │   ├── companies.ts
+│   │   │   │   ├── trade.ts
+│   │   │   │   └── mentor.ts
+│   │   │   ├── utils/                     # Client Utilities
+│   │   │   │   ├── format.ts              # Format VND, %, Thời gian
+│   │   │   │   ├── pnl.ts                 # Calculators hiển thị phía client
+│   │   │   │   └── knowledge_matcher.ts   # Keyword matching
+│   │   │   └── types/                     # TypeScript types
+│   │   │       └── api.ts                 # Import từ @finsim/shared-types/generated/api-types
+│   │   ├── public/                        # Static Assets (Logos, Icons, Audios)
+│   │   ├── tailwind.config.js
+│   │   ├── next.config.js
+│   │   ├── tsconfig.json
+│   │   └── package.json
+│   │
+│   ├── backend_gateway/                   # API Gateway Main Service (Python / FastAPI)
+│   │   ├── api/
+│   │   │   └── v1/                        # Endpoints v1
+│   │   │       ├── router.py              # Central APIRouter
+│   │   │       ├── auth.py
+│   │   │       ├── users.py
+│   │   │       ├── news.py
+│   │   │       ├── companies.py
+│   │   │       ├── trades.py
+│   │   │       ├── social.py
+│   │   │       ├── mentor.py
+│   │   │       └── knowledge.py
+│   │   ├── core/                          # Gateway Core Components
+│   │   │   ├── config.py                  # Environment & Settings (Pydantic BaseSettings)
+│   │   │   ├── security.py                # Password hashing, JWT token validation
+│   │   │   ├── middleware.py              # CORS, Rate Limiting, Request ID Logging
+│   │   │   └── dependencies.py            # DB Sessions, Auth context injection
+│   │   ├── clients/                       # Microservice Callers (Chủ động kết nối lõi)
+│   │   │   ├── math_grpc_client.py        # Giao tiếp gRPC siêu tốc với Math Engine
+│   │   │   └── ai_engine_client.py        # Kết nối AI Engine (HTTP / Redis Queue)
+│   │   ├── services/                      # Orchestration & Business Logic
+│   │   │   ├── market_service.py
+│   │   │   ├── trading_service.py
+│   │   │   ├── mentor_service.py
+│   │   │   ├── knowledge_service.py       # Knowledge Base matching (keyword → concept)
+│   │   │   └── penalty_service.py          # Cơ chế phạt Cooldown, trừ điểm kỷ luật
+│   │   ├── websockets/                    # Live Gateway WebSockets
+│   │   │   ├── connection_manager.py     # Quản lý Socket Connections & Rooms
+│   │   │   ├── price_ws.py                # Stream biến động giá
+│   │   │   ├── mentor_ws.py               # Streaming AI Socratic response
+│   │   │   └── trade_ws.py                # Cập nhật khớp lệnh real-time
+│   │   ├── models/                        # SQLAlchemy ORM Models (tables)
+│   │   │   ├── user.py
+│   │   │   ├── news.py
+│   │   │   ├── company.py
+│   │   │   ├── trade.py
+│   │   │   └── social.py
+│   │   ├── schemas/                       # Pydantic schemas (request/response validation)
+│   │   │   ├── user.py
+│   │   │   ├── news.py
+│   │   │   ├── company.py
+│   │   │   ├── trade.py
+│   │   │   └── social.py
+│   │   ├── main.py                        # FastAPI Entry point
+│   │   ├── pyproject.toml                 # Dependency Management (UV / Poetry)
+│   │   ├── Dockerfile
+│   │   └── alembic.ini                    # DB migration config (Alembic)
+│   │
+│   ├── math_engine/                       # Microservice Lõi Toán học (Deterministic Engine)
+│   │   ├── engine/
+│   │   │   ├── __init__.py
+│   │   │   ├── pricing/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── price_generator.py     # Thuật toán sinh biến động giá
+│   │   │   │   └── volatility.py          # Mô hình biến động thị trường
+│   │   │   ├── portfolio/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── portfolio_calc.py      # Tính PnL, NAV, Margin Call
+│   │   │   │   └── risk_metrics.py        # Max Drawdown, Sharpe Ratio, VaR
+│   │   │   ├── time_compression/          # Cơ chế nén thời gian
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── compressor.py          # Quy đổi 1 phút thực = N ngày ảo
+│   │   │   ├── penalty_calc/              # Tính toán mức phạt
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── penalty.py             # Thời gian Cooldown & trừ điểm kỷ luật
+│   │   │   └── social_impact/
+│   │   │       ├── __init__.py
+│   │   │       └── impact_model.py       # Tác động của virality MXH lên giá
+│   │   ├── grpc_services/                 # Triển khai gRPC Server handlers
+│   │   │   └── math_service_handler.py    # Thực thi các RPC method định nghĩa từ Proto
+│   │   ├── grpc_server.py                 # Lớp mạng gRPC Server Entry Point
+│   │   ├── pyproject.toml
+│   │   ├── Dockerfile
+│   │   └── tests/                         # Unit tests tài chính nghiêm ngặt
+│   │       ├── test_pricing.py
+│   │       ├── test_portfolio.py
+│   │       ├── test_time_compression.py
+│   │       └── test_penalty.py
+│   │
+│   └── ai_engine/                         # Microservice Lõi AI & Generative Workflows
+│       ├── agents/                        # Định nghĩa AI Agents
+│       │   ├── socratic_mentor.py         # Agent phản biện theo phương pháp Socratic
+│       │   ├── scenario_gen.py            # Agent sinh tin tức & kịch bản vĩ mô
+│       │   ├── behavior_analyzer.py       # Agent phân tích tâm lý FOMO/Bầy đàn
+│       │   ├── news_insight.py            # Agent gợi ý kiến thức (static fallback)
+│       │   ├── social_agent.py            # Agent giả lập 10 Persona trên MXH
+│       │   └── news_crawler.py            # Agent thu thập tin tức thực tế
+│       ├── prompts/                       # Quản lý Prompts tập trung (YAML)
+│       │   ├── mentor_prompts.yaml
+│       │   ├── insight_prompts.yaml
+│       │   ├── scenario_prompts.yaml
+│       │   ├── social_prompts.yaml
+│       │   └── trap_prompts.yaml
+│       ├── integrations/                  # SDK Wrapper
+│       │   ├── gemini.py                  # Chống hallucination & tối ưu Token
+│       │   └── news_sources.py            # Crawl RSS/APIs
+│       ├── tasks/                         # Async Task Queue (Celery / ARQ Worker)
+│       │   ├── worker.py                  # Entrypoint khởi tạo Task Queue
+│       │   ├── crawl_tasks.py             # Tác vụ cào tin ngầm
+│       │   └── scenario_tasks.py          # Tác vụ sinh bài viết MXH tự động
+│       ├── main_ai.py                     # AI API Endpoint
+│       ├── pyproject.toml
+│       └── Dockerfile
+│
+├── packages/                              # Monorepo Shared Packages
+│   ├── database/                          # CSDL & Migrations tập trung
+│   │   ├── migrations/                    # Lịch sử Alembic Migrations
+│   │   │   └── versions/
+│   │   ├── seeds/                         # Seed data khởi tạo
+│   │   │   ├── companies.yaml
+│   │   │   ├── scenarios.yaml
+│   │   │   ├── knowledge_base.yaml
+│   │   │   └── news_concept_map.yaml
+│   │   ├── schema.sql
+│   │   └── supabase/                      # Supabase Local Config
+│   │       └── config.toml
+│   ├── proto/                             # Protobuf Definitions chung cho Microservices
+│   │   ├── math_engine.proto              # Định nghĩa interface gRPC cho Math Service
+│   │   └── generate_pb.sh                 # Script tự động compile proto ra Python code
+│   └── shared-types/                      # TypeScript Types chia sẻ toàn dự án
+│       ├── package.json
+│       └── generated/                     # File chứa types tự động sinh từ FastAPI Pydantic
+│           └── api-types.ts
+│
+├── scripts/                               # Tooling & Automation Scripts
+│   ├── generate_ts_types.py               # Tự động xuất Pydantic Schemas thành TypeScript Types
+│   ├── seed_db.py                         # Tool nạp dữ liệu Seed vào Supabase/PostgreSQL
+│   └── setup_dev_env.sh                   # Script khởi tạo nhanh toàn bộ môi trường
+│
+├── .github/
+│   └── workflows/
+│       ├── deploy-frontend.yml
+│       ├── deploy-backend.yml
+│       └── ci.yml
+│
+├── docs/                                  # Tài liệu hệ thống
+│   ├── architecture.md
+│   ├── api.md
+│   ├── grpc_specs.md
+│   └── setup.md
+│
+├── docker-compose.yml                     # Local Development Orchestration (Gateway + Math + AI + Redis + DB)
+├── docker-compose.override.yml            # Override cho môi trường Dev (Hot-reload)
+├── turbo.json                             # Monorepo Build Pipeline (Turborepo)
+├── pyproject.toml                         # Workspace Root cho Python (UV Workspaces)
+├── package.json                           # Root Node.js dependencies & Workspaces config
+├── Makefile                               # Bộ lệnh tắt cho Dev (make dev, make seed, make generate-types)
+├── .env.example
+├── .gitignore
+├── README.md
+└── LICENSE
