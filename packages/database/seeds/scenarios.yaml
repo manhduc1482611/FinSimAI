@@ -1,0 +1,139 @@
+scenarios:
+  - name: "Bull Run: Tech Sector Surge"
+    description: >-
+      A wave of positive sentiment sweeps the market after breakthrough AI
+      regulations are passed. Tech stocks surge 15-25% over the simulated week.
+      Players must decide whether to ride the rally or take profits early.
+    scenario_type: macro_event
+    difficulty: 1
+    config:
+      target_sectors: ["Technology"]
+      price_multiplier_min: 1.15
+      price_multiplier_max: 1.25
+      duration_days: 7
+      sentiment_override: positive
+
+  - name: "Bear Trap: Sudden Crash"
+    description: >-
+      A major bank announces unexpected losses, triggering a market-wide panic.
+      Prices drop sharply across all sectors. Players who panic-sell at the
+      bottom will miss the recovery. Tests patience and risk management.
+    scenario_type: macro_event
+    difficulty: 2
+    config:
+      price_drop_min: -0.20
+      price_drop_max: -0.35
+      duration_days: 3
+      recovery_days: 5
+      sentiment_override: negative
+
+  - name: "Pump & Dump: Hype Stock"
+    description: >-
+      Social media is flooded with bullish posts about COMMB (SocialWave Media),
+      driving the price up 40% in a single session. Unknown to players, the
+      hype is orchestrated by insiders preparing to dump. Tests FOMO resistance.
+    scenario_type: trap_event
+    difficulty: 3
+    config:
+      target_symbol: COMMB
+      pump_percentage: 0.40
+      pump_duration_hours: 4
+      dump_percentage: -0.50
+      trap_type: pump_dump
+
+  - name: "Fake News: Pharma Breakthrough"
+    description: >-
+      A fabricated news article claims BioGenix Therapeutics (HEALA) received
+      FDA approval for a new drug. The stock spikes before the truth emerges.
+      Players who buy the rumor must decide when — or if — to sell.
+    scenario_type: trap_event
+    difficulty: 3
+    config:
+      target_symbol: HEALA
+      price_spike_percentage: 0.60
+      fake_news_source: "FakePharmaNews.com"
+      crash_percentage: -0.45
+      trap_type: fake_news
+
+  - name: "Whale Trap: Coordinated Sell-off"
+    description: >-
+      A large institutional holder of TECHA (TechVision Corp) signals a massive
+      sell order. The price drops 15% intraday as smaller traders panic.
+      The "whale" was bluffing — they actually accumulated more at the lower price.
+    scenario_type: trap_event
+    difficulty: 4
+    config:
+      target_symbol: TECHA
+      initial_drop: -0.15
+      recovery_percentage: 0.18
+      trap_type: whale_trap
+
+  - name: "Quiet Storm: Slow Bleed"
+    description: >-
+      No dramatic news, but several mid-cap stocks drift downward over a week
+      due to rotating sector sentiment. The decline is gradual enough that
+      many players fail to notice until portfolio damage is significant.
+    scenario_type: macro_event
+    difficulty: 2
+    config:
+      price_decay_per_day: -0.03
+      duration_days: 7
+      affected_sectors: ["Consumer Goods", "Industrial"]
+
+  - name: "Earnings Season: Mixed Results"
+    description: >-
+      Companies report quarterly earnings. Some beat expectations (price up),
+      others miss (price down). Players must analyze each report and adjust
+      positions accordingly. Tests fundamental analysis skills.
+    scenario_type: micro_event
+    difficulty: 2
+    config:
+      companies:
+        - symbol: FINA
+          earnings_surprise: -0.08
+        - symbol: ENERGB
+          earnings_surprise: 0.25
+        - symbol: CONSMA
+          earnings_surprise: 0.05
+        - symbol: INDUSB
+          earnings_surprise: -0.12
+
+  - name: "Social Media Storm: Virality Cascade"
+    description: >-
+      An influencer post about EcoLiving Products (CONSMB) goes viral, reaching
+      95 virality score. Retail traders pile in. Some posts contain misleading
+      information. Players must filter signal from noise.
+    scenario_type: social_event
+    difficulty: 3
+    config:
+      target_symbol: CONSMB
+      virality_threshold: 95
+      post_volume: 50
+      trap_post_ratio: 0.30
+      duration_hours: 6
+
+  - name: "Macro Shock: Interest Rate Hike"
+    description: >-
+      The central bank unexpectedly raises interest rates by 0.5%. Financial
+      and high-debt sectors sell off, while the currency strengthens. Players
+      must reassess sector allocations.
+    scenario_type: macro_event
+    difficulty: 2
+    config:
+      rate_hike_bps: 50
+      most_affected_sectors: ["Financial", "Real Estate"]
+      least_affected_sectors: ["Energy", "Technology"]
+
+  - name: "Black Swan: Geopolitical Event"
+    description: >-
+      A sudden geopolitical crisis disrupts global supply chains. Energy prices
+      spike, defense stocks rally, and consumer goods companies with overseas
+      manufacturing are hit hard. Maximum difficulty simulation.
+    scenario_type: macro_event
+    difficulty: 5
+    config:
+      energy_spike: 0.35
+      defense_rally: 0.20
+      consumer_goods_drop: -0.25
+      duration_days: 14
+      recovery_uncertainty_days: 30

@@ -1,0 +1,27 @@
+[project]
+name = "finsimai"
+version = "0.1.0"
+description = "FinSimAI - Financial Simulation & AI Mentor Platform"
+requires-python = ">=3.11"
+
+[tool.uv]
+dev-dependencies = ["ruff>=0.3.0", "mypy>=1.8.0"]
+
+[tool.uv.workspace]
+members = [
+    "apps/backend_gateway",
+    "apps/math_engine",
+    "apps/ai_engine",
+    "packages/database",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true

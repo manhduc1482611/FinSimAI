@@ -1,0 +1,225 @@
+knowledge_base:
+  - keyword: P/E ratio
+    concept: Price-to-Earnings Ratio
+    definition: >-
+      A valuation ratio calculated by dividing the current stock price by its
+      earnings per share (EPS). A high P/E may indicate overvaluation or high
+      growth expectations; a low P/E may suggest undervaluation or low growth.
+    category: fundamental_analysis
+    difficulty: 1
+    related_keywords: ["EPS", "valuation", "earnings"]
+
+  - keyword: market cap
+    concept: Market Capitalization
+    definition: >-
+      The total market value of a company's outstanding shares, calculated as
+      share price × total shares outstanding. Companies are classified as
+      Large-cap (>$10B), Mid-cap ($2B-$10B), or Small-cap (<$2B).
+    category: fundamental_analysis
+    difficulty: 1
+    related_keywords: ["large-cap", "mid-cap", "small-cap", "valuation"]
+
+  - keyword: dividend
+    concept: Dividend
+    definition: >-
+      A portion of a company's earnings distributed to shareholders, typically
+      paid quarterly. Dividend yield is calculated as annual dividend ÷ share price.
+    category: fundamental_analysis
+    difficulty: 1
+    related_keywords: ["dividend yield", "payout ratio", "income investing"]
+
+  - keyword: bull market
+    concept: Bull Market
+    definition: >-
+      A period of rising asset prices, typically defined as a 20% increase from
+      recent lows. Characterized by investor optimism, strong economic conditions,
+      and increased buying activity.
+    category: market_psychology
+    difficulty: 1
+    related_keywords: ["bear market", "rally", "uptrend"]
+
+  - keyword: bear market
+    concept: Bear Market
+    definition: >-
+      A period of declining asset prices, typically defined as a 20% drop from
+      recent highs. Associated with pessimism, economic slowdown, and selling pressure.
+    category: market_psychology
+    difficulty: 1
+    related_keywords: ["bull market", "downtrend", "correction"]
+
+  - keyword: volatility
+    concept: Volatility
+    definition: >-
+      A statistical measure of price dispersion over time. High volatility means
+      large price swings; low volatility means stable prices. Commonly measured
+      by standard deviation or the VIX index.
+    category: risk_management
+    difficulty: 2
+    related_keywords: ["standard deviation", "beta", "VIX", "risk"]
+
+  - keyword: diversification
+    concept: Diversification
+    definition: >-
+      A risk management strategy of spreading investments across different assets,
+      sectors, or geographies to reduce exposure to any single risk factor.
+    category: risk_management
+    difficulty: 1
+    related_keywords: ["portfolio", "asset allocation", "correlation"]
+
+  - keyword: margin call
+    concept: Margin Call
+    definition: >-
+      A broker's demand that an investor deposits additional funds or securities
+      when the equity in a margin account falls below the maintenance requirement.
+      Failure to meet a margin call may result in forced liquidation.
+    category: risk_management
+    difficulty: 3
+    related_keywords: ["leverage", "margin trading", "liquidation"]
+
+  - keyword: FOMO
+    concept: Fear Of Missing Out
+    definition: >-
+      An emotional bias where investors rush to buy an asset after seeing rapid
+      price increases, often buying at the peak. FOMO-driven trading typically
+      results in poor entry points and increased risk.
+    category: behavioral_finance
+    difficulty: 2
+    related_keywords: ["herd mentality", "emotional trading", "greed"]
+
+  - keyword: herd mentality
+    concept: Herd Mentality / Bầy đàn
+    definition: >-
+      The tendency of investors to follow the actions of a larger group rather
+      than their own analysis. Herd behavior can amplify price movements and
+      lead to asset bubbles or panic selling.
+    category: behavioral_finance
+    difficulty: 2
+    related_keywords: ["FOMO", "bubble", "panic selling", "groupthink"]
+
+  - keyword: support level
+    concept: Support Level
+    definition: >-
+      A price level where an asset tends to stop falling and may bounce higher.
+      Support levels form when buyers historically step in at that price point.
+    category: technical_analysis
+    difficulty: 2
+    related_keywords: ["resistance level", "floor", "bounce"]
+
+  - keyword: resistance level
+    concept: Resistance Level
+    definition: >-
+      A price level where an asset tends to stop rising and may reverse downward.
+      Resistance occurs when sellers historically outweigh buyers at that price.
+    category: technical_analysis
+    difficulty: 2
+    related_keywords: ["support level", "ceiling", "breakout"]
+
+  - keyword: moving average
+    concept: Moving Average (MA)
+    definition: >-
+      A lagging indicator that smooths price data by calculating the average
+      price over a specified period. Common periods: 50-day MA, 200-day MA.
+      Crossovers may signal trend changes.
+    category: technical_analysis
+    difficulty: 2
+    related_keywords: ["SMA", "EMA", "golden cross", "death cross"]
+
+  - keyword: Sharpe ratio
+    concept: Sharpe Ratio
+    definition: >-
+      A risk-adjusted return metric calculated as (portfolio return - risk-free
+      rate) ÷ standard deviation of returns. Higher Sharpe ratios indicate
+      better risk-adjusted performance.
+    category: risk_management
+    difficulty: 3
+    related_keywords: ["risk-adjusted return", "standard deviation", "alpha"]
+
+  - keyword: liquidity
+    concept: Liquidity
+    definition: >-
+      The ease with which an asset can be bought or sold without significantly
+      affecting its price. Cash is the most liquid asset; real estate is less
+      liquid. Low liquidity increases transaction costs and slippage.
+    category: market_basics
+    difficulty: 1
+    related_keywords: ["spread", "slippage", "trading volume"]
+
+  - keyword: short selling
+    concept: Short Selling
+    definition: >-
+      The practice of selling borrowed shares with the expectation of buying
+      them back at a lower price. Short selling profits from price declines
+      but carries unlimited theoretical risk.
+    category: trading_strategies
+    difficulty: 3
+    related_keywords: ["short squeeze", "cover", "margin"]
+
+  - keyword: stop loss
+    concept: Stop-Loss Order
+    definition: >-
+      A risk management order that automatically sells a security when it
+      reaches a specified price. Stop-loss limits potential losses but does
+      not guarantee the execution price in fast-moving markets.
+    category: trading_strategies
+    difficulty: 1
+    related_keywords: ["limit order", "market order", "risk management"]
+
+  - keyword: RSI
+    concept: Relative Strength Index
+    definition: >-
+      A momentum oscillator measuring the speed and magnitude of recent price
+      changes on a scale of 0-100. RSI above 70 indicates overbought; below
+      30 indicates oversold conditions.
+    category: technical_analysis
+    difficulty: 2
+    related_keywords: ["overbought", "oversold", "momentum", "divergence"]
+
+  - keyword: GDP
+    concept: Gross Domestic Product
+    definition: >-
+      The total monetary value of all finished goods and services produced
+      within a country's borders in a specific period. GDP growth rate is a
+      key indicator of economic health.
+    category: macroeconomics
+    difficulty: 2
+    related_keywords: ["economic growth", "recession", "inflation"]
+
+  - keyword: inflation
+    concept: Inflation
+    definition: >-
+      The rate at which the general level of prices for goods and services is
+      rising, eroding purchasing power. Central banks target ~2% inflation.
+      High inflation often leads to tighter monetary policy.
+    category: macroeconomics
+    difficulty: 2
+    related_keywords: ["CPI", "interest rate", "purchasing power"]
+
+  - keyword: cooldown
+    concept: Cooldown Penalty
+    definition: >-
+      A disciplinary mechanism in FinSimAI where reckless trading behavior
+      triggers a temporary trading suspension. During cooldown, users can
+      still access the Socratic Mentor for learning but cannot execute trades.
+    category: finsimai_mechanics
+    difficulty: 1
+    related_keywords: ["penalty", "risk_score", "discipline"]
+
+  - keyword: virality
+    concept: Social Media Virality
+    definition: >-
+      A measure of how rapidly and widely a social media post spreads. In
+      FinSimAI, high-virality posts can temporarily impact stock prices.
+      Some viral posts may be traps designed to mislead traders.
+    category: finsimai_mechanics
+    difficulty: 2
+    related_keywords: ["social agent", "trap", "sentiment", "impact model"]
+
+  - keyword: time compression
+    concept: Time Compression
+    definition: >-
+      The core simulation mechanic where 1 real minute equals N virtual days.
+      FinSimAI uses time compression to simulate weeks and months of market
+      activity in a single gaming session.
+    category: finsimai_mechanics
+    difficulty: 2
+    related_keywords: ["simulation", "market cycle", "compressor"]

@@ -1,0 +1,260 @@
+companies:
+  - symbol: TECHA
+    name: TechVision Corp
+    description: Leading developer of AI-powered analytics platforms for enterprise clients.
+    sector: Technology
+    current_price: 156.80
+    volatility: 0.0250
+    shares_outstanding: 500000000
+    health_score: 88
+    pe_ratio: 24.5
+    roe: 18.2
+    net_margin: 14.3
+    max_drawdown: 12.5
+
+  - symbol: TECHB
+    name: CloudSync Inc
+    description: Cloud infrastructure and data synchronization solutions provider.
+    sector: Technology
+    current_price: 89.40
+    volatility: 0.0300
+    shares_outstanding: 200000000
+    health_score: 72
+    pe_ratio: 35.1
+    roe: 9.8
+    net_margin: 8.1
+    max_drawdown: 28.3
+
+  - symbol: TECHC
+    name: QuantumByte Labs
+    description: Quantum computing research and commercial application development.
+    sector: Technology
+    current_price: 215.00
+    volatility: 0.0400
+    shares_outstanding: 80000000
+    health_score: 65
+    pe_ratio: 52.3
+    roe: 5.1
+    net_margin: 3.2
+    max_drawdown: 35.7
+
+  - symbol: FINA
+    name: BlueRock Financial
+    description: Full-service investment banking and wealth management firm.
+    sector: Financial
+    current_price: 45.60
+    volatility: 0.0150
+    shares_outstanding: 1000000000
+    health_score: 82
+    pe_ratio: 11.2
+    roe: 15.8
+    net_margin: 22.4
+    max_drawdown: 8.1
+
+  - symbol: FINB
+    name: NovaPay Holdings
+    description: Digital payment processing and fintech infrastructure platform.
+    sector: Financial
+    current_price: 72.30
+    volatility: 0.0200
+    shares_outstanding: 300000000
+    health_score: 90
+    pe_ratio: 28.6
+    roe: 21.3
+    net_margin: 18.7
+    max_drawdown: 15.2
+
+  - symbol: FINC
+    name: SecureVault Insurance
+    description: Multi-line insurance provider with digital-first distribution.
+    sector: Financial
+    current_price: 34.50
+    volatility: 0.0120
+    shares_outstanding: 400000000
+    health_score: 78
+    pe_ratio: 9.8
+    roe: 12.5
+    net_margin: 16.9
+    max_drawdown: 6.4
+
+  - symbol: HEALA
+    name: BioGenix Therapeutics
+    description: Biotechnology firm specializing in mRNA-based treatments.
+    sector: Healthcare
+    current_price: 128.90
+    volatility: 0.0350
+    shares_outstanding: 150000000
+    health_score: 55
+    pe_ratio: null
+    roe: null
+    net_margin: -5.2
+    max_drawdown: 42.1
+
+  - symbol: HEALB
+    name: MedCore International
+    description: Medical device manufacturer focused on diagnostic imaging.
+    sector: Healthcare
+    current_price: 67.20
+    volatility: 0.0180
+    shares_outstanding: 250000000
+    health_score: 74
+    pe_ratio: 19.4
+    roe: 14.7
+    net_margin: 11.3
+    max_drawdown: 18.9
+
+  - symbol: HEALC
+    name: VitaCare Health
+    description: Managed healthcare services and telemedicine platform.
+    sector: Healthcare
+    current_price: 52.40
+    volatility: 0.0220
+    shares_outstanding: 350000000
+    health_score: 68
+    pe_ratio: 15.7
+    roe: 10.2
+    net_margin: 7.6
+    max_drawdown: 22.4
+
+  - symbol: ENERGA
+    name: GreenHydrogen Energy
+    description: Renewable hydrogen production and fuel cell technology.
+    sector: Energy
+    current_price: 18.75
+    volatility: 0.0450
+    shares_outstanding: 600000000
+    health_score: 45
+    pe_ratio: null
+    roe: null
+    net_margin: -12.8
+    max_drawdown: 55.3
+
+  - symbol: ENERGB
+    name: Solaris Power Grid
+    description: Solar energy farm operator and smart grid integrator.
+    sector: Energy
+    current_price: 41.20
+    volatility: 0.0280
+    shares_outstanding: 400000000
+    health_score: 62
+    pe_ratio: 22.8
+    roe: 8.5
+    net_margin: 6.1
+    max_drawdown: 31.7
+
+  - symbol: ENERGC
+    name: TerraFuels Corp
+    description: Traditional oil & gas exploration with transitioning renewable portfolio.
+    sector: Energy
+    current_price: 95.30
+    volatility: 0.0200
+    shares_outstanding: 700000000
+    health_score: 58
+    pe_ratio: 14.2
+    roe: 11.6
+    net_margin: 9.4
+    max_drawdown: 25.8
+
+  - symbol: CONSMA
+    name: Premier Brands Group
+    description: Consumer packaged goods conglomerate with global distribution.
+    sector: Consumer Goods
+    current_price: 63.50
+    volatility: 0.0100
+    shares_outstanding: 800000000
+    health_score: 91
+    pe_ratio: 18.3
+    roe: 22.4
+    net_margin: 15.1
+    max_drawdown: 5.2
+
+  - symbol: CONSMB
+    name: EcoLiving Products
+    description: Sustainable home goods and eco-friendly consumer products.
+    sector: Consumer Goods
+    current_price: 28.90
+    volatility: 0.0180
+    shares_outstanding: 220000000
+    health_score: 76
+    pe_ratio: 31.5
+    roe: 13.2
+    net_margin: 10.8
+    max_drawdown: 20.1
+
+  - symbol: CONSMC
+    name: FreshFarm Organics
+    description: Organic food production and farm-to-table supply chain.
+    sector: Consumer Goods
+    current_price: 14.60
+    volatility: 0.0250
+    shares_outstanding: 180000000
+    health_score: 80
+    pe_ratio: 26.7
+    roe: 16.9
+    net_margin: 12.5
+    max_drawdown: 16.3
+
+  - symbol: INDUSA
+    name: AeroDynamics Inc
+    description: Aerospace components and defense systems manufacturer.
+    sector: Industrial
+    current_price: 187.40
+    volatility: 0.0160
+    shares_outstanding: 120000000
+    health_score: 85
+    pe_ratio: 20.1
+    roe: 19.7
+    net_margin: 13.5
+    max_drawdown: 10.8
+
+  - symbol: INDUSB
+    name: BuildMaster Construction
+    description: Large-scale infrastructure and commercial construction contractor.
+    sector: Industrial
+    current_price: 55.30
+    volatility: 0.0140
+    shares_outstanding: 450000000
+    health_score: 70
+    pe_ratio: 13.6
+    roe: 10.8
+    net_margin: 7.2
+    max_drawdown: 14.5
+
+  - symbol: INDUSC
+    name: LogiChain Solutions
+    description: Supply chain logistics and automated warehousing technology.
+    sector: Industrial
+    current_price: 78.60
+    volatility: 0.0220
+    shares_outstanding: 300000000
+    health_score: 83
+    pe_ratio: 27.4
+    roe: 17.3
+    net_margin: 11.9
+    max_drawdown: 19.6
+
+  - symbol: COMMA
+    name: OmniLink Telecom
+    description: Telecommunications infrastructure and 5G network deployment.
+    sector: Communications
+    current_price: 42.10
+    volatility: 0.0190
+    shares_outstanding: 550000000
+    health_score: 67
+    pe_ratio: 16.5
+    roe: 9.1
+    net_margin: 6.8
+    max_drawdown: 23.7
+
+  - symbol: COMMB
+    name: SocialWave Media
+    description: Social media platform and digital advertising network.
+    sector: Communications
+    current_price: 110.20
+    volatility: 0.0320
+    shares_outstanding: 380000000
+    health_score: 73
+    pe_ratio: 38.2
+    roe: 12.4
+    net_margin: 8.9
+    max_drawdown: 30.2

@@ -1,0 +1,22 @@
+{
+  "name": "finsimai",
+  "private": true,
+  "workspaces": [
+    "apps/frontend",
+    "packages/shared-types"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json}\""
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "prettier": "^3.2.0"
+  },
+  "packageManager": "npm@10.5.0",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

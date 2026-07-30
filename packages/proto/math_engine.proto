@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package finsimai.math_engine;
+
+option go_package = "github.com/finsimai/proto/math_engine";
+
+// ------------------------------------------------------------------
+// Portfolio
+// ------------------------------------------------------------------
+
+message Holding {
+  double quantity = 1;
+  double avg_buy_price = 2;
+  double current_price = 3;
+}
+
+message CalculatePortfolioRequest {
+  double cash = 1;
+  repeated Holding holdings = 2;
+}
+
+message CalculatePortfolioResponse {
+  double nav = 1;
+  double unrealized_pnl = 2;
+  bool success = 3;
+}
+
+// ------------------------------------------------------------------
+// Price Generation
+// ------------------------------------------------------------------
+
+message GenerateNextPricesRequest {
+  double current_price = 1;
+  double mu = 2;
+  double sigma = 3;
+  double dt_years = 4;
+  int32 n_steps = 5;
+  optional int32 seed = 6;
+  double price_limit_pct = 7;
+  double jump_lambda = 8;
+  double jump_mu = 9;
+  double jump_sigma = 10;
+}
+
+message GenerateNextPricesResponse {
+  repeated double prices = 1;
+  bool success = 2;
+}
+
+// ------------------------------------------------------------------
+// Risk Metrics
+// ------------------------------------------------------------------
+
+message CalculateRiskMetricsRequest {
+  repeated double nav_history = 1;
+  double risk_free_rate = 2;
+}
+
+message CalculateRiskMetricsResponse {
+  double sharpe_ratio = 1;
+  double max_drawdown = 2;
+  double volatility = 3;
+  bool success = 4;
+}
+
+// ------------------------------------------------------------------
+// Penalty / Cooldown
+// ------------------------------------------------------------------
+
+message CheckPenaltyStatusRequest {
+  int32 risk_score = 1;
+  int32 trap_severity = 2;
+}
+
+message CheckPenaltyStatusResponse {
+  double cooldown_seconds = 1;
+  int32 risk_score_delta = 2;
+  int32 points_deducted = 3;
+  int32 new_risk_score = 4;
+  bool success = 5;
+}
+
+// ------------------------------------------------------------------
+// Service
+// ------------------------------------------------------------------
+
+service MathEngineService {
+  rpc CalculatePortfolio(CalculatePortfolioRequest) returns (CalculatePortfolioResponse);
+  rpc GenerateNextPrices(GenerateNextPricesRequest) returns (GenerateNextPricesResponse);
+  rpc CalculateRiskMetrics(CalculateRiskMetricsRequest) returns (CalculateRiskMetricsResponse);
+  rpc CheckPenaltyStatus(CheckPenaltyStatusRequest) returns (CheckPenaltyStatusResponse);
+}
