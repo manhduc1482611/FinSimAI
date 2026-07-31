@@ -6,7 +6,7 @@ dev:
 	cd apps/frontend && npm run dev
 
 dev-backend:
-	cd apps/backend_gateway && uv run uvicorn main:app --reload
+	cd apps/backend_gateway && WS_LOCAL_MODE=true uv run uvicorn main:app --reload --ws wsproto
 
 dev-math:
 	cd apps/math_engine && uv run python grpc_server.py

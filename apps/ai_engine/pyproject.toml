@@ -1,0 +1,6 @@
+[project]
+name = "finsim-ai-engine"
+version = "0.1.0"
+description = "FinSimAI AI Engine - mentors, news intelligence & social agents"
+requires-python = ">=3.11"
+dependencies = []
