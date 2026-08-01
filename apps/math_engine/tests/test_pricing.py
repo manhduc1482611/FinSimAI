@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from engine.pricing.price_generator import MarketConfig, PriceGenerator, _apply_vn_tick_size
 

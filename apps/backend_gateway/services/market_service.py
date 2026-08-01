@@ -64,7 +64,7 @@ async def update_all_prices(
             Company.volatility,
             Company.shares_outstanding,
         )
-        .where(Company.is_active == True)
+        .where(Company.is_active.is_(True))
     )
     rows = (await db.execute(stmt)).all()
     await db.commit()
@@ -72,7 +72,6 @@ async def update_all_prices(
     sem = asyncio.Semaphore(20)
 
     async def _fetch_throttled(
-        company_id: uuid.UUID,
         current_price: Decimal,
         volatility: Decimal,
         seed: int | None,
@@ -87,14 +86,17 @@ async def update_all_prices(
 
     tasks = [
         asyncio.ensure_future(
-            _fetch_throttled(company_id, current_price, volatility, make_seed(seed, company_id))
+            _fetch_throttled(current_price, volatility, make_seed(seed, company_id))
         )
         for company_id, symbol, current_price, volatility, shares_outstanding in rows
     ]
     prices = await asyncio.gather(*tasks, return_exceptions=True)
 
     updated = 0
-    for (company_id, symbol, current_price, volatility, shares_outstanding), price_or_err in zip(rows, prices):
+    for (
+        (company_id, symbol, current_price, volatility, shares_outstanding),
+        price_or_err,
+    ) in zip(rows, prices):
         if isinstance(price_or_err, Exception):
             logger.error("Price update failed for %s: %s", symbol, price_or_err)
             continue

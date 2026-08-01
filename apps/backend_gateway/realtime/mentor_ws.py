@@ -30,8 +30,8 @@ from typing import Any, Protocol
 from core.config import settings
 from fastapi import WebSocket
 
-from websockets.auth import get_ws_user, revalidate_user
-from websockets.connection_manager import (
+from realtime.auth import get_ws_user, revalidate_user
+from realtime.connection_manager import (
     ClientConnection,
     ConnectionManager,
     build_message,

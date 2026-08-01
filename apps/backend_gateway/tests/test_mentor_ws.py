@@ -4,10 +4,10 @@ from collections.abc import AsyncIterator
 import pytest
 from fastapi import FastAPI, WebSocket, status
 from fastapi.testclient import TestClient
+from realtime.connection_manager import ConnectionManager
+from realtime.mentor_ws import create_mentor_endpoint
 from starlette.exceptions import WebSocketException
 from starlette.websockets import WebSocketDisconnect
-from websockets.connection_manager import ConnectionManager
-from websockets.mentor_ws import create_mentor_endpoint
 
 
 class FakeUser:

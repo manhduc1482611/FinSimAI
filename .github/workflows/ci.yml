@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  # ─── Python: lint + typecheck + test ──────────────────────────────────────
+  python:
+    name: Python (ruff / mypy / pytest)
+    runs-on: ubuntu-latest
+    default-working-directory: apps/backend_gateway
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --dev
+
+      # ── Ruff ──
+      - name: Ruff lint
+        run: uv run ruff check apps/backend_gateway apps/math_engine apps/ai_engine scripts --exclude apps/backend_gateway/clients/proto --exclude apps/math_engine/grpc_services/math_engine_pb2.py --exclude apps/math_engine/grpc_services/math_engine_pb2_grpc.py
+
+      # ── Mypy (scoped: only modules we own, exclude generated protobuf) ──
+      - name: Mypy typecheck
+        run: >
+          uv run mypy apps/backend_gateway/services
+          apps/backend_gateway/schemas
+          apps/backend_gateway/models
+          apps/backend_gateway/api/v1/risk.py
+          apps/backend_gateway/api/v1/trades.py
+          apps/backend_gateway/core/config.py
+          apps/backend_gateway/core/dependencies.py
+          --exclude apps/backend_gateway/clients/proto/
+          --exclude apps/backend_gateway/websockets/
+          --follow-imports=skip
+
+      # ── Pytest (all 3 Python apps) ──
+      - name: Pytest — backend_gateway
+        run: uv run pytest tests/ -q
+
+      - name: Pytest — math_engine
+        working-directory: apps/math_engine
+        run: uv run pytest tests/ -q
+
+      - name: Pytest — ai_engine
+        working-directory: apps/ai_engine
+        run: uv run pytest tests/ -q
+
+  # ─── Frontend: lint + typecheck ───────────────────────────────────────────
+  frontend:
+    name: Frontend (lint / typecheck)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Build (production)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}

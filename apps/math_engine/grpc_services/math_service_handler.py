@@ -1,12 +1,22 @@
 import grpc
 import numpy as np
 
+from engine.penalty_calc.penalty import (
+    calc_cooldown_seconds,
+    calc_points_deducted,
+    calc_risk_score_delta,
+)
+from engine.portfolio.portfolio_calc import Holding, calc_nav, calc_unrealized_pnl
+from engine.portfolio.risk_metrics import (
+    calc_daily_returns,
+    calc_max_drawdown,
+    calc_sharpe_ratio,
+    calc_volatility,
+)
+from engine.pricing.price_generator import MarketConfig, PriceGenerator
+
 from . import math_engine_pb2 as pb2
 from . import math_engine_pb2_grpc as pb2_grpc
-from engine.pricing.price_generator import MarketConfig, PriceGenerator
-from engine.portfolio.portfolio_calc import Holding, calc_nav, calc_unrealized_pnl
-from engine.portfolio.risk_metrics import calc_daily_returns, calc_sharpe_ratio, calc_max_drawdown, calc_volatility
-from engine.penalty_calc.penalty import calc_cooldown_seconds, calc_risk_score_delta, calc_points_deducted
 
 
 class MathEngineServiceServicer(pb2_grpc.MathEngineServiceServicer):
@@ -29,7 +39,7 @@ class MathEngineServiceServicer(pb2_grpc.MathEngineServiceServicer):
                 unrealized_pnl=unrealized,
                 success=True,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return pb2.CalculatePortfolioResponse(success=False)
@@ -56,7 +66,7 @@ class MathEngineServiceServicer(pb2_grpc.MathEngineServiceServicer):
                 prices=path.tolist(),
                 success=True,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return pb2.GenerateNextPricesResponse(success=False)
@@ -84,7 +94,7 @@ class MathEngineServiceServicer(pb2_grpc.MathEngineServiceServicer):
                 volatility=vol,
                 success=True,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return pb2.CalculateRiskMetricsResponse(success=False)
@@ -106,7 +116,7 @@ class MathEngineServiceServicer(pb2_grpc.MathEngineServiceServicer):
                 new_risk_score=new_score,
                 success=True,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return pb2.CheckPenaltyStatusResponse(success=False)

@@ -2,9 +2,9 @@ import asyncio
 import json
 
 import pytest
-from websockets import backplane as backplane_module
-from websockets.backplane import DEFAULT_CHANNEL_PREFIX, Backplane
-from websockets.connection_manager import ConnectionManager, build_message
+from realtime import backplane as backplane_module
+from realtime.backplane import DEFAULT_CHANNEL_PREFIX, Backplane
+from realtime.connection_manager import ConnectionManager, build_message
 from ws_fakes import FakeWebSocket
 
 

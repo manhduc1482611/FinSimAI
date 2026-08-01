@@ -10,6 +10,7 @@ venv/
 node_modules/
 .next/
 out/
+.turbo/
 *.tsbuildinfo
 
 # Env local (giữ .env.example)
@@ -20,3 +21,7 @@ out/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Temp / Debug
+tmp_*.py
+*.log

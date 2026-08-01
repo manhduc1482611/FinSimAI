@@ -43,7 +43,7 @@ OUTPUT_FILE = (
     / "api-types.ts"
 )
 
-SCHEMA_MODULES = ["user", "news", "company", "trade", "social", "knowledge"]
+SCHEMA_MODULES = ["user", "news", "company", "trade", "social", "knowledge", "risk"]
 INJECTED_TYPES: list[str] = []
 
 
@@ -180,7 +180,8 @@ def _generate(models: list[tuple[str, type[BaseModel]]]) -> str:
     lines.append("//   - Optional field (có default) → `field?: T | null`")
     lines.append("// Nếu backend đổi schema, chạy lại: `npm run generate:types` (root).")
     lines.append("")
-    lines.append("export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };")
+    lines.append("export type JsonValue = string | number | boolean | null | JsonValue[]")
+    lines.append("    | { [key: string]: JsonValue };")
     lines.append("")
 
     for module_name, model in models:
@@ -217,11 +218,10 @@ def main() -> None:
 
     # Import chuẩn các kiểu Python cần dùng cho việc so sánh issubclass.
     global DecimalType, DateTimeType, UUIDType, json
-    from datetime import date, datetime  # noqa: F401
-    from decimal import Decimal
-
     import json
     import uuid
+    from datetime import date, datetime  # noqa: F401
+    from decimal import Decimal
 
     DecimalType = Decimal
     DateTimeType = datetime

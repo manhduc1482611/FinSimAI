@@ -5,11 +5,11 @@ from datetime import datetime, timezone
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from realtime.connection_manager import ConnectionManager
+from realtime.trade_ws import TradeNotifier, create_trade_endpoint
 from starlette import status as http_status
 from starlette.exceptions import WebSocketException
 from starlette.websockets import WebSocketDisconnect
-from websockets.connection_manager import ConnectionManager
-from websockets.trade_ws import TradeNotifier, create_trade_endpoint
 from ws_fakes import FakeCache, FakeManager
 
 
@@ -171,7 +171,7 @@ async def test_default_batch_symbol_resolver_builds_single_in_query(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Batch resolver mặc định gom toàn bộ id vào MỘT query ``IN`` (chống N+1)."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     class EmptyRows:
         def all(self):
@@ -284,7 +284,7 @@ async def test_watermark_persists_and_loads_on_leader_takeover(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Leader mới kế thừa watermark từ Redis — không quét lại bảng từ đầu."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     cache = FakeCache()
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
@@ -314,7 +314,7 @@ async def test_leader_takeover_with_watermark_does_not_rescan(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Poll sau khi load watermark chỉ lấy giao dịch mới hơn watermark."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     cache = FakeCache()
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
@@ -352,7 +352,7 @@ async def test_leader_takeover_with_watermark_does_not_rescan(
 @pytest.mark.asyncio
 async def test_pipeline_batches_mark_delivered_ops(monkeypatch: pytest.MonkeyPatch) -> None:
     """50 giao dịch → 2 Redis Pipeline (1 SETNX claim + 1 INCR seq) thay vì 100 lệnh."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     class CountingCache(FakeCache):
         def __init__(self) -> None:
@@ -382,7 +382,7 @@ async def test_pipeline_batches_mark_delivered_ops(monkeypatch: pytest.MonkeyPat
 async def test_poll_dedupe_check_uses_single_pipeline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     class CountingCache(FakeCache):
         def __init__(self) -> None:
@@ -420,7 +420,7 @@ async def test_push_claims_before_broadcast_closes_poll_race(
     Đóng cửa sổ race giữa event-push và poll catch-up (leader): poll SELECT DB
     đúng lúc giữa broadcast cũ và mark-delivered sẽ đẩy trùng trade_fill.
     """
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     cache = FakeCache()
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
@@ -452,7 +452,7 @@ async def test_push_skips_already_delivered_transaction(
 ) -> None:
     """Tin đã delivered (poll của worker khác đã phát) → event-push bỏ qua,
     không đẩy trùng trade_fill."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     cache = FakeCache()
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
@@ -474,7 +474,7 @@ async def test_poll_advances_watermark_over_already_delivered_rows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Poll không dừng watermark ở tin delivered cuối bảng (tránh lặp lại vĩnh viễn)."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     cache = FakeCache()
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
@@ -529,7 +529,7 @@ async def test_push_attaches_increasing_seq_per_user(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Mỗi tin trade_fill gắn seq tăng dần theo kênh user — client dò gap để resync."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     cache = FakeCache()
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
@@ -548,7 +548,7 @@ async def test_push_attaches_increasing_seq_per_user(
 @pytest.mark.asyncio
 async def test_order_update_continues_channel_seq(monkeypatch: pytest.MonkeyPatch) -> None:
     """order_update dùng chung chuỗi seq với trade_fill trên cùng kênh user."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     cache = FakeCache()
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
@@ -576,7 +576,7 @@ async def test_dedup_setnx_uses_ttl_and_namespaced_prefix(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """SETNX dedup gắn ex=TTL và prefix rõ ràng `dedup:trade:{id}` (tránh rò RAM)."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     cache = FakeCache()
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
@@ -603,7 +603,7 @@ async def test_default_poll_source_uses_lookback_window(
     poll sẽ có created_at < watermark → bị bỏ sót vĩnh viễn nếu chỉ đọc
     ``created_at > watermark``. Lookback window đọc lại từ ``watermark - 5s``.
     """
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
     from sqlalchemy.dialects import postgresql
 
     class EmptyRows:

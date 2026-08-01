@@ -1,7 +1,7 @@
-from .compressor import TimeCompressionConfig, sim_days_to_dt_years, format_sim_datetime
+from .compressor import TimeCompressionConfig, format_sim_datetime, sim_days_to_dt_years
 
 __all__ = [
     "TimeCompressionConfig",
-    "sim_days_to_dt_years",
     "format_sim_datetime",
+    "sim_days_to_dt_years",
 ]

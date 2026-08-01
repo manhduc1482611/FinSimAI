@@ -11,6 +11,7 @@ from schemas.trade import (
     PortfolioListResponse,
     PortfolioResponse,
 )
+from services import penalty_service
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,6 +64,28 @@ async def create_order(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    lock = await penalty_service.enforce_cooldown(current_user.id, db)
+    if lock is not None:
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail={
+                "code": "cooldown_locked",
+                "message": (
+                    "Tài khoản đang bị khóa giao dịch do vi phạm kỷ luật. "
+                    "Hoàn thành bài tập phản tư với Mentor để mở khóa."
+                ),
+                "locked": True,
+                "cooldown_until": (
+                    lock["cooldown_until"].isoformat()
+                    if lock["cooldown_until"] is not None
+                    else None
+                ),
+                "remaining_seconds": lock["remaining_seconds"],
+                "risk_score": lock["risk_score"],
+                "reason": lock["reason"],
+            },
+        )
+
     company = await db.get(Company, body.company_id)
     if not company or not company.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")

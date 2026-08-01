@@ -53,7 +53,7 @@ from core.config import settings
 from fastapi import WebSocket, WebSocketDisconnect
 
 if TYPE_CHECKING:
-    from websockets.backplane import Backplane
+    from realtime.backplane import Backplane
 
 logger = logging.getLogger(__name__)
 

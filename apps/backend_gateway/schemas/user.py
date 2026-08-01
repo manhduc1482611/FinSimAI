@@ -53,6 +53,7 @@ class UserResponse(BaseModel):
     cash_balance: Decimal
     frozen_cash: Decimal
     risk_score: int
+    cooldown_until: datetime | None
     is_active: bool
     created_at: datetime
 

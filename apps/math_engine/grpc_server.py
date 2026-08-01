@@ -1,10 +1,10 @@
-from concurrent import futures
 import logging
+from concurrent import futures
 
 import grpc
 
-from grpc_services.math_service_handler import MathEngineServiceServicer
 from grpc_services import math_engine_pb2_grpc as pb2_grpc
+from grpc_services.math_service_handler import MathEngineServiceServicer
 
 GRPC_PORT = 50051
 MAX_WORKERS = 10

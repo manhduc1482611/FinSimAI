@@ -18,13 +18,39 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    user = await _resolve_user(credentials, db)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token đã hết hạn hoặc không hợp lệ",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
+async def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    """Xác thực nếu có token, trả None khi không có — dùng cho endpoint công khai."""
+    if credentials is None:
+        return None
+    return await _resolve_user(credentials, db)
+
+
+async def _resolve_user(
+    credentials: HTTPAuthorizationCredentials | None,
+    db: AsyncSession,
+) -> User | None:
+    if credentials is None:
+        return None
     token = credentials.credentials
     try:
         payload = decode_access_token(
@@ -32,34 +58,15 @@ async def get_current_user(
         )
         user_id_raw: str | None = payload.get("sub")
         if user_id_raw is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token payload không hợp lệ",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            return None
         user_id = uuid_lib.UUID(user_id_raw)
     except (PyJWTError, ValueError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token đã hết hạn hoặc không hợp lệ",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return None
 
     stmt = select(User).where(User.id == user_id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Người dùng không tồn tại",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tài khoản đã bị tạm khóa",
-        )
-
+    if user is None or not user.is_active:
+        return None
     return user

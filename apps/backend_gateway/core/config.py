@@ -17,10 +17,15 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://finsim:finsim_secret@localhost:5432/finsimai"
     database_url_sync: str = "postgresql://finsim:finsim_secret@localhost:5432/finsimai"
     redis_url: str = "redis://localhost:6379/0"
-    jwt_secret: str
+    jwt_secret: str = "dev-secret-change-me"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ]
     environment: str = "development"
     debug: bool = False
 

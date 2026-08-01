@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import status
+from realtime import auth as auth_module
+from realtime.auth import TicketStore, get_ws_user, revalidate_user
 from starlette.exceptions import WebSocketException
-from websockets import auth as auth_module
-from websockets.auth import TicketStore, get_ws_user, revalidate_user
 
 
 class FakeWebSocket:

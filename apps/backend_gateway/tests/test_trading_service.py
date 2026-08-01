@@ -5,7 +5,7 @@ from services.trading_service import _notify_fills
 @pytest.mark.asyncio
 async def test_notify_fills_pushes_transactions(monkeypatch: pytest.MonkeyPatch) -> None:
     """match_orders sau commit phải đẩy các fill qua trade_notifier (event-driven)."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     pushed: list[list[dict]] = []
 
@@ -27,7 +27,7 @@ async def test_notify_fills_tolerates_notifier_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Lỗi lớp WebSocket/Redis KHÔNG làm hỏng giao dịch vừa commit — poll bù phát."""
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     class BrokenNotifier:
         async def notify_transactions(self, transactions):
@@ -40,7 +40,7 @@ async def test_notify_fills_tolerates_notifier_failure(
 
 @pytest.mark.asyncio
 async def test_notify_fills_skips_empty(monkeypatch: pytest.MonkeyPatch) -> None:
-    import websockets.trade_ws as trade_ws_module
+    import realtime.trade_ws as trade_ws_module
 
     called = False
 

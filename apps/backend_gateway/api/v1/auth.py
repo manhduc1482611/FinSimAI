@@ -5,6 +5,7 @@ from core.dependencies import get_current_user, get_db
 from core.security import create_access_token, hash_password, verify_password
 from fastapi import APIRouter, Depends, HTTPException, status
 from models.user import User
+from realtime.auth import create_ws_ticket
 from schemas.user import (
     LoginRequest,
     RegisterRequest,
@@ -14,7 +15,6 @@ from schemas.user import (
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from websockets.auth import create_ws_ticket
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

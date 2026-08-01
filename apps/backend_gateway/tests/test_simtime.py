@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from websockets.simtime import (
+from realtime.simtime import (
     DEFAULT_COMPRESSION_RATIO,
     SIM_SECONDS_PER_DAY,
     format_sim_label,

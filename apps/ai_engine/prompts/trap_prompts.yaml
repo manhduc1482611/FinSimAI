@@ -1,0 +1,147 @@
+# ============================================================================
+# Trap Prompt Store — Bẫy tâm lý FOMO / đám đông
+# Dùng bởi Behavior Analyzer để nhận diện người chơi đang rơi vào bẫy, và
+# bởi Social Agent để mô tả cơ chế bài viết kích bẫy.
+# ============================================================================
+meta:
+  version: "3.1.0"
+  language: vi
+  owner: behavior_analyzer
+
+system_prompt: |-
+  Bạn là "Behavior Analyst" của FinSimAI — chuyên nhận diện hành vi tâm lý nhà đầu tư trong môi trường mô phỏng.
+
+  NHIỆM VỤ:
+  - Phân tích dữ liệu giao dịch, danh mục và tiếp xúc tin tức/mạng xã hội của người chơi để nhận diện dấu hiệu rơi vào bẫy tâm lý.
+  - Đưa ra kết luận ĐỊNH LƯỢNG (risk_level, suggests_cooldown, discipline_penalty) có thể giải thích được.
+
+  QUY TẮC BẮT BUỘC:
+  1. Chỉ đánh cờ khi có BẰNG CHỨNG rõ ràng trong dữ liệu cung cấp — không suy diễn khi không có dữ liệu.
+  2. Mỗi cờ phải kèm evidence là trích đoạn hoặc con số cụ thể, confidence từ 0 đến 1.
+  3. severity từ 1 đến 5. discipline_penalty từ 0 đến 10, chỉ tính khi hành vi lặp lại hoặc rủi ro cao.
+  4. suggests_cooldown chỉ true khi có cờ severity >= 4.
+  5. TUYỆT ĐỐI KHÔNG đưa lời khuyên mua/bán; chỉ báo cáo hành vi.
+  6. Trả về ĐÚNG MỘT object JSON khớp schema, không kèm chữ ngoài JSON.
+
+templates:
+  user_prompt: |-
+    HỒ SƠ HÀNH VI NGƯỜI CHƠI:
+    {{user_profile}}
+
+    LỊCH SỬ GIAO DỊCH (mới nhất trước):
+    {{trades}}
+
+    TIẾP XÚC TIN TỨC / MẠNG XÃ HỘI GẦN ĐÂY:
+    {{exposure}}
+
+    DANH MỤC HIỆN TẠI:
+    {{portfolio}}
+
+    YÊU CẦU THÊM:
+    {{instructions}}
+
+    Hãy phân tích hành vi theo quy tắc. Trả về JSON khớp schema.
+
+# ────────────────────────────────────────────────────────────────────────────
+# Định nghĩa các bẫy tâm lý + tín hiệu nhận diện (dùng cho fallback deterministic)
+# ────────────────────────────────────────────────────────────────────────────
+traps:
+  fomo_buy_the_top:
+    id: fomo_buy_the_top
+    name: "FOMO — Mua đỉnh vì sợ bỏ lỡ"
+    description: >-
+      Người chơi mua khi giá tăng nóng, dòng tiền MXH sôi sục, ngại bỏ lỡ cơ hội
+      mà không có kế hoạch quản trị rủi ro. Hệ quả: dễ ôm hàng ở đỉnh khi sóng đảo chiều.
+    triggers:
+      - "giá tăng mạnh liên tiếp nhiều phiên"
+      - "virality MXH cao với cảm xúc tích cực cực đoan"
+      - "mua ngay sau khi đọc tin/MXH mà không đọc báo cáo tài chính"
+      - "không có kế hoạch thoát lệnh hoặc cắt lỗ"
+    signals:
+      - "mua cổ phiếu đang tăng trên 5 phiên liên tiếp"
+      - "mua trong vòng 10 phút sau tin tích cực / bài MXH virality cao"
+      - "khối lượng mua đột biến so với khối lượng trung bình"
+      - "ngôn từ thể hiện sợ bỏ lỡ trong ghi chú lệnh"
+    counter_questions:
+      - "Bạn mua vì giá tăng, hay vì giá trị?"
+      - "Nếu giá đảo chiều ngay mai, bạn có sẵn kế hoạch không?"
+      - "Bạn đã đọc báo cáo tài chính của công ty chưa?"
+    penalty_scale: [1, 3, 5]
+  herd_panic_sell:
+    id: herd_panic_sell
+    name: "Bán tháo hoảng loạn theo đám đông"
+    description: >-
+      Người chơi bán tháo khi thị trường giảm và MXH tràn ngập tiêu cực, bán
+      ngay cả khi danh mục còn vững, không theo kế hoạch.
+    triggers:
+      - "giá giảm mạnh, MXH tiêu cực dữ dội"
+      - "tin xấu lan truyền chưa kiểm chứng"
+      - "bán toàn bộ danh mục trong một phiên"
+    signals:
+      - "bán toàn bộ vị thế trong vòng 15 phút sau tin tiêu cực"
+      - "bán cổ phiếu đang giảm 3 phiên liên tiếp dù tài chính ổn"
+      - "ngôn từ hoảng loạn trong ghi chú lệnh"
+    counter_questions:
+      - "Bạn bán vì dữ liệu, hay vì nỗi sợ của đám đông?"
+      - "Kế hoạch cắt lỗ của bạn đặt ở mức nào?"
+    penalty_scale: [1, 3, 5]
+  leverage_margin:
+    id: leverage_margin
+    name: "Đòn bẩy quá mức — Chơi margin/all-in"
+    description: >-
+      Người chơi dùng đòn bẩy cao (margin), tập trung toàn bộ vốn vào 1 cổ phiếu,
+      không có vùng an toàn cho biến động.
+    triggers:
+      - "giao dịch ký quỹ với tỷ trọng rất cao"
+      - "tập trung >90% vốn vào một mã"
+    signals:
+      - "tỷ trọng margin >80% danh mục"
+      - "tập trung một mã >90%"
+    counter_questions:
+      - "Nếu mã này giảm 20% bạn có bị gọi ký quỹ không?"
+      - "Bạn có đang đặt cược toàn bộ tài khoản vào một dự đoán?"
+    penalty_scale: [2, 4, 6]
+  revenge_trading:
+    id: revenge_trading
+    name: "Trả thù thị trường — Gỡ gạc"
+    description: >-
+      Người chơi cố gỡ vốn bằng lệnh lớn hơn, tần suất cao hơn sau khi thua lỗ,
+      vi phạm kỷ luật đã đặt ra.
+    triggers:
+      - "giao dịch lại ngay sau lệnh thua lỗ lớn"
+      - "khối lượng lệnh tăng dần khi đang lỗ"
+      - "giao dịch vượt kế hoạch"
+    signals:
+      - "mở lệnh mới trong vòng 5 phút sau lệnh cắt lỗ/thua lỗ"
+      - "khối lượng lệnh sau tăng >= 150% so với lệnh trước"
+    counter_questions:
+      - "Lệnh này nằm trong kế hoạch của bạn, hay là phản ứng để gỡ?"
+      - "Bạn có đang đuổi theo con số đã mất?"
+    penalty_scale: [1, 3, 5]
+
+# ────────────────────────────────────────────────────────────────────────────
+# Fallback deterministic — heuristic chấm điểm hành vi (0 token)
+# ────────────────────────────────────────────────────────────────────────────
+fallback:
+  rules:
+    fomo_buy_the_top:
+      triggers: [fomo_buy_the_top]
+      window_minutes: 10
+      penalty: 3
+    herd_panic_sell:
+      triggers: [herd_panic_sell]
+      window_minutes: 15
+      penalty: 3
+    leverage_margin:
+      triggers: [leverage_margin]
+      window_minutes: null
+      penalty: 4
+    revenge_trading:
+      triggers: [revenge_trading]
+      window_minutes: 5
+      penalty: 3
+  severity_map:
+    penalty_1: 1
+    penalty_2: 2
+    penalty_3: 3
+    penalty_4: 4

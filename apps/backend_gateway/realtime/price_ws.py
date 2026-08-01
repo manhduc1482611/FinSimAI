@@ -38,14 +38,14 @@ from fastapi import WebSocket
 from models.company import Company
 from sqlalchemy import select
 
-from websockets.connection_manager import (
+from realtime.connection_manager import (
     ClientConnection,
     ConnectionManager,
     build_message,
     connection_manager,
 )
-from websockets.leader import LeaderElection
-from websockets.simtime import format_sim_label, real_to_sim_epoch, sim_day_of
+from realtime.leader import LeaderElection
+from realtime.simtime import format_sim_label, real_to_sim_epoch, sim_day_of
 
 logger = logging.getLogger(__name__)
 

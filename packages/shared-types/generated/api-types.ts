@@ -43,6 +43,7 @@ export interface UserResponse {
   cash_balance: string
   frozen_cash: string
   risk_score: number
+  cooldown_until: string | null
   is_active: boolean
   created_at: string
 }
@@ -146,6 +147,39 @@ export interface PortfolioResponse {
   unrealized_pnl: string
 }
 
+// ─── SOCIAL · SOCIAL_COMMENT_CREATE ───
+export interface SocialCommentCreate {
+  content: string
+}
+
+// ─── SOCIAL · SOCIAL_COMMENT_LIST_RESPONSE ───
+export interface SocialCommentListResponse {
+  items: SocialCommentResponse[]
+  total: number
+}
+
+// ─── SOCIAL · SOCIAL_COMMENT_RESPONSE ───
+export interface SocialCommentResponse {
+  id: string
+  post_id: string
+  author_name: string
+  author_avatar: string | null
+  content: string
+  created_at: string
+}
+
+// ─── SOCIAL · SOCIAL_LIKE_RESPONSE ───
+export interface SocialLikeResponse {
+  liked: boolean
+  likes_count: number
+}
+
+// ─── SOCIAL · SOCIAL_POST_CREATE ───
+export interface SocialPostCreate {
+  content: string
+  company_symbol?: string | null
+}
+
 // ─── SOCIAL · SOCIAL_POST_LIST_RESPONSE ───
 export interface SocialPostListResponse {
   items: SocialPostResponse[]
@@ -168,6 +202,7 @@ export interface SocialPostResponse {
   news_id: string | null
   simulated_at: string
   created_at: string
+  liked_by_me?: boolean
 }
 
 // ─── KNOWLEDGE · KNOWLEDGE_LIST_RESPONSE ───
@@ -196,6 +231,32 @@ export interface KnowledgeResponse {
   difficulty: number
   related_keywords: string[] | null
   created_at: string
+}
+
+// ─── RISK · COOLDOWN_STATUS ───
+export interface CooldownStatus {
+  locked: boolean
+  cooldown_until?: string | null
+  remaining_seconds?: number
+  risk_score?: number
+  reason?: string | null
+}
+
+// ─── RISK · PENALTY_REQUEST ───
+export interface PenaltyRequest {
+  trap_type?: string
+  severity: number
+  description?: string | null
+}
+
+// ─── RISK · PENALTY_RESPONSE ───
+export interface PenaltyResponse {
+  new_risk_score: number
+  risk_score_delta: number
+  points_deducted: number
+  cooldown_seconds: number
+  cooldown_until?: string | null
+  reason?: string | null
 }
 
 // ─── ERROR SHAPE (FastAPI mặc định) ───

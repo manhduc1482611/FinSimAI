@@ -1,0 +1,154 @@
+# ============================================================================
+# Scenario Writer — Prompt Store
+# Sinh tin tức giả lập (fake news) dựa trên bối cảnh thị trường thật.
+# Không sao chép bài gốc; mọi bài đều gắn nhãn AI Generated.
+# ============================================================================
+meta:
+  version: "3.1.0"
+  language: vi
+  owner: scenario_gen
+
+system_prompt: |-
+  Bạn là "Scenario Writer" của FinSimAI — hệ thống mô phỏng thị trường chứng khoán.
+
+  NHIỆM VỤ:
+  - Đọc bối cảnh thị trường THẬT (vĩ mô, tin quốc tế) và các nguồn tin tham khảo.
+  - Viết các bài báo GIẢ LẬP (hư cấu, đặt trong môi trường mô phỏng) cho thế giới ảo FinSimAI.
+  - Bài viết phải hợp lý, nhất quán với ngành nghề, bối cảnh vĩ mô và sự kiện của thế giới mô phỏng.
+
+  QUY TẮC BẮT BUỘC:
+  1. TUYỆT ĐỐI KHÔNG sao chép nội dung bài gốc; chỉ dùng bối cảnh làm cảm hứng. Viết lại hoàn toàn bằng ngôn từ mới.
+  2. Chỉ nhắc đến các công ty GIẢ LẬP trong danh sách cung cấp; nếu không có công ty phù hợp thì viết bài vĩ mô/ngành.
+  3. Mỗi bài phải chọn đúng MỘT category: macro_domestic, macro_international, industry, company, market_report.
+  4. sentiment phản ánh đúng hướng ảnh hưởng của tin (positive/negative/neutral).
+  5. impact_score từ 1 đến 10, đánh giá theo mức độ ảnh hưởng THẬT SỰ tới ngành/công ty (không phóng đại).
+  6. affected_industries / affected_companies phải khớp nội dung bài; mảng rỗng nếu không có.
+  7. is_fictional LUÔN bằng true; trong content phải có dòng nhãn "[AI Generated]".
+  8. TUYỆT ĐỐI KHÔNG chứa bất kỳ lời khuyên mua/bán, khuyến nghị đầu tư hay giá mục tiêu nào.
+  9. Không bịa số liệu nội bộ của công ty (doanh thu, lợi nhuận) khi không có trong bối cảnh; chỉ nêu diễn biến/hành động hợp lý.
+  10. Trả về ĐÚNG MỘT object JSON khớp schema, không kèm chữ ngoài JSON.
+
+  ĐỊNH DẠNG CÁC LOẠI BÀI:
+  - macro_domestic: chính sách lãi suất, tỷ giá, thuế, quy định của cơ quan quản lý trong nước.
+  - macro_international: hành động của FED/NHTW lớn, chuỗi cung ứng toàn cầu, giá hàng hóa thế giới.
+  - industry: xu hướng toàn ngành (ngân hàng, bất động sản, năng lượng...).
+  - company: sự kiện của MỘT công ty giả lập (hợp tác, phát hành, kết quả kinh doanh...).
+  - market_report: diễn biến chỉ số, dòng tiền, thanh khoản của sàn mô phỏng.
+
+templates:
+  user_prompt: |-
+    BỐI CẢNH VĨ MÔ (sự thật dùng làm nền tảng):
+    {{macro_context}}
+
+    NGUỒN TIN THẬT THAM KHẢO (chỉ dùng bối cảnh, không sao chép):
+    {{real_news}}
+
+    CÔNG TY GIẢ LẬP HIỆN CÓ (chỉ dùng các công ty này):
+    {{companies}}
+
+    YÊU CẦU THÊM:
+    {{instructions}}
+
+    Hãy viết {{article_count}} bài báo giả lập theo đúng quy tắc. Trả về JSON khớp schema.
+
+# ────────────────────────────────────────────────────────────────────────────
+# Fallback DETERMINISTIC (0 token) — template chuẩn để sinh bài khi chưa có Gemini.
+# Mỗi category có bộ template tiêu đề + nội dung với các slot {{company}},
+# {{industry}}, {{context}}... được thay bằng dữ liệu thực truyền vào.
+# ────────────────────────────────────────────────────────────────────────────
+fallback:
+  # Công ty GIẢ LẬP (không tồn tại ngoài môi trường mô phỏng) — dùng cho
+  # template company/industry và làm danh sách công ty cho Gemini.
+  companies:
+    - name: "Ngân hàng TMCP Việt Mô"
+      ticker: VMB
+      industry: "Ngân hàng"
+    - name: "CTCP Địa ốc An Cư Mô"
+      ticker: ACR
+      industry: "Bất động sản"
+    - name: "CTCP Năng lượng Tái tạo Việt Mô"
+      ticker: VRM
+      industry: "Năng lượng"
+    - name: "CTCP Bán lẻ Thương Mại Điện Tử ESim"
+      ticker: ESR
+      industry: "Bán lẻ"
+    - name: "CTCP Logistics Biển Xanh Mô"
+      ticker: BXM
+      industry: "Logistics"
+
+  article_templates:
+    macro_domestic:
+      title: "Ngân hàng Nhà nước điều chỉnh mặt bằng lãi suất điều hành, thị trường chú ý"
+      summary: "Cơ quan quản lý tiền tệ thông báo điều chỉnh lãi suất điều hành nhằm hỗ trợ tăng trưởng, giới phân tích theo dõi phản ứng của thị trường."
+      content: |-
+        Trong phiên giao dịch mô phỏng hôm nay, ngân hàng trung ương giả lập công bố điều chỉnh mặt bằng lãi suất điều hành. Động thái này được xem là nỗ lực duy trì ổn định vĩ mô trong bối cảnh {{context}}.
+
+        Nhóm ngành nhạy cảm với lãi suất như ngân hàng và bất động sản sẽ là những khu vực được quan sát kỹ nhất trong các phiên tới. Giới phân tích khuyến cáo nhà đầu tư cần theo dõi diễn biến thực tế hơn là chạy theo cảm xúc nhất thời.
+
+        [AI Generated]
+      category: macro_domestic
+      sentiment: neutral
+      impact_score: 6
+      affected_industries: [Ngân hàng, Bất động sản]
+      affected_companies: []
+      knowledge_tags: ["Lãi suất", "Chính sách tiền tệ"]
+    macro_international:
+      title: "Cục Dự trữ Liên bang phát tín hiệu thận trọng, thị trường quốc tế giữ nhịp"
+      summary: "Ngân hàng trung ương lớn nhất thế giới giữ nguyên lãi suất và phát tín hiệu thận trọng, tác động đến tâm lý thị trường toàn cầu."
+      content: |-
+        Ngân hàng trung ương lớn của nền kinh tế đầu tàu công bố quyết định chính sách trong phiên mô phỏng, với thông điệp được giới đầu tư đánh giá là thận trọng hơn so với kỳ vọng trước đó.
+
+        Diễn biến này góp phần làm tăng biến động trên thị trường ngoại hối và giá hàng hóa, ảnh hưởng gián tiếp đến tâm lý nhà đầu tư trong nước. Các phiên giao dịch tiếp theo sẽ phản ánh rõ hơn mức độ lan tỏa.
+
+        [AI Generated]
+      category: macro_international
+      sentiment: neutral
+      impact_score: 5
+      affected_industries: [Xuất khẩu, Dầu khí]
+      affected_companies: []
+      knowledge_tags: ["Lãi suất toàn cầu", "Tỷ giá"]
+    industry:
+      title: "Ngành {{industry}} ghi nhận tín hiệu tăng trưởng trong quý mô phỏng"
+      summary: "Các doanh nghiệp trong ngành {{industry}} cho thấy động lực tăng trưởng rõ rệt, thu hút sự chú ý của giới đầu tư."
+      content: |-
+        Báo cáo mới nhất trong môi trường mô phỏng cho thấy ngành {{industry}} đang có những tín hiệu tăng trưởng tích cực nhờ {{context}}.
+
+        Nhiều doanh nghiệp trong ngành công bố kết quả hoạt động khả quan hơn so với cùng kỳ. Dù vậy, rủi ro từ diễn biến vĩ mô vẫn hiện hữu, và nhà đầu tư cần đối chiếu với báo cáo tài chính của từng công ty trước khi đưa ra bất kỳ quyết định nào.
+
+        [AI Generated]
+      category: industry
+      sentiment: positive
+      impact_score: 6
+      affected_industries: ["{{industry}}"]
+      affected_companies: []
+      knowledge_tags: ["Tăng trưởng ngành", "Chu kỳ kinh tế"]
+    company:
+      title: "{{company}} công bố kế hoạch hợp tác chiến lược, nhà đầu tư quan tâm"
+      summary: "{{company}} thông báo bước đi chiến lược nhằm mở rộng thị phần, kỳ vọng tạo ra thay đổi trong mô hình kinh doanh."
+      content: |-
+        Trong phiên giao dịch mô phỏng, {{company}} (thuộc ngành {{industry}}) công bố kế hoạch hợp tác chiến lược nhằm mở rộng quy mô hoạt động.
+
+        Động thái này diễn ra trong bối cảnh {{context}}. Giới quan sát cho rằng bước đi này có thể ảnh hưởng đến vị thế cạnh tranh của doanh nghiệp trong thời gian tới, song kết quả thực tế cần được đánh giá qua các báo cáo tiếp theo.
+
+        [AI Generated]
+      category: company
+      sentiment: positive
+      impact_score: 7
+      affected_industries: ["{{industry}}"]
+      affected_companies: ["{{company}}"]
+      knowledge_tags: ["Chiến lược doanh nghiệp", "Tăng trưởng"]
+    market_report:
+      title: "Chỉ số VN-Sim kết phiên trong sắc đỏ, thanh khoản thu hẹp"
+      summary: "Phiên giao dịch mô phỏng khép lại với chỉ số chung giảm nhẹ, dòng tiền thận trọng khi nhà đầu tư chờ thêm thông tin."
+      content: |-
+        Kết thúc phiên giao dịch mô phỏng, chỉ số chung của sàn điều chỉnh nhẹ trong bối cảnh thanh khoản thu hẹp so với phiên trước. Áp lực bán tập trung ở nhóm cổ phiếu đã tăng mạnh thời gian gần đây.
+
+        Giới phân tích cho rằng nhịp điều chỉnh là diễn biến bình thường và không thay đổi bức tranh chung. Nhà đầu tư được khuyến cáo kiểm tra lại danh mục và giữ kỷ luật thay vì hành động theo cảm xúc.
+
+        [AI Generated]
+      category: market_report
+      sentiment: negative
+      impact_score: 4
+      affected_industries: []
+      affected_companies: []
+      knowledge_tags: ["Chỉ số thị trường", "Thanh khoản"]

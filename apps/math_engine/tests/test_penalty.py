@@ -1,9 +1,10 @@
 import pytest
+
 from engine.penalty_calc.penalty import (
     PenaltyConfig,
     calc_cooldown_seconds,
-    calc_risk_score_delta,
     calc_points_deducted,
+    calc_risk_score_delta,
 )
 
 

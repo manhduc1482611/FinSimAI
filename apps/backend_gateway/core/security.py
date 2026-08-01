@@ -2,7 +2,6 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
-from jwt.exceptions import PyJWTError
 
 
 def hash_password(password: str) -> str:

@@ -87,7 +87,8 @@ async def seed_knowledge_base(conn: asyncpg.Connection, data: dict) -> None:
     for row in rows:
         await conn.execute(
             """
-            INSERT INTO knowledge_base (keyword, concept, definition, category, difficulty, related_keywords)
+            INSERT INTO knowledge_base
+                (keyword, concept, definition, category, difficulty, related_keywords)
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (keyword) DO UPDATE SET
                 concept          = EXCLUDED.concept,

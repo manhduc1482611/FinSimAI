@@ -1,5 +1,6 @@
-import numpy as np
 from dataclasses import dataclass
+
+import numpy as np
 
 
 def _apply_vn_tick_size(prices: np.ndarray | float) -> np.ndarray | float:

@@ -1,6 +1,6 @@
 import pytest
-from websockets import leader as leader_module
-from websockets.leader import LeaderElection
+from realtime import leader as leader_module
+from realtime.leader import LeaderElection
 
 
 class FakeRedis:

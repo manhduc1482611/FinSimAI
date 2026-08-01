@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 SECONDS_PER_REAL_MINUTE = 60
 SECONDS_PER_SIMULATED_DAY = 86400
@@ -43,7 +43,7 @@ def format_sim_datetime(
     if sim_epoch_seconds < 0:
         raise ValueError("sim_epoch_seconds cannot be negative")
 
-    start_date = datetime(base_year, 1, 1, tzinfo=timezone.utc)
+    start_date = datetime(base_year, 1, 1, tzinfo=UTC)
     sim_dt = start_date + timedelta(seconds=sim_epoch_seconds)
     sim_days = int(sim_epoch_seconds // SECONDS_PER_SIMULATED_DAY)
 

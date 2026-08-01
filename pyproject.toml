@@ -18,6 +18,13 @@ members = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = [
+    "apps/backend_gateway/clients/proto/",
+    "apps/backend_gateway/grpc_services/*_pb2*.py",
+    "apps/math_engine/grpc_services/*_pb2*.py",
+    "packages/database/migrations/versions/",
+    "tmp_check_cors.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]

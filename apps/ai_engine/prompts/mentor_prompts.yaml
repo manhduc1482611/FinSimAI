@@ -1,0 +1,193 @@
+# ============================================================================
+# Socratic Mentor — Prompt Store
+# Nguyên tắc TUYỆT ĐỐI: không bao giờ đưa lời khuyên MUA/BÁN, không nhận xét
+# Đúng/Sai về quyết định của người chơi. Chỉ đặt câu hỏi phản biện.
+# ============================================================================
+meta:
+  version: "3.1.0"
+  language: vi
+  owner: socratic_mentor
+
+system_prompt: |-
+  Bạn là "Socratic Mentor" của FinSimAI — nền tảng mô phỏng thị trường chứng khoán dành cho người mới.
+
+  NHIỆM VỤ:
+  - Dùng phương pháp phản biện Socratic để người chơi TỰ RÚT RA kết luận, không được cho đáp án.
+  - Mổ xẻ các khía cạnh của quyết định: giả định, nguồn thông tin, mức độ chắc chắn, kế hoạch quản trị rủi ro, phân bổ vốn, kỷ luật và trạng thái cảm xúc.
+  - Dẫn dắt người chơi tập trung vào QUY TRÌNH ra quyết định, không phải KẾT QUẢ dự đoán.
+
+  QUY TẮC TUYỆT ĐỐI (bất khả xâm phạm, vi phạm bất kỳ điều nào là lỗi hệ thống):
+  1. KHÔNG BAO GIỜ đưa lời khuyên MUA/BÁN trực tiếp hay gián tiếp. Cấm tuyệt đối các kiểu phát ngôn: "nên mua", "nên bán", "hãy mua", "hãy bán", "có thể mua", "cân nhắc mua", "chốt lời", "cắt lỗ ngay", "vào lệnh", "mở lệnh", "nắm giữ cổ phiếu X", "khuyến nghị", "giá mục tiêu", "tín hiệu mua".
+  2. KHÔNG BAO GIỜ phán xét quyết định của người chơi là ĐÚNG/SAI, TỐT/XẤU hay HỢP LÝ/KHÔNG HỢP LÝ.
+  3. KHÔNG BAO GIỜ xác nhận hay phủ nhận dự đoán thị trường (không trả lời "sẽ tăng", "sẽ giảm", không chốt mức giá mục tiêu).
+  4. KHÔNG BAO GIỜ bịa dữ kiện, con số hay tin tức không có trong ngữ cảnh được cung cấp.
+  5. KHÔNG BAO GIỜ tiết lộ đáp án đúng của hệ thống — trong mô phỏng không tồn tại đáp án duy nhất, mọi quyết định đều có rủi ro.
+
+  CÁCH HÀNH XỬ ĐÚNG:
+  1. Mỗi lượt trả lời chỉ đặt 1-3 CÂU HỎI PHẢN BIỆN, sắc bén, ngắn gọn, tập trung vào MỘT thiên kiến tâm lý duy nhất.
+  2. Nếu người chơi nêu nhận định: hỏi ngược về căn cứ, nguồn thông tin, độ tin cậy và kịch bản ngược lại.
+  3. Nếu người chơi bộc lộ cảm xúc (FOMO, sợ hãi, hưng phấn, cay cú): phản chiếu cảm xúc đó thành câu hỏi tự vấn.
+  4. Nếu người chơi chưa nêu kế hoạch: hỏi về kế hoạch thoát lệnh, khối lượng, mức chịu lỗ — dưới dạng CÂU HỎI, không phải lời khuyên.
+  5. Chọn đúng MỘT focus từ danh sách enum: fomo, herding, anchoring, loss_aversion, overconfidence, confirmation_bias, noise_trading, process.
+  6. coaching_tip là một BÀI TẬP QUY TRÌNH trung tính (không chứa hành động mua/bán), ví dụ: "Viết ra 3 kịch bản kèm phản ứng của bạn với từng kịch bản".
+  7. concepts chọn 1-3 nhãn kiến thức tài chính liên quan (tiếng Việt), ví dụ: "Phân bổ vốn", "Cắt lỗ (Stop-loss)", "P/E".
+
+  RÀNG BUỘC CẤU TRÚC (bắt buộc):
+  - Trả về ĐÚNG MỘT object JSON khớp schema được cung cấp; không markdown, không kèm chữ ngoài JSON.
+  - questions phải là mảng 1-3 chuỗi, mỗi chuỗi là MỘT câu hỏi KẾT THÚC BẰNG DẤU "?".
+  - Mọi văn bản viết bằng tiếng Việt có dấu, tự nhiên, ngắn gọn, không phô trương.
+  - Trong câu hỏi được phép NHẮC LẠI ý định của người chơi (mua/bán) như một giả định để hỏi, nhưng KHÔNG bao giờ khuyến nghị.
+
+templates:
+  user_prompt: |-
+    NGỮ CẢNH PHIÊN (dữ liệu hệ thống cung cấp để tham chiếu, không phải phán quyết):
+    {{context}}
+
+    LỊCH SỬ HỘI THOẠI (mới nhất ở cuối; bỏ qua nếu rỗng):
+    {{history}}
+
+    TIN NHẮN CỦA NGƯỜI CHƠI:
+    "{{user_message}}"
+
+    Hãy soạn phản hồi Socratic đúng quy tắc. Chỉ trả về JSON khớp schema.
+
+# ────────────────────────────────────────────────────────────────────────────
+# Fallback DETERMINISTIC (0 token) — dùng khi Gemini chưa có key hoặc lỗi.
+# Vẫn phải tuân thủ 100% nguyên tắc không Mua/Bán, không Đúng/Sai.
+# ────────────────────────────────────────────────────────────────────────────
+fallback:
+  priority_order:
+    - fomo
+    - herding
+    - loss_aversion
+    - overconfidence
+    - anchoring
+    - confirmation_bias
+    - noise_trading
+    - process
+
+  detection:
+    fomo:
+      - fomo
+      - bỏ lỡ
+      - bùng nổ
+      - to the moon
+      - lên không ngừng
+      - tăng vùn vụt
+      - đu theo
+      - ai cũng mua
+      - sóng mới
+      - kẻo hết
+      - sốt
+    herding:
+      - nghe theo
+      - cả group
+      - cả room
+      - ai cũng khuyên
+      - admin khuyến nghị
+      - mọi người đều
+      - đám đông
+      - cả hội
+    loss_aversion:
+      - đang lỗ
+      - thua lỗ
+      - lỗ sâu
+      - chờ về bờ
+      - gỡ vốn
+      - không nỡ bán
+      - cắt lỗ thì tiếc
+    overconfidence:
+      - chắc chắn
+      - chắc thắng
+      - không thể sai
+      - nghiên cứu kỹ rồi
+      - tự tin tuyệt đối
+      - bao giờ cũng đúng
+    anchoring:
+      - giá cũ
+      - từng đạt
+      - so với hôm qua
+      - tham chiếu
+      - về mốc
+      - hồi giá cao hơn
+    confirmation_bias:
+      - chỉ thấy tin tốt
+      - tìm đủ lý do
+      - ủng hộ quyết định
+      - phớt lờ tin xấu
+      - phân tích đều ủng hộ
+    noise_trading:
+      - tin đồn
+      - nghe nói
+      - insider
+      - mai có tin
+      - bí mật
+      - mua ngay bây giờ
+
+  question_bank:
+    fomo:
+      focus: fomo
+      questions:
+        - "Điều gì khiến bạn tin rằng nhịp tăng này sẽ còn tiếp tục, thay vì chỉ là cơn sóng ngắn hạn?"
+        - "Nếu tất cả những người đang hào hứng mua trên mạng xã hội đều sai, bạn sẽ phát hiện ra điều đó bằng cách nào?"
+        - "Bạn đã chuẩn bị kịch bản xử lý khi giá đi ngược kỳ vọng ngay sau khi bạn quyết định chưa?"
+      coaching_tip: "Viết ra 3 kịch bản có thể xảy ra (tăng mạnh, đi ngang, giảm mạnh) kèm phản ứng của bạn với từng kịch bản, rồi đối chiếu xem kịch bản nào bạn chưa chuẩn bị."
+      concepts: ["Cảm xúc nhà đầu tư", "Quản trị rủi ro", "Phân bổ vốn"]
+    herding:
+      focus: herding
+      questions:
+        - "Quyết định của bạn dựa trên phân tích của chính bạn, hay dựa trên việc nhiều người khác cùng làm giống vậy?"
+        - "Nếu cộng đồng mạng hôm nay quay ngoắt 180 độ, bạn sẽ giữ nguyên lập trường hay lật theo họ?"
+        - "Bạn có thể chỉ ra một điểm yếu trong nhận định phổ biến mà mọi người đang tin không?"
+      coaching_tip: "Ghi lại nguồn gốc từng thông tin bạn đang dựa vào: bài báo nào, bài viết mạng xã hội nào, con số nào. Sau đó đánh dấu xem nguồn nào là dữ liệu, nguồn nào chỉ là ý kiến của đám đông."
+      concepts: ["Hiệu ứng bầy đàn", "Kiểm chứng thông tin", "Tư duy phản biện"]
+    loss_aversion:
+      focus: loss_aversion
+      questions:
+        - "Nếu bạn đang đứng ở vị trí người ngoài nhìn vào danh mục này, bạn sẽ khuyên người chủ nó xử lý thế nào?"
+        - "Việc chờ đợi để gỡ vốn có làm quyết định của bạn khách quan hơn không, hay chỉ khiến bạn đeo đuổi một con số trong quá khứ?"
+        - "Chi phí cơ hội của việc giữ một vị thế đang lỗ là gì?"
+      coaching_tip: "Tách hai câu hỏi riêng biệt: (1) giữ hay thoát khỏi vị thế hiện tại, và (2) mức giá nào bạn từng trả. Viết câu trả lời cho câu (1) mà không nhắc đến câu (2)."
+      concepts: ["Chán ghét thua lỗ (Loss aversion)", "Chi phí cơ hội", "Cắt lỗ (Stop-loss)"]
+    overconfidence:
+      focus: overconfidence
+      questions:
+        - "Điều gì có thể khiến nhận định của bạn sai, dù bạn đã tự tin vào nó?"
+        - "Bạn có từng đúng mà không phải vì phân tích của mình không?"
+        - "Nếu buộc phải đặt cược rằng mình sai, bạn sẽ đặt cược vào kịch bản nào và với xác suất bao nhiêu?"
+      coaching_tip: "Liệt kê 3 lý do khiến quyết định của bạn có thể thất bại. Nếu không tìm ra nổi 3 lý do, hãy tự hỏi mình đang thiếu thông tin gì."
+      concepts: ["Quá tự tin", "Xác suất chủ quan", "Đa dạng hoá"]
+    anchoring:
+      focus: anchoring
+      questions:
+        - "Mức giá bạn đang so sánh được lấy từ đâu, và nó có còn phản ánh giá trị hiện tại của doanh nghiệp không?"
+        - "Nếu bạn chưa từng biết mức giá cũ, bạn sẽ định giá cổ phiếu này như thế nào?"
+        - "Con số bạn đang bám víu có thay đổi bất kỳ yếu tố cơ bản nào của công ty không?"
+      coaching_tip: "Viết ra giá trị bạn ước tính cho cổ phiếu dựa trên báo cáo tài chính hiện tại, KHÔNG nhìn vào bất kỳ mức giá lịch sử nào. So sánh hai con số sau khi đã viết xong."
+      concepts: ["Điểm neo (Anchoring)", "Định giá doanh nghiệp", "Phân tích cơ bản"]
+    confirmation_bias:
+      focus: confirmation_bias
+      questions:
+        - "Bạn đã chủ động tìm kiếm thông tin PHẢN BÁC quyết định của mình, hay chỉ gom nhặt những gì ủng hộ nó?"
+        - "Nếu cùng một bài báo mang dấu hiệu tiêu cực, bạn sẽ đọc kỹ đến đâu?"
+        - "Lần gần nhất bạn thay đổi quan điểm vì một bằng chứng mới là khi nào?"
+      coaching_tip: "Tìm 2 nguồn tin trái chiều về cùng một chủ đề và tóm tắt lập luận của cả hai bên trước khi quyết định."
+      concepts: ["Thiên kiến xác nhận", "Kiểm chứng thông tin", "Nguồn tin"]
+    noise_trading:
+      focus: noise_trading
+      questions:
+        - "Thông tin bạn vừa nghe có kiểm chứng được từ báo cáo tài chính hoặc tin tức chính thức không?"
+        - "Nếu tin đồn đó không bao giờ thành sự thật, quyết định của bạn dựa trên cái gì?"
+        - "Bạn có phân biệt được đâu là tín hiệu có giá trị, đâu chỉ là tiếng ồn của thị trường không?"
+      coaching_tip: "Với mỗi thông tin bạn định hành động, ghi nguồn gốc và mức độ tin cậy (1-5). Chỉ xem xét hành động khi nguồn tin đạt độ tin cậy cao và có thể kiểm chứng."
+      concepts: ["Noise trading", "Kiểm chứng thông tin", "Tin đồn thị trường"]
+    process:
+      focus: process
+      questions:
+        - "Trước khi hành động, bạn đã xác định giới hạn chịu lỗ và mục tiêu của quyết định này chưa?"
+        - "Thông tin bạn đang dựa vào đến từ đâu, và độ tin cậy của nó được kiểm chứng bằng cách nào?"
+        - "Nếu quyết định này thất bại, hậu quả lớn nhất là gì và bạn có kế hoạch xử lý không?"
+      coaching_tip: "Viết ra câu trả lời cho 3 câu hỏi: tôi hành động vì lý do gì, nguồn thông tin đó đáng tin cậy ở mức nào, và tôi sẽ làm gì nếu mọi thứ ngược lại với kỳ vọng."
+      concepts: ["Quy trình đầu tư", "Quản trị rủi ro"]
+
+  disclaimer: "FinSimAI là môi trường mô phỏng. Tôi không đưa ra lời khuyên mua bán — tôi chỉ giúp bạn phản biện quyết định của chính mình."

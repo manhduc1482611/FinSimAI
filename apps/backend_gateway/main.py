@@ -11,12 +11,12 @@ from core.database import dispose_engine, engine
 from core.middleware import setup_middleware
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-from websockets.router import (
+from realtime.router import (
     register_websocket_routes,
     start_ws_background,
     stop_ws_background,
 )
+from sqlalchemy import text
 
 logging.basicConfig(
     level=logging.INFO if not settings.debug else logging.DEBUG,

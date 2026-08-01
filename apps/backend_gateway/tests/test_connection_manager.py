@@ -1,7 +1,7 @@
 import asyncio
 
 import pytest
-from websockets.connection_manager import (
+from realtime.connection_manager import (
     ClientConnection,
     ConnectionManager,
     build_message,

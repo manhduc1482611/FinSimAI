@@ -1,5 +1,5 @@
-import re
 import uuid
+from typing import Annotated
 
 from core.dependencies import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -19,11 +19,11 @@ def _escape_like(s: str) -> str:
 
 @router.get("", response_model=CompanyListResponse)
 async def list_companies(
-    sector: str | None = Query(None),
-    search: str | None = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    sector: Annotated[str | None, Query()] = None,
+    search: Annotated[str | None, Query()] = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     stmt = select(Company).where(Company.is_active.is_(True))
 
@@ -42,7 +42,10 @@ async def list_companies(
 
 
 @router.get("/{company_id}", response_model=CompanyResponse)
-async def get_company(company_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_company(
+    company_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
     company = await db.get(Company, company_id)
     if not company:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")

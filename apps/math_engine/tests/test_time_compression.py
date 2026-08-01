@@ -1,12 +1,12 @@
+
 import pytest
-from datetime import datetime, timezone
 
 from engine.time_compression.compressor import (
-    TimeCompressionConfig,
-    sim_days_to_dt_years,
-    format_sim_datetime,
-    TRADING_DAYS_PER_YEAR,
     SECONDS_PER_SIMULATED_DAY,
+    TRADING_DAYS_PER_YEAR,
+    TimeCompressionConfig,
+    format_sim_datetime,
+    sim_days_to_dt_years,
 )
 
 

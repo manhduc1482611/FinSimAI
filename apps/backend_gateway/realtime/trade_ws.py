@@ -39,14 +39,14 @@ from models.company import Company
 from models.trade import Transaction
 from sqlalchemy import select
 
-from websockets.auth import get_ws_user, revalidate_user
-from websockets.connection_manager import (
+from realtime.auth import get_ws_user, revalidate_user
+from realtime.connection_manager import (
     ClientConnection,
     ConnectionManager,
     build_message,
     connection_manager,
 )
-from websockets.leader import LeaderElection
+from realtime.leader import LeaderElection
 
 logger = logging.getLogger(__name__)
 

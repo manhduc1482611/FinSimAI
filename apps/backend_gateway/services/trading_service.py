@@ -366,7 +366,7 @@ async def _notify_fills(transactions: list[dict]) -> None:
     if not transactions:
         return
     try:
-        from websockets.trade_ws import trade_notifier
+        from realtime.trade_ws import trade_notifier
 
         await trade_notifier.notify_transactions(transactions)
     except Exception:

@@ -33,10 +33,10 @@ class _UnavailableCache:
 
 @pytest.fixture(autouse=True)
 def _redis_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
-    from websockets import backplane as backplane_module
-    from websockets import leader as leader_module
-    from websockets import price_ws as price_ws_module
-    from websockets import trade_ws as trade_ws_module
+    from realtime import backplane as backplane_module
+    from realtime import leader as leader_module
+    from realtime import price_ws as price_ws_module
+    from realtime import trade_ws as trade_ws_module
 
     unavailable = _UnavailableCache()
     monkeypatch.setattr(backplane_module, "get_cache", lambda: unavailable)

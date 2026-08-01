@@ -39,7 +39,7 @@ from typing import Any
 
 from core.cache import get_cache
 
-from websockets.connection_manager import ConnectionManager, connection_manager
+from realtime.connection_manager import ConnectionManager, connection_manager
 
 logger = logging.getLogger(__name__)
 

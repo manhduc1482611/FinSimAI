@@ -3,11 +3,11 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import pytest
-import websockets.price_ws as price_ws_module
+import realtime.price_ws as price_ws_module
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from websockets.connection_manager import ConnectionManager
-from websockets.price_ws import ALL_SYMBOLS_ROOM, PRICE_ROOM_PREFIX, PriceBroadcaster
+from realtime.connection_manager import ConnectionManager
+from realtime.price_ws import ALL_SYMBOLS_ROOM, PRICE_ROOM_PREFIX, PriceBroadcaster
 from ws_fakes import FakeCache, FakeManager
 
 ANCHOR = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -281,7 +281,7 @@ def test_price_ws_endpoint_full_flow() -> None:
         yield
         await broadcaster.stop()
 
-    from websockets.router import register_websocket_routes
+    from realtime.router import register_websocket_routes
 
     app = FastAPI(lifespan=lifespan)
     register_websocket_routes(app, manager=manager, price_broadcaster=broadcaster)

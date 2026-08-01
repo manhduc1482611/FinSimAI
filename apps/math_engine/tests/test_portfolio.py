@@ -1,8 +1,19 @@
 import numpy as np
 import pytest
 
-from engine.portfolio.portfolio_calc import Holding, TradeResult, calc_nav, calc_unrealized_pnl, apply_buy, apply_sell
-from engine.portfolio.risk_metrics import calc_sharpe_ratio, calc_max_drawdown, calc_volatility, calc_daily_returns
+from engine.portfolio.portfolio_calc import (
+    Holding,
+    apply_buy,
+    apply_sell,
+    calc_nav,
+    calc_unrealized_pnl,
+)
+from engine.portfolio.risk_metrics import (
+    calc_daily_returns,
+    calc_max_drawdown,
+    calc_sharpe_ratio,
+    calc_volatility,
+)
 
 
 class TestCalcNAV:

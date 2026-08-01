@@ -6,14 +6,14 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from websockets.connection_manager import (
+from realtime.connection_manager import (
     SERVER_RESTART_CLOSE_CODE,
     ConnectionManager,
     connection_manager,
 )
-from websockets.mentor_ws import MentorStreamProvider
-from websockets.price_ws import PriceBroadcaster
-from websockets.trade_ws import TradeNotifier
+from realtime.mentor_ws import MentorStreamProvider
+from realtime.price_ws import PriceBroadcaster
+from realtime.trade_ws import TradeNotifier
 
 WS_PATHS = {
     "prices": "/ws/prices",
@@ -31,7 +31,7 @@ def register_websocket_routes(
     mentor_provider: MentorStreamProvider | None = None,
 ) -> None:
     """Đăng ký cả 3 endpoint WebSocket (giá / khớp lệnh / mentor)."""
-    from websockets import mentor_ws, price_ws, trade_ws
+    from realtime import mentor_ws, price_ws, trade_ws
 
     app.add_websocket_route(
         WS_PATHS["prices"],
@@ -54,7 +54,7 @@ async def start_ws_background(app: FastAPI) -> dict[str, Any]:
     broadcaster — từ đây mọi ``broadcast_to_room`` đi qua Redis để phát tán giữa
     các worker/replica, không chỉ trong RAM của process hiện tại.
     """
-    from websockets import backplane, price_ws, trade_ws
+    from realtime import backplane, price_ws, trade_ws
 
     connection_manager.attach_backplane(backplane.backplane)
     await backplane.backplane.start()
