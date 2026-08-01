@@ -6,6 +6,15 @@ __pycache__/
 venv/
 .env
 
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Env local (giữ .env.example)
+.env*.local
+
 # IDE / OS
 .idea/
 .vscode/

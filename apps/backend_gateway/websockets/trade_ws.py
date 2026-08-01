@@ -57,6 +57,8 @@ TransactionRow = dict[str, Any]
 Watermark = tuple[datetime, str]
 PollSource = Callable[[Watermark | None], Awaitable[list[TransactionRow]]]
 SymbolResolver = Callable[[Any], Awaitable[dict[str, str] | None]]
+# Giải quyết symbol cho cả batch bằng MỘT query (IN) — map company_id → {symbol, name}.
+BatchSymbolResolver = Callable[[list[Any]], Awaitable[dict[str, dict[str, str]]]]
 
 DEDUP_PREFIX = "finsim:ws:dedup:trade:"
 # Số thứ tự tăng dần THEO KÊNH user (Redis INCR, pipeline cho batch) gắn vào mỗi tin
@@ -76,6 +78,7 @@ class TradeNotifier:
         *,
         poll_source: PollSource | None = None,
         symbol_resolver: SymbolResolver | None = None,
+        batch_symbol_resolver: SymbolResolver | None = None,
         poll_interval: float | None = None,
         dedup_ttl: int = 300,
         local_mode: bool | None = None,
@@ -83,6 +86,24 @@ class TradeNotifier:
         self.manager = manager
         self._poll_source = poll_source or self._default_poll_source
         self._symbol_resolver = symbol_resolver or self._default_symbol_resolver
+        if batch_symbol_resolver is not None:
+            self._batch_symbol_resolver = batch_symbol_resolver
+        elif symbol_resolver is not None:
+            # Resolver tùy chỉnh theo từng giao dịch: batch chỉ là vòng lặp gom
+            # (giữ đúng hành vi per-item đã inject, không đụng DB thật).
+            async def _per_item_batch(
+                company_ids: list[Any],
+            ) -> dict[str, dict[str, str]]:
+                result: dict[str, dict[str, str]] = {}
+                for cid in company_ids:
+                    entry = await symbol_resolver(cid)
+                    if entry:
+                        result[str(cid)] = entry
+                return result
+
+            self._batch_symbol_resolver = _per_item_batch
+        else:
+            self._batch_symbol_resolver = self._default_batch_symbol_resolver
         self.poll_interval = (
             poll_interval if poll_interval is not None else settings.ws_trade_poll_seconds
         )
@@ -148,8 +169,17 @@ class TradeNotifier:
         cửa sổ race: poll đọc DB giữa send và SETNX → đẩy trùng.)
         """
         enriched: list[tuple[str, TransactionRow, TransactionRow]] = []
+        # Batch-resolve symbol: gom toàn bộ company_id còn thiếu của batch vào MỘT
+        # query (IN) thay vì N lần `session.get` như cách cũ (chống N+1 khi push
+        # nhiều giao dịch cùng lúc từ match_orders).
+        missing_ids = [
+            tx.get("company_id")
+            for tx in transactions
+            if not tx.get("symbol") and tx.get("company_id") is not None
+        ]
+        resolved = await self._batch_resolve(missing_ids)
         for tx in transactions:
-            payload = await self._enrich(tx)
+            payload = await self._enrich(tx, resolved)
             if payload is None:
                 continue
             tx_id = str(tx.get("transaction_id") or "")
@@ -357,15 +387,31 @@ class TradeNotifier:
             await self._push_transactions(to_push)
 
     # ── Enrichment ───────────────────────────────────────────────────
-    async def _enrich(self, tx: TransactionRow) -> TransactionRow | None:
+    async def _batch_resolve(
+        self, company_ids: list[Any]
+    ) -> dict[str, dict[str, str]]:
+        """Giải symbol hàng loạt; lỗi hạ tầng (DB/Redis) → {} để fallback per-item."""
+        if not company_ids:
+            return {}
+        try:
+            return await self._batch_symbol_resolver(company_ids)
+        except Exception:
+            logger.warning("Batch symbol resolution failed — falling back per-item")
+            return {}
+
+    async def _enrich(
+        self, tx: TransactionRow, resolved: dict[str, dict[str, str]] | None = None
+    ) -> TransactionRow | None:
         symbol = tx.get("symbol")
         company_name = tx.get("company_name")
         if not symbol:
-            resolved = await self._symbol_resolver(tx.get("company_id"))
-            if resolved is None:
+            entry = resolved.get(str(tx.get("company_id"))) if resolved else None
+            if entry is None:
+                entry = await self._symbol_resolver(tx.get("company_id"))
+            if entry is None:
                 return None
-            symbol = resolved.get("symbol")
-            company_name = resolved.get("name")
+            symbol = entry.get("symbol")
+            company_name = entry.get("name")
 
         quantity = float(tx.get("quantity", 0) or 0)
         price = float(tx.get("price", 0) or 0)
@@ -391,6 +437,24 @@ class TradeNotifier:
         if company is None:
             return None
         return {"symbol": company.symbol, "name": company.name}
+
+    async def _default_batch_symbol_resolver(
+        self, company_ids: list[Any]
+    ) -> dict[str, dict[str, str]]:
+        """Giải symbol toàn bộ company_id còn thiếu trong MỘT query ``IN``.
+
+        Cách cũ (per-item ``session.get``) chạy N round-trip cho N giao dịch thiếu
+        symbol — nghẽn DB khi một ``match_orders`` tạo nhiều khớp cùng lúc.
+        """
+        if not company_ids:
+            return {}
+        async with async_session_factory() as session:
+            stmt = (
+                select(Company.id, Company.symbol, Company.name)
+                .where(Company.id.in_(company_ids))
+            )
+            rows = (await session.execute(stmt)).all()
+        return {str(r[0]): {"symbol": r[1], "name": r[2]} for r in rows}
 
     async def _default_poll_source(self, watermark: Watermark | None) -> list[TransactionRow]:
         async with async_session_factory() as session:

@@ -1,3 +1,4 @@
+import logging
 import uuid
 from decimal import Decimal
 
@@ -6,6 +7,8 @@ from models.trade import Order, Portfolio, Transaction
 from models.user import User
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 def _price_crosses(
@@ -224,7 +227,10 @@ async def match_orders(
 
             pf_stmt = (
                 select(Portfolio)
-                .where(Portfolio.user_id == locked_sell.user_id, Portfolio.company_id == locked_sell.company_id)
+                .where(
+                    Portfolio.user_id == locked_sell.user_id,
+                    Portfolio.company_id == locked_sell.company_id,
+                )
                 .with_for_update()
             )
             pf = (await db.execute(pf_stmt)).scalar_one_or_none()
@@ -239,7 +245,12 @@ async def match_orders(
         buyer, seller = await _lock_users_sorted(buy.user_id, sell.user_id, db)
 
         locked_buy, locked_sell = await _lock_orders_sorted(buy.id, sell.id, db)
-        if not locked_buy or not locked_sell or locked_buy.status not in ("pending", "partially_filled") or locked_sell.status not in ("pending", "partially_filled"):
+        if (
+            not locked_buy
+            or not locked_sell
+            or locked_buy.status not in ("pending", "partially_filled")
+            or locked_sell.status not in ("pending", "partially_filled")
+        ):
             if buy:
                 skip_buy_ids.add(buy.id)
             if sell:
@@ -307,17 +318,59 @@ async def match_orders(
         else:
             locked_sell.status = "partially_filled"
 
-        transactions.append(
-            {
-                "order_id": locked_buy.id,
-                "user_id": locked_buy.user_id,
-                "company_id": company_id,
-                "side": "buy",
-                "quantity": fill_qty,
-                "price": fill_price,
-                "simulated_at": simulated_at,
-            }
-        )
+        sell_order_id = locked_sell.id
+        sell_user_id = locked_sell.user_id
+        fill = {
+            "order_id": locked_buy.id,
+            "user_id": locked_buy.user_id,
+            "company_id": company_id,
+            "side": "buy",
+            "quantity": fill_qty,
+            "price": fill_price,
+            "simulated_at": simulated_at,
+        }
+        sell_fill = {
+            "order_id": sell_order_id,
+            "user_id": sell_user_id,
+            "company_id": company_id,
+            "side": "sell",
+            "quantity": fill_qty,
+            "price": fill_price,
+            "simulated_at": simulated_at,
+        }
         await db.commit()
 
+        # id/created_at là server_default (gen_random_uuid / now()) — chỉ có sau
+        # commit; refresh để lấy cho event-push. transaction_id + created_at giúp
+        # TradeNotifier claim (SETNX) + watermark, tránh poll catch-up đẩy trùng.
+        await db.refresh(tx)
+        await db.refresh(sell_tx)
+        fill["transaction_id"] = tx.id
+        fill["created_at"] = tx.created_at
+        sell_fill["transaction_id"] = sell_tx.id
+        sell_fill["created_at"] = sell_tx.created_at
+        transactions.append(fill)
+        transactions.append(sell_fill)
+
+    await _notify_fills(transactions)
     return transactions
+
+
+async def _notify_fills(transactions: list[dict]) -> None:
+    """Đẩy khớp lệnh real-time qua TradeNotifier sau khi commit (best-effort).
+
+    Import muộn tránh vòng dependency services → websockets ở module-level. Nếu
+    lớp WebSocket/Redis hỏng, không làm hỏng giao dịch vừa commit — poll catch-up
+    của leader sẽ bù phát (claim-first + watermark đã chống đẩy trùng).
+    """
+    if not transactions:
+        return
+    try:
+        from websockets.trade_ws import trade_notifier
+
+        await trade_notifier.notify_transactions(transactions)
+    except Exception:
+        logger.exception(
+            "Trade fill push failed — poll catch-up will cover %d fill(s)",
+            len(transactions),
+        )

@@ -407,6 +407,19 @@ async def test_interleaved_join_leave_does_not_leak_subscription(
     await bp.stop()
 
 
+def test_reconnect_jitter_varies_within_bounds() -> None:
+    """Jitter ±50% quanh backoff — N worker không cùng nhịp dò lại Redis.
+
+    Nếu không có jitter, N worker rơi Redis cùng lúc sẽ ping Redis đồng loạt
+    đúng nhịp (1s→2s→4s→...→30s) → xung CPU/Redis khi nó quay lại (Thundering Herd).
+    """
+    manager = ConnectionManager()
+    bp = Backplane(manager)
+    samples = [bp._jittered(1.0) for _ in range(200)]
+    assert all(0.5 <= v <= 1.5 for v in samples)
+    assert len(set(round(v, 4) for v in samples)) > 1
+
+
 @pytest.mark.asyncio
 async def test_reconnect_closes_old_pubsub_and_stops_old_listener(
     monkeypatch: pytest.MonkeyPatch,

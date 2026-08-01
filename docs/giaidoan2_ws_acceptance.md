@@ -45,13 +45,14 @@
 |---|---|---|
 | `test_connection_manager.py` | 18 | ✅ |
 | `test_price_ws.py` | 9 | ✅ |
-| `test_trade_ws.py` | 20 | ✅ |
+| `test_trade_ws.py` | 23 | ✅ |
 | `test_mentor_ws.py` | 4 | ✅ |
 | `test_auth.py` | 15 | ✅ |
 | `test_simtime.py` | 7 | ✅ |
-| `test_backplane.py` | 15 | ✅ |
+| `test_backplane.py` | 16 | ✅ |
 | `test_leader.py` | 7 | ✅ |
-| **Tổng** | **95** | **✅ 95/95 pass** |
+| `test_trading_service.py` | 3 | ✅ |
+| **Tổng** | **102** | **✅ 102/102 pass** |
 
 `ruff check` trên `websockets/` + `tests/` + `core/config.py` + `core/cache.py` + `models/`: **✅ All checks passed**.
 
@@ -91,6 +92,22 @@ trễ → xác nhận mã ĐÃ tính tuyệt đối `max((now-anchor), 0) × rat
 hồi quy (không dùng timer cộng dồn); (4) bão reconnect khi tràn reliable queue (1011) → ghi
 nhận client-side contract (backoff + jitter cho 1011/1012) cho Giai đoạn 3. Chạy
 `uv run pytest tests -q` → `95 passed in ~4s`.*
+
+*Hồi tố Giai đoạn 2A+ vòng 8 (production blindspots từ phản biện, 2026-08-01): test 95 → 102.
+Phản biện: (1) Mock quá độ (FakeRedis tái hiện Lua bằng Python → script chưa chạy Redis thật);
+(2) Polling `TradeNotifier` nghẽn IOPS + N+1 symbol resolver; (3) event loop block khi có code
+CPU-bound; (4) Redis SPoF gánh 5 vai trò → bão reconnect. Chốt **3 fix trong code** (không có
+Docker → Testcontainers/stress để Giai đoạn 3): (a) **batch symbol resolution** — `_push_transactions`
+gom toàn bộ `company_id` thiếu symbol của một batch vào `_default_batch_symbol_resolver` (MỘT query
+`IN` thay N lần `session.get`), `_enrich` nhận map đã giải; (b) **nối event-driven path** —
+`match_orders` giờ gọi `_notify_fills(...)` sau commit để đẩy qua `trade_notifier` (cả chiều mua +
+bán), kèm `transaction_id`/`created_at` (refresh sau commit) để claim SETNX + watermark chống
+poll catch-up đẩy trùng; import muộn tránh vòng dependency `services ↔ websockets`; (c) **jitter
+reconnect** — `_reconnect_loop` nhân backoff ±50% (`Backplane._jittered`) cho N worker không cùng
+nhịp dò lại Redis khi nó quay lại. Bổ sung test: batch resolve 1 lần cho N giao dịch + fallback
+khi batch lỗi + SQL `IN` (`test_trade_ws`), jitter biến thiên trong ±50% (`test_backplane`),
+`_notify_fills` đẩy/không raise/không gọi khi rỗng (`test_trading_service` mới). Chạy
+`uv run pytest tests -q` → `102 passed in ~5s`.*
 
 ---
 
@@ -377,7 +394,7 @@ package local):
 | Dedupe SETNX: prefix namespaced `finsim:ws:dedup:trade:{id}` + `ex=300` cố định (không rò RAM Redis) | ✅ |
 | Kết nối được đăng ký trong `main.py` + background task start/stop qua lifespan | ✅ |
 | Uvicorn chạy `--ws wsproto` (tránh xung đột package `websockets`) | ✅ |
-| Test tự động 95/95 pass + `ruff` sạch | ✅ |
+| Test tự động 102/102 pass + `ruff` sạch | ✅ |
 | Không phụ thuộc vòng; DI cho endpoint/component | ✅ |
 
 ### Tổng hợp
@@ -386,9 +403,9 @@ package local):
 |---|---|---|
 | Mã nguồn WebSocket | 10/10 | — |
 | Tích hợp & Cấu hình | 9/9 | — |
-| Unit Tests | 95/95 | — |
+| Unit Tests | 102/102 | — |
 | Kiến trúc (SOLID/coupling/wsproto) | 4/4 | — |
-| **Tổng** | **118/118** | — |
+| **Tổng** | **125/125** | — |
 
 ---
 
@@ -455,8 +472,21 @@ package local):
   đối `max((now - anchor), 0) × ratio` từ wall-clock, không có timer cộng dồn nào; chỉ bổ sung
   test chống hồi quy (trễ tick không tích lũy sai số); (4) **Bão reconnect khi tràn reliable
   queue** — phía server đã đóng 1011/1012 sạch; client SDK chưa tồn tại trong repo nên ghi nhận
-  contract (exponential backoff + jitter cho 1011/1012) vào Giai đoạn 3. Test 95/95 pass, `ruff`
-  sạch.
+   contract (exponential backoff + jitter cho 1011/1012) vào Giai đoạn 3. Test 95/95 pass, `ruff`
+   sạch.
+- **Hồi tố Giai đoạn 2A+ (vòng 8, production blindspots từ phản biện)**: phản biện 4 điểm — (1)
+  **Mock che giấu lỗi hạ tầng** (FakeRedis tái hiện Lua bằng Python → script chưa từng chạy Redis
+  thật) → xác nhận đúng, Testcontainers/integration chuyển Giai đoạn 3; (2) **Polling + N+1 nghẽn
+  IOPS** → vá NGAY batch symbol resolution: `_push_transactions` gom toàn bộ `company_id` thiếu
+  symbol của một batch vào `_default_batch_symbol_resolver` (MỘT query `IN` thay N lần `session.get`),
+  `_enrich` nhận map đã giải, lỗi hạ tầng → fallback per-item; (3) **Event loop block khi code
+  CPU-bound** → xác nhận mã hiện không có `to_thread` (rủi ro tiềm ẩn), không vá — ghi nhận quy tắc
+  cho Giai đoạn 3; (4) **Redis SPoF + bão reconnect** → vá jitter reconnect: `Backplane._jittered`
+  nhân backoff ±50% để N worker không cùng nhịp dò lại Redis khi nó quay lại. Kèm: **nối event-
+  driven path** — `match_orders` gọi `_notify_fills(...)` sau commit đẩy qua `trade_notifier` (cả
+  chiều mua + bán, refresh lấy `transaction_id`/`created_at` để claim SETNX + watermark chống poll
+  catch-up đẩy trùng; import muộn tránh vòng dependency `services ↔ websockets`, best-effort không
+  làm hỏng giao dịch). Test 102/102 pass, `ruff` sạch.
 
 ### Việc còn lại trước Giai đoạn 3 (không chặn nghiệm thu):
 
@@ -464,8 +494,8 @@ package local):
    (`uvicorn --workers 2`) phát giá qua backplane, leader election failover, và khả năng phục hồi
    backplane khi Redis quay lại sau khi ngắt.
 2. 🟢 Giai đoạn 3: thay `StaticMentorStream` bằng AI Engine (giữ nguyên giao thức WS).
-3. 🟢 Nối `notify_transactions`/`notify_order_update` vào `services/trading_service.py` sau khi
-   khớp lệnh (đường push in-process + backplane hiện đã có, chờ nối).
+3. 🟢 `notify_order_update` cho chuyển đổi trạng thái lệnh (filled/cancelled/rejected) tại API đặt
+   lệnh — đường `notify_transactions` đã được nối vào `match_orders` (vòng 8).
 4. 🟡 Giai đoạn 3 — **Redis Streams** (mục 2 phản biện vòng 6, từng là mục 3 vòng 5): hiện Pub/Sub
    "mất tin là mất hẳn" (không replay được). Vòng 6 đã vá TẠM bằng `seq` per-channel (client phát
    hiện gap → resync REST) nhưng chưa thay thế bus. Giai đoạn 3: chuyển bus realtime sang Stream
@@ -479,6 +509,11 @@ package local):
    ghi sự kiện vào bảng `outbox` NGAY trong transaction khớp lệnh; một worker (Debezium/Outbox
    Relay) đọc outbox (watermark/row-locking) rồi publish lên realtime bus → "chính xác một lần"
    giữa DB và WS.
+6. 🟡 Giai đoạn 3 — **Integration test trên Redis thật** (mục 1 phản biện vòng 8): `FakeRedis.eval`
+   trong `test_leader.py` tái hiện logic Lua `ACQUIRE_OR_RENEW_LUA` bằng Python → script chưa từng
+   chạy trên Redis thật. Dùng Testcontainers (Postgres + Redis) để chạy Lua thật + stress: N worker
+   giành lock, fencing token tăng đơn điệu qua failover, backplane reconnect sau khi cắt Redis,
+   đối chiếu `seq` per-channel khi poll và event-push đan xen.
 
 ---
 

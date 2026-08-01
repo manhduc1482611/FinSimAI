@@ -97,6 +97,113 @@ async def test_enrich_skips_when_symbol_unresolvable() -> None:
 
 
 @pytest.mark.asyncio
+async def test_push_batch_resolves_missing_symbols_in_single_call() -> None:
+    """N giao dịch thiếu symbol → batch resolver được gọi ĐÚNG 1 lần với N id.
+
+    Trước đây ``_enrich`` chạy N lần ``session.get`` (N+1) cho từng giao dịch
+    thiếu symbol khi match_orders tạo nhiều khớp cùng lúc.
+    """
+    manager = FakeManager()
+    batch_calls: list[list[object]] = []
+    per_item_calls: list[object] = []
+
+    async def batch_resolver(company_ids):
+        batch_calls.append(company_ids)
+        return {
+            str(cid): {"symbol": f"SYM{cid}", "name": f"Company{cid}"}
+            for cid in company_ids
+        }
+
+    async def per_item_resolver(company_id):
+        per_item_calls.append(company_id)
+        return None
+
+    notifier = TradeNotifier(
+        manager,
+        symbol_resolver=per_item_resolver,
+        batch_symbol_resolver=batch_resolver,
+        poll_interval=60.0,
+    )
+    rows = [tx_row(symbol=None, user_id=i) for i in (1, 2, 3)]
+
+    sent = await notifier.notify_transactions(rows)
+
+    assert sent == 3
+    assert len(batch_calls) == 1
+    assert len(batch_calls[0]) == 3
+    assert per_item_calls == []
+    for i in (1, 2, 3):
+        data = manager.user_messages[str(i)][0]["data"]
+        assert data["symbol"].startswith("SYM")
+        assert data["company_name"].startswith("Company")
+
+
+@pytest.mark.asyncio
+async def test_push_falls_back_to_single_resolver_when_batch_fails() -> None:
+    """Batch resolver lỗi (DB down) → fallback per-item resolver, không mất tin."""
+    manager = FakeManager()
+    per_item_calls: list[object] = []
+
+    async def failing_batch(company_ids):
+        raise ConnectionError("database unavailable")
+
+    async def per_item_resolver(company_id):
+        per_item_calls.append(company_id)
+        return {"symbol": "VCB", "name": "Vietcombank"}
+
+    notifier = TradeNotifier(
+        manager,
+        symbol_resolver=per_item_resolver,
+        batch_symbol_resolver=failing_batch,
+        poll_interval=60.0,
+    )
+
+    sent = await notifier.notify_transactions([tx_row(symbol=None)])
+
+    assert sent == 1
+    assert len(per_item_calls) == 1
+    data = manager.user_messages["42"][0]["data"]
+    assert data["symbol"] == "VCB"
+
+
+@pytest.mark.asyncio
+async def test_default_batch_symbol_resolver_builds_single_in_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Batch resolver mặc định gom toàn bộ id vào MỘT query ``IN`` (chống N+1)."""
+    import websockets.trade_ws as trade_ws_module
+
+    class EmptyRows:
+        def all(self):
+            return []
+
+    class CapturingSession:
+        def __init__(self) -> None:
+            self.executed = None
+
+        async def execute(self, stmt):
+            self.executed = stmt
+            return EmptyRows()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+    session = CapturingSession()
+    monkeypatch.setattr(trade_ws_module, "async_session_factory", lambda: session)
+
+    notifier = TradeNotifier(FakeManager(), poll_interval=60.0)
+    result = await notifier._default_batch_symbol_resolver(
+        [uuid.uuid4() for _ in range(3)]
+    )
+
+    assert result == {}
+    assert "IN" in str(session.executed)
+
+
+@pytest.mark.asyncio
 async def test_poll_once_delivers_and_dedupes() -> None:
     manager = FakeManager()
     rows: list[dict] = []

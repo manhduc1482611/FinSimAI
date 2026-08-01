@@ -33,6 +33,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
 import uuid
 from typing import Any
 
@@ -46,7 +47,8 @@ DEFAULT_CHANNEL_PREFIX = "finsim:ws:"
 # Giữ lại để mô tả vùng channel (log/ghi chú); không dùng pattern-subscribe.
 DEFAULT_ROOM_CHANNEL_PATTERN = DEFAULT_CHANNEL_PREFIX + "*"
 
-# Backoff dò lại Redis: 1s → 2s → 4s → ... → 30s (cap).
+# Backoff dò lại Redis: 1s → 2s → 4s → ... → 30s (cap), mỗi lần sleep nhân
+# jitter ±50% để N worker không cùng nhịp (xem ``Backplane._jittered``).
 RETRY_INITIAL_DELAY = 1.0
 RETRY_MAX_DELAY = 30.0
 
@@ -235,10 +237,20 @@ class Backplane:
             self._reconnect_loop(), name="ws-backplane-reconnect"
         )
 
+    @staticmethod
+    def _jittered(delay: float) -> float:
+        """Nhiễu ngẫu nhiên ±50% quanh backoff cơ bản (chống Thundering Herd).
+
+        N worker rơi Redis cùng lúc, nếu cùng dãy 1s→2s→4s→...→30s sẽ ping Redis
+        đồng loạt đúng nhịp nhau khi nó quay lại. Jitter tách pha để các worker
+        dò lại lệch nhau — giảm xung CPU/Redis lúc phục hồi.
+        """
+        return delay * random.uniform(0.5, 1.5)
+
     async def _reconnect_loop(self) -> None:
         delay = self._retry_initial
         while not self._stopped and self._fallback_mode:
-            await asyncio.sleep(delay)
+            await asyncio.sleep(self._jittered(delay))
             if self._stopped or not self._fallback_mode:
                 break
             try:

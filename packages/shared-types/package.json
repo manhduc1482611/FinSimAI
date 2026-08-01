@@ -1,0 +1,21 @@
+{
+  "name": "@finsim/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript types chia sẻ toàn dự án — sinh tự động từ Pydantic schemas",
+  "main": "generated/api-types.ts",
+  "types": "generated/api-types.ts",
+  "exports": {
+    ".": "./generated/api-types.ts",
+    "./generated/api-types": "./generated/api-types.ts",
+    "./*": "./*"
+  },
+  "scripts": {
+    "generate": "python ../../scripts/generate_ts_types.py",
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
