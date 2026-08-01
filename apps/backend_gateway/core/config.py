@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     ]
     environment: str = "development"
     debug: bool = False
+    frontend_url: str = "http://localhost:3000"
 
     math_engine_grpc_host: str = "localhost"
     math_engine_grpc_port: int = 50051

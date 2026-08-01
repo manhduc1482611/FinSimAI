@@ -5,6 +5,8 @@ description = "FinSimAI Math Engine — deterministic financial simulation core"
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26.0",
+    "grpcio>=1.83.0,<2.0",
+    "protobuf>=7.35.1,<8.0",
 ]
 
 [tool.ruff]

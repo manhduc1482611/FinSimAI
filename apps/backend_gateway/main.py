@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -143,11 +144,13 @@ app = create_app()
 
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "8000"))
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=settings.debug,
         ws="wsproto",
+        proxy_headers=True,
         log_level="debug" if settings.debug else "info",
     )

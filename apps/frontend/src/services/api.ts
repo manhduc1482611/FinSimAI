@@ -217,8 +217,12 @@ class ApiClient {
 /** Singleton dùng chung toàn app. */
 export const apiClient = new ApiClient(API_BASE_URL);
 
-/** URL base WebSocket suy ra từ API base (http → ws, https → wss). */
+/** URL base WebSocket suy ra từ env hoặc từ API base (http → ws, https → wss). */
 export function getWsBaseUrl(): string {
+  const wsEnv = process.env.NEXT_PUBLIC_WS_URL;
+  if (wsEnv) {
+    return wsEnv.endsWith("/") ? wsEnv.slice(0, -1) : wsEnv;
+  }
   if (API_BASE_URL.startsWith("https://")) {
     return API_BASE_URL.replace(/^https:\/\//, "wss://");
   }

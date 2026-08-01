@@ -1,0 +1,125 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# FinSimAI — Render Blueprint
+# 100% Free Tier deploy: 1 private gRPC service + 1 background worker + 2 web APIs
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ── 1. Math Engine (gRPC) — Private Service ──────────────────────────────
+  # Chỉ có các service trong cùng tài khoản Render mới truy cập được nội bộ.
+  # Backend Gateway kết nối qua: MATH_ENGINE_GRPC_HOST=math-engine : 50051
+  - name: math-engine
+    type: privateService
+    plan: free
+    region: oregon
+    env: docker
+    dockerfilePath: apps/math_engine/Dockerfile
+    autoDeploy: true
+    build:
+      dockerContext: .
+
+  # ── 2. AI Engine Worker — Background Worker ──────────────────────────────
+  # Chạy ARQ worker (cron cào tin + sinh scenario + social posts).
+  - name: ai-engine-worker
+    type: backgroundWorker
+    plan: free
+    region: oregon
+    env: docker
+    dockerfilePath: apps/ai_engine/Dockerfile
+    startCommand: python -m tasks.worker
+    autoDeploy: true
+    build:
+      dockerContext: .
+    envVars:
+      - key: AI_ENGINE_ROLE
+        value: worker
+      - key: REDIS_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_RATE_LIMIT_RPM
+        value: "15"
+      - key: GEMINI_RATE_LIMIT_BURST
+        value: "5"
+      - key: GEMINI_RATE_LIMIT_MAX_WAIT_SECONDS
+        value: "90"
+
+  # ── 3. AI Engine API — Web Service ────────────────────────────────────────
+  # FastAPI web server (main_ai.py) — expose health + future AI endpoints.
+  - name: ai-engine-api
+    type: webService
+    plan: free
+    region: oregon
+    env: docker
+    dockerfilePath: apps/ai_engine/Dockerfile
+    startCommand: python -m main_ai
+    autoDeploy: true
+    build:
+      dockerContext: .
+    healthCheckPath: /health/live
+    envVars:
+      - key: AI_ENGINE_ROLE
+        value: api
+      - key: REDIS_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_RATE_LIMIT_RPM
+        value: "15"
+      - key: GEMINI_RATE_LIMIT_BURST
+        value: "5"
+      - key: GEMINI_RATE_LIMIT_MAX_WAIT_SECONDS
+        value: "90"
+
+  # ── 4. Backend Gateway — Web Service ───────────────────────────────────────
+  # FastAPI web server + WebSocket realtime layer.
+  # Đây là API Gateway duy nhất mà Frontend (Vercel) gọi tới.
+  - name: backend-gateway
+    type: webService
+    plan: free
+    region: oregon
+    env: docker
+    dockerfilePath: apps/backend_gateway/Dockerfile
+    autoDeploy: true
+    build:
+      dockerContext: .
+    healthCheckPath: /health/live
+    envVars:
+      # --- Database (Supabase / Render PostgreSQL) ---
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_SYNC
+        sync: false
+
+      # --- Redis (Upstash) ---
+      - key: REDIS_URL
+        sync: false
+
+      # --- Auth / Security ---
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+
+      # --- CORS (phải bao gồm domain Vercel frontend) ---
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+      # --- Internal service references — auto-resolved trên Render ---
+      - key: MATH_ENGINE_GRPC_HOST
+        value: math-engine
+      - key: MATH_ENGINE_GRPC_PORT
+        value: "50051"
+      - key: AI_ENGINE_URL
+        sync: false
+
+      # --- Runtime ---
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: PYTHONPATH
+        value: /app/apps/backend_gateway
