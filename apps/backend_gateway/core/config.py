@@ -38,6 +38,10 @@ class Settings(BaseSettings):
 
     health_check_timeout: float = 2.0
 
+    # Seed dữ liệu idempotent lúc boot (companies/knowledge/scenarios + mẫu news/social
+    # khi bảng rỗng). Chạy trong mạng Render để reach được Postgres free-tier.
+    seed_on_startup: bool = True
+
     # ─── WebSocket Real-time ────────────────────────────────────────
     ws_price_tick_seconds: float = 2.0
     ws_trade_poll_seconds: float = 1.0

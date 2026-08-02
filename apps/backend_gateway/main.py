@@ -18,6 +18,7 @@ from realtime.router import (
     stop_ws_background,
 )
 from run_migrations import run_migrations
+from seed_db import seed_if_empty
 from sqlalchemy import text
 
 logging.basicConfig(
@@ -48,6 +49,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not await _check_database():
         raise RuntimeError("Database unreachable at startup")
     logger.info("Database connectivity confirmed at startup")
+
+    if settings.seed_on_startup:
+        logger.info("Seeding database (idempotent, only-if-empty)…")
+        await seed_if_empty()
+    else:
+        logger.info("Database seeding disabled (SEED_ON_STARTUP=false)")
 
     ws_handles = await start_ws_background(app)
     logger.info("WebSocket realtime layer started (price + trade notifier)")
