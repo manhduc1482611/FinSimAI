@@ -14,8 +14,15 @@ import type {
 import type { RequestError } from "@/types/api";
 
 const DEFAULT_API_URL = "http://localhost:8000";
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_URL;
+
+const apiUrlFromEnv = process.env.NEXT_PUBLIC_API_URL;
+if (!apiUrlFromEnv) {
+  console.warn(
+    `[FinSimAI] NEXT_PUBLIC_API_URL chưa được cấu hình — fallback về ${DEFAULT_API_URL}. ` +
+      "Hãy đặt biến này trong Vercel (Settings → Environment Variables) trước khi deploy production.",
+  );
+}
+export const API_BASE_URL = apiUrlFromEnv ?? DEFAULT_API_URL;
 
 const TOKEN_STORAGE_KEY = "finsim.access_token";
 
@@ -223,6 +230,9 @@ export function getWsBaseUrl(): string {
   if (wsEnv) {
     return wsEnv.endsWith("/") ? wsEnv.slice(0, -1) : wsEnv;
   }
+  console.warn(
+    "[FinSimAI] NEXT_PUBLIC_WS_URL chưa được cấu hình — tự suy ra từ NEXT_PUBLIC_API_URL.",
+  );
   if (API_BASE_URL.startsWith("https://")) {
     return API_BASE_URL.replace(/^https:\/\//, "wss://");
   }

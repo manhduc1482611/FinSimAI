@@ -17,6 +17,7 @@ from realtime.router import (
     start_ws_background,
     stop_ws_background,
 )
+from run_migrations import run_migrations
 from sqlalchemy import text
 
 logging.basicConfig(
@@ -41,6 +42,9 @@ async def _check_database(timeout: float | None = None) -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    logger.info("Running database migrations (alembic upgrade head)…")
+    await asyncio.to_thread(run_migrations)
+
     if not await _check_database():
         raise RuntimeError("Database unreachable at startup")
     logger.info("Database connectivity confirmed at startup")

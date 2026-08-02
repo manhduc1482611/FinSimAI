@@ -37,6 +37,8 @@ WORKDIR /app
 # Copy the virtual-env and application code from the builder
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/apps/backend_gateway /app/apps/backend_gateway
+# Alembic migrations + alembic.ini (packages/database) — chạy `upgrade head` lúc boot
+COPY --from=builder /app/packages/database /app/packages/database
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/apps/backend_gateway" \
