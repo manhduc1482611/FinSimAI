@@ -622,6 +622,7 @@ dependencies = [
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "grpcio" },
+    { name = "httpx" },
     { name = "prometheus-fastapi-instrumentator" },
     { name = "protobuf" },
     { name = "psycopg2-binary" },
@@ -639,7 +640,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "grpcio-tools" },
-    { name = "httpx" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
 ]
@@ -652,6 +652,7 @@ requires-dist = [
     { name = "email-validator", specifier = ">=2.0.0,<3.0" },
     { name = "fastapi", specifier = ">=0.115.0,<1.0" },
     { name = "grpcio", specifier = ">=1.60.0,<2.0" },
+    { name = "httpx", specifier = ">=0.27,<1" },
     { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0.0,<8.0" },
     { name = "protobuf", specifier = ">=7.35.1,<8.0" },
     { name = "psycopg2-binary", specifier = ">=2.9,<3.0" },
@@ -669,7 +670,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "grpcio-tools", specifier = ">=1.62.0,<2.0" },
-    { name = "httpx", specifier = ">=0.27,<1" },
     { name = "pytest", specifier = ">=9.0,<10" },
     { name = "pytest-asyncio", specifier = ">=1.0,<2" },
 ]
