@@ -6,7 +6,9 @@ from sqlalchemy import engine_from_config, pool
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False: KHÔNG tắt các logger của app (main, seed_db,
+    # uvicorn, ...) khi alembic chạy — nếu không, mọi log sau migrate đều biến mất.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 database_url = os.getenv("DATABASE_URL_SYNC")
 if database_url:

@@ -13,6 +13,7 @@ Nguyên tắc an toàn:
 - Lỗi seed chỉ ghi log, không làm crash quá trình khởi động.
 """
 
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -117,7 +118,7 @@ async def _seed_reference_rows() -> None:
                     "description": row["description"],
                     "scenario_type": row["scenario_type"],
                     "difficulty": row.get("difficulty", 1),
-                    "config": row.get("config", {}),
+                    "config": json.dumps(row.get("config", {})),
                 },
             )
     logger.info(
