@@ -26,6 +26,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
     ]
+    # Regex bổ sung cho origin — hữu ích với Vercel Preview (`https://*.vercel.app`)
+    # hoặc nhiều môi trường cloud có subdomain thay đổi. Ví dụ:
+    # CORS_ORIGIN_REGEX=https://.*\.vercel\.app
+    cors_origin_regex: str | None = None
     environment: str = "development"
     debug: bool = False
     frontend_url: str = "http://localhost:3000"

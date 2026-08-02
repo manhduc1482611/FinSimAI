@@ -45,8 +45,8 @@ async def health_ready() -> JSONResponse:
         checks["gemini"] = "error"
 
     try:
-        from arq.connections import RedisSettings
         import arq
+        from arq.connections import RedisSettings
 
         url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
         redis_settings = RedisSettings.from_dsn(url)

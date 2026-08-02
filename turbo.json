@@ -1,15 +1,24 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env.*local"],
-  "pipeline": {
+  "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "@finsim/shared-types#build": {
+      "outputs": []
+    },
+    "@finsim/shared-types#lint": {
+      "outputs": []
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
-    "lint": {}
+    "lint": {},
+    "typecheck": {
+      "dependsOn": ["^build"]
+    }
   }
 }

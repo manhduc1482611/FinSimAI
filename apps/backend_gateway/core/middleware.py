@@ -43,6 +43,7 @@ def setup_middleware(app: ASGIApp) -> None:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        allow_origin_regex=settings.cors_origin_regex,
         allow_credentials="*" not in settings.cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -5,7 +5,9 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   // Monorepo: đảm bảo standalone build trace bao gồm packages/shared-types
-  outputFileTracingRoot: path.join(__dirname, "../../"),
+  experimental: {
+    outputFileTracingRoot: path.join(__dirname, "../../"),
+  },
   transpilePackages: ["@finsim/shared-types"],
   images: {
     remotePatterns: [

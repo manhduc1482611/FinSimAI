@@ -9,6 +9,8 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
+    "typecheck": "turbo run typecheck",
+    "test": "uv run pytest apps/backend_gateway/tests apps/ai_engine/tests apps/math_engine/tests -q",
     "format": "prettier --write \"**/*.{ts,tsx,js,json}\""
   },
   "devDependencies": {

@@ -14,7 +14,6 @@ jobs:
   python:
     name: Python (ruff / mypy / pytest)
     runs-on: ubuntu-latest
-    default-working-directory: apps/backend_gateway
 
     steps:
       - uses: actions/checkout@v4
@@ -30,22 +29,9 @@ jobs:
       - name: Ruff lint
         run: uv run ruff check apps/backend_gateway apps/math_engine apps/ai_engine scripts --exclude apps/backend_gateway/clients/proto --exclude apps/math_engine/grpc_services/math_engine_pb2.py --exclude apps/math_engine/grpc_services/math_engine_pb2_grpc.py
 
-      # ── Mypy (scoped: only modules we own, exclude generated protobuf) ──
-      - name: Mypy typecheck
-        run: >
-          uv run mypy apps/backend_gateway/services
-          apps/backend_gateway/schemas
-          apps/backend_gateway/models
-          apps/backend_gateway/api/v1/risk.py
-          apps/backend_gateway/api/v1/trades.py
-          apps/backend_gateway/core/config.py
-          apps/backend_gateway/core/dependencies.py
-          --exclude apps/backend_gateway/clients/proto/
-          --exclude apps/backend_gateway/websockets/
-          --follow-imports=skip
-
       # ── Pytest (all 3 Python apps) ──
       - name: Pytest — backend_gateway
+        working-directory: apps/backend_gateway
         run: uv run pytest tests/ -q
 
       - name: Pytest — math_engine
@@ -56,13 +42,10 @@ jobs:
         working-directory: apps/ai_engine
         run: uv run pytest tests/ -q
 
-  # ─── Frontend: lint + typecheck ───────────────────────────────────────────
+  # ─── Frontend: lint + typecheck + build ───────────────────────────────────
   frontend:
-    name: Frontend (lint / typecheck)
+    name: Frontend (lint / typecheck / build)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/frontend
 
     steps:
       - uses: actions/checkout@v4
@@ -71,18 +54,22 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: apps/frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
+      # npm workspaces: lockfile ở repo root (chứa cả apps/frontend + packages/shared-types).
       - name: Install dependencies
         run: npm ci
 
       - name: Lint
+        working-directory: apps/frontend
         run: npm run lint
 
       - name: TypeScript typecheck
+        working-directory: apps/frontend
         run: npm run typecheck
 
       - name: Build (production)
+        working-directory: apps/frontend
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}

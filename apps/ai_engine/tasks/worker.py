@@ -126,7 +126,7 @@ async def _check_redis() -> None:
         version = info.get("redis_version", "?")
         host = settings.host
         port = settings.port
-        print(f"Redis OK — {host}:{port} (v{version})")
+        logger.info("Redis OK — %s:%s (v%s)", host, port, version)
     finally:
         await pool.close(close_connection_pool=True)
 

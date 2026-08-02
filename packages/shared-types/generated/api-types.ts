@@ -9,7 +9,8 @@
 //   - Optional field (có default) → `field?: T | null`
 // Nếu backend đổi schema, chạy lại: `npm run generate:types` (root).
 
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue = string | number | boolean | null | JsonValue[]
+    | { [key: string]: JsonValue };
 
 // ─── USER · LOGIN_REQUEST ───
 export interface LoginRequest {
