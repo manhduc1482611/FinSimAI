@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 #############################################################################
 # FinSimAI — AI Engine (FastAPI Web API + ARQ Async Task Worker)
-# Single multi-stage image. Role selected at runtime via AI_ENGINE_ROLE:
-#   worker (default) → ARQ background worker  (CMD: python -m tasks.worker)
-#   api              → FastAPI web server      (CMD: python -m main_ai)
+# Chạy đồng thời API + worker trong cùng một container (free tier Render
+# chỉ hỗ trợ web services, không cho private/background worker riêng).
+# Entry: ./start.sh (python -m main_ai & python -m tasks.worker & wait)
 #############################################################################
 
 # ─── BUILDER ────────────────────────────────────────────────────────────────
@@ -36,15 +36,16 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/apps/ai_engine /app/apps/ai_engine
 
+RUN chmod +x /app/start.sh
+
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/apps/ai_engine" \
-    PYTHONUNBUFFERED=1 \
-    AI_ENGINE_ROLE=worker
+    PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-# Worker: process-alive check.  API: HTTP health endpoint check.
+# FastAPI luôn chạy trong container → health check qua HTTP /health/live
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD python -c "import os,sys,urllib.request; r=os.environ.get('AI_ENGINE_ROLE','worker'); sys.exit(0) if r=='worker' else urllib.request.urlopen('http://localhost:'+os.environ.get('PORT','8000')+'/health/live', timeout=5)" || exit 1
+  CMD python -c "import os,urllib.request; p=os.environ.get('PORT','8000'); urllib.request.urlopen(f'http://localhost:{p}/health/live', timeout=5)" || exit 1
 
-CMD ["python", "-m", "tasks.worker"]
+CMD ["sh", "/app/start.sh"]

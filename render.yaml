@@ -22,7 +22,9 @@ services:
 
   # ── 2. AI Engine API + Worker — Web Service ─────────────────────────────
   # FastAPI web server (main_ai.py) + ARQ background worker (tasks.worker)
-  # chạy chung một container free. Worker cào tin + sinh scenario + social posts.
+  # chạy chung một container free (start.sh — không cần dockerCommand vì
+  # Render chạy dockerCommand như một command word đơn, không split shell).
+  # Worker cào tin + sinh scenario + social posts.
   - name: ai-engine-api
     type: webService
     plan: free
@@ -30,12 +32,9 @@ services:
     runtime: docker
     dockerfilePath: apps/ai_engine/Dockerfile
     dockerContext: .
-    dockerCommand: sh -c "python -m main_ai & python -m tasks.worker & wait"
     autoDeploy: true
     healthCheckPath: /health/live
     envVars:
-      - key: AI_ENGINE_ROLE
-        value: api
       - key: REDIS_URL
         sync: false
       - key: GEMINI_API_KEY
