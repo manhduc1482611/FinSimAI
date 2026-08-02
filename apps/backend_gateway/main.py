@@ -62,20 +62,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Shutdown complete: math engine client and database engine disposed")
 
 
-def _setup_metrics(app: FastAPI) -> None:
-    try:
-        from prometheus_fastapi_instrumentator import Instrumentator
-
-        Instrumentator().instrument(app).expose(
-            app,
-            endpoint="/metrics",
-            include_in_schema=False,
-        )
-        logger.info("Prometheus /metrics enabled")
-    except ImportError:
-        logger.warning("prometheus-fastapi-instrumentator not installed; /metrics disabled")
-
-
 async def _run_health_checks() -> dict:
     checks: dict = {}
     healthy = True
@@ -124,7 +110,6 @@ def create_app() -> FastAPI:
     setup_middleware(app)
     app.include_router(api_router)
     register_websocket_routes(app)
-    _setup_metrics(app)
 
     @app.get("/health/live", tags=["health"])
     async def health_live():
