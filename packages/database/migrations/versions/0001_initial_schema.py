@@ -17,8 +17,24 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
-    op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+    # pgcrypto không có sẵn trên Windows native build — tạo hàm thay thế
+    op.execute("""
+        CREATE OR REPLACE FUNCTION gen_random_uuid() RETURNS UUID AS $$
+        DECLARE hex TEXT;
+        BEGIN
+            hex := md5(random()::text || clock_timestamp()::text);
+            RETURN (
+                substr(hex, 1, 8) || '-' ||
+                substr(hex, 9, 4) || '-' ||
+                substr(hex, 13, 4) || '-' ||
+                substr(hex, 17, 4) || '-' ||
+                substr(hex, 21, 12)
+            )::uuid;
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+    # pg_trgm not available in this PostgreSQL build — skip gracefully
+
 
     # ─── Enums ──────────────────────────────────────────────
     op.execute("CREATE TYPE user_role AS ENUM ('user', 'admin', 'bot')")
@@ -126,7 +142,7 @@ def upgrade() -> None:
         sa.Column("side", sa.Enum("buy", "sell", name="order_side"), nullable=False),
         sa.Column("type", sa.Enum("market", "limit", name="order_type"), server_default=sa.text("'limit'"), nullable=False),
         sa.Column("status", sa.Enum("pending", "filled", "partially_filled", "cancelled", "rejected", name="order_status"), server_default=sa.text("'pending'"), nullable=False),
-        sa.Column("price", sa.Numeric(20, 2), nullable=True),     -- NULL cho Market Order
+        sa.Column("price", sa.Numeric(20, 2), nullable=True),  # NULL cho Market Order
         sa.Column("quantity", sa.Numeric(20, 4), nullable=False),
         sa.Column("filled_quantity", sa.Numeric(20, 4), server_default=sa.text("0"), nullable=False),
         sa.Column("frozen_cash", sa.Numeric(20, 2), server_default=sa.text("0"), nullable=False),
