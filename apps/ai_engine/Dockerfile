@@ -35,6 +35,7 @@ WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/apps/ai_engine /app/apps/ai_engine
+COPY --from=builder /app/apps/ai_engine/start.sh /app/start.sh
 
 RUN chmod +x /app/start.sh
 
