@@ -117,6 +117,7 @@ def create_app() -> FastAPI:
         docs_url=None if is_production else "/docs",
         redoc_url=None if is_production else "/redoc",
         openapi_url=None if is_production else "/openapi.json",
+        debug=settings.debug,
         lifespan=lifespan,
     )
 
