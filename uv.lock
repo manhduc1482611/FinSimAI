@@ -698,17 +698,21 @@ name = "finsim-math-engine"
 version = "0.1.0"
 source = { virtual = "apps/math_engine" }
 dependencies = [
+    { name = "fastapi" },
     { name = "grpcio" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "protobuf" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "fastapi", specifier = ">=0.115.0,<1.0" },
     { name = "grpcio", specifier = ">=1.83.0,<2.0" },
     { name = "numpy", specifier = ">=1.26.0" },
     { name = "protobuf", specifier = ">=7.35.1,<8.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0,<1.0" },
 ]
 
 [[package]]

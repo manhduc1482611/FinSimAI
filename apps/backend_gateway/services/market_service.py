@@ -3,7 +3,7 @@ import logging
 import uuid
 from decimal import Decimal
 
-from clients.math_grpc_client import math_grpc_client
+from clients.math_client import math_client
 from models.company import Company
 from models.trade import Portfolio
 from models.user import User
@@ -25,7 +25,7 @@ async def _fetch_price_values(
     dt_years: float,
     seed: int | None,
 ) -> Decimal | None:
-    result = await math_grpc_client.generate_next_prices(
+    result = await math_client.generate_next_prices(
         current_price=current_price,
         mu=0.0,
         sigma=volatility,

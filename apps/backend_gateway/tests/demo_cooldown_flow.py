@@ -20,7 +20,7 @@ sys.path.insert(
     0, str(Path(__file__).resolve().parents[2] / "backend_gateway")
 )
 
-from clients.math_grpc_client import math_grpc_client  # noqa: E402
+from clients.math_client import math_client  # noqa: E402
 from models.trade import Order  # noqa: E402
 from models.trap import TrapEvent  # noqa: E402
 from models.user import User  # noqa: E402
@@ -147,7 +147,7 @@ async def main() -> None:
             "new_risk_score": min(100, risk_score + trap_severity * 2),
         }
 
-    setattr(math_grpc_client, "check_penalty_status", fake_check_penalty_status)
+    setattr(math_client, "check_penalty_status", fake_check_penalty_status)
 
     db = FakeSession()
     user = make_user(risk_score=10)

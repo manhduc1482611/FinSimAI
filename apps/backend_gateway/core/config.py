@@ -34,8 +34,7 @@ class Settings(BaseSettings):
     debug: bool = False
     frontend_url: str = "http://localhost:3000"
 
-    math_engine_grpc_host: str = "localhost"
-    math_engine_grpc_port: int = 50051
+    math_engine_url: str = "http://localhost:8000"
 
     health_check_timeout: float = 2.0
 

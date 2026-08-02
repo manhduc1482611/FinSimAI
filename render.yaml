@@ -1,48 +1,28 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # FinSimAI — Render Blueprint
-# 100% Free Tier deploy: 1 private gRPC service + 1 background worker + 2 web APIs
+# 100% Free Tier deploy: 3 web services (gRPC/private services & background
+# workers không có free instance trên Render — xem https://render.com/docs/free).
+# ARQ worker chạy song song trong container ai-engine-api.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 services:
-  # ── 1. Math Engine (gRPC) — Private Service ──────────────────────────────
-  # Chỉ có các service trong cùng tài khoản Render mới truy cập được nội bộ.
-  # Backend Gateway kết nối qua: MATH_ENGINE_GRPC_HOST=math-engine : 50051
+  # ── 1. Math Engine (HTTP web service) ────────────────────────────────────
+  # Trước là gRPC private service; Render không hỗ trợ gRPC trên public web
+  # services và private service không có free tier → chuyển sang FastAPI HTTP.
+  # Backend Gateway gọi qua: MATH_ENGINE_URL=https://<tên>.onrender.com
   - name: math-engine
-    type: privateService
+    type: webService
     plan: free
     region: oregon
     runtime: docker
     dockerfilePath: apps/math_engine/Dockerfile
     dockerContext: .
+    healthCheckPath: /health/live
     autoDeploy: true
 
-  # ── 2. AI Engine Worker — Background Worker ──────────────────────────────
-  # Chạy ARQ worker (cron cào tin + sinh scenario + social posts).
-  - name: ai-engine-worker
-    type: backgroundWorker
-    plan: free
-    region: oregon
-    runtime: docker
-    dockerfilePath: apps/ai_engine/Dockerfile
-    dockerContext: .
-    dockerCommand: python -m tasks.worker
-    autoDeploy: true
-    envVars:
-      - key: AI_ENGINE_ROLE
-        value: worker
-      - key: REDIS_URL
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GEMINI_RATE_LIMIT_RPM
-        value: "15"
-      - key: GEMINI_RATE_LIMIT_BURST
-        value: "5"
-      - key: GEMINI_RATE_LIMIT_MAX_WAIT_SECONDS
-        value: "90"
-
-  # ── 3. AI Engine API — Web Service ────────────────────────────────────────
-  # FastAPI web server (main_ai.py) — expose health + future AI endpoints.
+  # ── 2. AI Engine API + Worker — Web Service ─────────────────────────────
+  # FastAPI web server (main_ai.py) + ARQ background worker (tasks.worker)
+  # chạy chung một container free. Worker cào tin + sinh scenario + social posts.
   - name: ai-engine-api
     type: webService
     plan: free
@@ -50,7 +30,7 @@ services:
     runtime: docker
     dockerfilePath: apps/ai_engine/Dockerfile
     dockerContext: .
-    dockerCommand: python -m main_ai
+    dockerCommand: sh -c "python -m main_ai & python -m tasks.worker & wait"
     autoDeploy: true
     healthCheckPath: /health/live
     envVars:
@@ -67,7 +47,7 @@ services:
       - key: GEMINI_RATE_LIMIT_MAX_WAIT_SECONDS
         value: "90"
 
-  # ── 4. Backend Gateway — Web Service ───────────────────────────────────────
+  # ── 3. Backend Gateway — Web Service ─────────────────────────────────────
   # FastAPI web server + WebSocket realtime layer.
   # Đây là API Gateway duy nhất mà Frontend (Vercel) gọi tới.
   - name: backend-gateway
@@ -80,13 +60,13 @@ services:
     autoDeploy: true
     healthCheckPath: /health/live
     envVars:
-      # --- Database (Supabase / Render PostgreSQL) ---
+      # --- Database (Render PostgreSQL) ---
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_URL_SYNC
         sync: false
 
-      # --- Redis (Upstash) ---
+      # --- Redis (Render Key Value) ---
       - key: REDIS_URL
         sync: false
 
@@ -104,12 +84,8 @@ services:
       - key: FRONTEND_URL
         sync: false
 
-      # --- Internal service references — auto-resolved trên Render ---
-      - key: MATH_ENGINE_GRPC_HOST
-        value: math-engine
-      - key: MATH_ENGINE_GRPC_PORT
-        value: "50051"
-      - key: AI_ENGINE_URL
+      # --- Internal service reference (HTTP) ---
+      - key: MATH_ENGINE_URL
         sync: false
 
       # --- Runtime ---

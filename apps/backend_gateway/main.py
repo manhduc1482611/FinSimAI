@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from api.v1.router import api_router
-from clients.math_grpc_client import math_grpc_client
+from clients.math_client import math_client
 from core.config import settings
 from core.database import dispose_engine, engine
 from core.middleware import setup_middleware
@@ -57,9 +57,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Draining in-flight traffic before shutdown...")
     await stop_ws_background(ws_handles)
     await asyncio.sleep(3.0)
-    await math_grpc_client.close()
+    await math_client.close()
     await dispose_engine()
-    logger.info("Shutdown complete: gRPC channel and database engine disposed")
+    logger.info("Shutdown complete: math engine client and database engine disposed")
 
 
 def _setup_metrics(app: FastAPI) -> None:
@@ -99,7 +99,7 @@ async def _run_health_checks() -> dict:
 
     await asyncio.gather(
         _check("database", _check_database()),
-        _check("math_engine", math_grpc_client.ping()),
+        _check("math_engine", math_client.ping()),
         _check("redis", _redis_ok(), hard=False),
     )
 

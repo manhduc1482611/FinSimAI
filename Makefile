@@ -9,7 +9,7 @@ dev-backend:
 	cd apps/backend_gateway && WS_LOCAL_MODE=true uv run uvicorn main:app --reload --ws wsproto
 
 dev-math:
-	cd apps/math_engine && uv run python grpc_server.py
+	cd apps/math_engine && uv run python http_server.py
 
 dev-ai:
 	cd apps/ai_engine && uv run python main_ai.py

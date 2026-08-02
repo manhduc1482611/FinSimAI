@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
-from clients.math_grpc_client import math_grpc_client
+from clients.math_client import math_client
 from models.trade import Order
 from models.trap import TrapEvent
 from models.user import User
@@ -176,7 +176,7 @@ def _patch_math(monkeypatch: pytest.MonkeyPatch, *, cooldown_seconds: float = 0.
         }
 
     monkeypatch.setattr(
-        math_grpc_client, "check_penalty_status", fake_check_penalty_status
+        math_client, "check_penalty_status", fake_check_penalty_status
     )
 
 
@@ -300,7 +300,7 @@ async def test_apply_penalty_math_failure_returns_error(monkeypatch: pytest.Monk
     async def fake_failure(risk_score: int, trap_severity: int):
         return {"success": False, "cooldown_seconds": 0.0, "new_risk_score": risk_score}
 
-    monkeypatch.setattr(math_grpc_client, "check_penalty_status", fake_failure)
+    monkeypatch.setattr(math_client, "check_penalty_status", fake_failure)
     db = FakeSession()
     user = make_user()
     db.install(user)
@@ -325,7 +325,7 @@ async def test_apply_penalty_cancels_pending_orders_to_cover_deduction(
             "success": True,
         }
 
-    monkeypatch.setattr(math_grpc_client, "check_penalty_status", fake_check)
+    monkeypatch.setattr(math_client, "check_penalty_status", fake_check)
     db = FakeSession()
     user = make_user(
         risk_score=30,
@@ -374,7 +374,7 @@ async def test_apply_penalty_rolls_back_when_short(monkeypatch: pytest.MonkeyPat
             "success": True,
         }
 
-    monkeypatch.setattr(math_grpc_client, "check_penalty_status", fake_check)
+    monkeypatch.setattr(math_client, "check_penalty_status", fake_check)
     db = FakeSession()
     user = make_user(cash_balance=Decimal("100.00"))
     db.install(user)

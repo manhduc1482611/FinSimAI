@@ -40,9 +40,9 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/apps/math_engine" \
     PYTHONUNBUFFERED=1
 
-EXPOSE 50051
+EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD python -c "import grpc; print('grpc ok')" || exit 1
+  CMD python -c "import os,urllib.request; p=os.environ.get('PORT','8000'); urllib.request.urlopen(f'http://localhost:{p}/health/live', timeout=5)" || exit 1
 
-CMD ["python", "-m", "grpc_server"]
+CMD ["python", "-m", "http_server"]

@@ -21,7 +21,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_UP, Decimal
 
-from clients.math_grpc_client import math_grpc_client
+from clients.math_client import math_client
 from models.trade import Order
 from models.trap import TrapEvent
 from models.user import User
@@ -131,7 +131,7 @@ async def apply_penalty(
     if not user_data:
         return {"success": False, "error": "User not found"}
 
-    result = await math_grpc_client.check_penalty_status(
+    result = await math_client.check_penalty_status(
         risk_score=user_data.risk_score,
         trap_severity=trap_severity,
     )
