@@ -11,11 +11,10 @@ services:
     type: privateService
     plan: free
     region: oregon
-    env: docker
+    runtime: docker
     dockerfilePath: apps/math_engine/Dockerfile
+    dockerContext: .
     autoDeploy: true
-    build:
-      dockerContext: .
 
   # ── 2. AI Engine Worker — Background Worker ──────────────────────────────
   # Chạy ARQ worker (cron cào tin + sinh scenario + social posts).
@@ -23,12 +22,11 @@ services:
     type: backgroundWorker
     plan: free
     region: oregon
-    env: docker
+    runtime: docker
     dockerfilePath: apps/ai_engine/Dockerfile
-    startCommand: python -m tasks.worker
+    dockerContext: .
+    dockerCommand: python -m tasks.worker
     autoDeploy: true
-    build:
-      dockerContext: .
     envVars:
       - key: AI_ENGINE_ROLE
         value: worker
@@ -49,12 +47,11 @@ services:
     type: webService
     plan: free
     region: oregon
-    env: docker
+    runtime: docker
     dockerfilePath: apps/ai_engine/Dockerfile
-    startCommand: python -m main_ai
+    dockerContext: .
+    dockerCommand: python -m main_ai
     autoDeploy: true
-    build:
-      dockerContext: .
     healthCheckPath: /health/live
     envVars:
       - key: AI_ENGINE_ROLE
@@ -77,11 +74,10 @@ services:
     type: webService
     plan: free
     region: oregon
-    env: docker
+    runtime: docker
     dockerfilePath: apps/backend_gateway/Dockerfile
+    dockerContext: .
     autoDeploy: true
-    build:
-      dockerContext: .
     healthCheckPath: /health/live
     envVars:
       # --- Database (Supabase / Render PostgreSQL) ---
