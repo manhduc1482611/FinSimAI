@@ -33,7 +33,13 @@ def upgrade() -> None:
         END;
         $$ LANGUAGE plpgsql;
     """)
-    # pg_trgm not available in this PostgreSQL build — skip gracefully
+    # pg_trgm: bật nếu server hỗ trợ. Build không có extension (VD Windows native)
+    # sẽ bỏ qua các index trigram thay vì fail — giữ migration chạy được mọi nơi.
+    pg_trgm_available = op.get_bind().execute(
+        sa.text("SELECT 1 FROM pg_available_extensions WHERE name = 'pg_trgm'")
+    ).first() is not None
+    if pg_trgm_available:
+        op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
 
 
     # ─── Enums ──────────────────────────────────────────────
@@ -57,7 +63,7 @@ def upgrade() -> None:
         sa.Column("password_hash", sa.String(255), nullable=False),
         sa.Column("display_name", sa.String(200), nullable=True),
         sa.Column("avatar_url", sa.String(500), nullable=True),
-        sa.Column("role", sa.Enum("user", "admin", "bot", name="user_role"), server_default=sa.text("'user'"), nullable=False),
+        sa.Column("role", postgresql.ENUM("user", "admin", "bot", name="user_role", create_type=False), server_default=sa.text("'user'"), nullable=False),
         sa.Column("cash_balance", sa.Numeric(20, 2), server_default=sa.text("100000000.00"), nullable=False),
         sa.Column("frozen_cash", sa.Numeric(20, 2), server_default=sa.text("0.00"), nullable=False),
         sa.Column("risk_score", sa.Integer(), server_default=sa.text("0"), nullable=False),
@@ -130,7 +136,6 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["company_id"], ["companies.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
-        sa.CheckConstraint("type = 'market' OR price IS NOT NULL", name="chk_orders_limit_price"),
     )
     op.create_index("idx_portfolios_user_id", "portfolios", ["user_id"])
 
@@ -139,9 +144,9 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("user_id", postgresql.UUID(), nullable=False),
         sa.Column("company_id", postgresql.UUID(), nullable=False),
-        sa.Column("side", sa.Enum("buy", "sell", name="order_side"), nullable=False),
-        sa.Column("type", sa.Enum("market", "limit", name="order_type"), server_default=sa.text("'limit'"), nullable=False),
-        sa.Column("status", sa.Enum("pending", "filled", "partially_filled", "cancelled", "rejected", name="order_status"), server_default=sa.text("'pending'"), nullable=False),
+        sa.Column("side", postgresql.ENUM("buy", "sell", name="order_side", create_type=False), nullable=False),
+        sa.Column("type", postgresql.ENUM("market", "limit", name="order_type", create_type=False), server_default=sa.text("'limit'"), nullable=False),
+        sa.Column("status", postgresql.ENUM("pending", "filled", "partially_filled", "cancelled", "rejected", name="order_status", create_type=False), server_default=sa.text("'pending'"), nullable=False),
         sa.Column("price", sa.Numeric(20, 2), nullable=True),  # NULL cho Market Order
         sa.Column("quantity", sa.Numeric(20, 4), nullable=False),
         sa.Column("filled_quantity", sa.Numeric(20, 4), server_default=sa.text("0"), nullable=False),
@@ -153,6 +158,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["company_id"], ["companies.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
+        sa.CheckConstraint("type = 'market' OR price IS NOT NULL", name="chk_orders_limit_price"),
     )
     op.create_index("idx_orders_user", "orders", ["user_id", "status"])
     op.create_index("idx_orders_matching", "orders", ["company_id", "side", "status", sa.text("price DESC"), sa.text("simulated_at ASC")])
@@ -163,7 +169,7 @@ def upgrade() -> None:
         sa.Column("order_id", postgresql.UUID(), nullable=True),
         sa.Column("user_id", postgresql.UUID(), nullable=False),
         sa.Column("company_id", postgresql.UUID(), nullable=False),
-        sa.Column("side", sa.Enum("buy", "sell", name="order_side"), nullable=False),
+        sa.Column("side", postgresql.ENUM("buy", "sell", name="order_side", create_type=False), nullable=False),
         sa.Column("quantity", sa.Numeric(20, 4), nullable=False),
         sa.Column("price", sa.Numeric(20, 2), nullable=False),
         sa.Column("total_value", sa.Numeric(20, 2), sa.Computed("quantity * price", persisted=True), nullable=False),
@@ -184,7 +190,7 @@ def upgrade() -> None:
         sa.Column("title", sa.String(500), nullable=False),
         sa.Column("summary", sa.Text(), nullable=True),
         sa.Column("content", sa.Text(), nullable=False),
-        sa.Column("sentiment", sa.Enum("positive", "negative", "neutral", name="sentiment"), server_default=sa.text("'neutral'"), nullable=False),
+        sa.Column("sentiment", postgresql.ENUM("positive", "negative", "neutral", name="sentiment", create_type=False), server_default=sa.text("'neutral'"), nullable=False),
         sa.Column("impact_score", sa.Integer(), server_default=sa.text("1"), nullable=False),
         sa.Column("source", sa.String(200), nullable=True),
         sa.Column("simulated_at", sa.DateTime(timezone=True), nullable=False),
@@ -192,8 +198,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("idx_news_simulated_at", "news", ["simulated_at"], postgresql_using="btree")
-    op.execute("CREATE INDEX idx_news_title_trgm ON news USING gin (title gin_trgm_ops)")
-    op.execute("CREATE INDEX idx_news_content_trgm ON news USING gin (content gin_trgm_ops)")
+    if pg_trgm_available:
+        op.execute("CREATE INDEX idx_news_title_trgm ON news USING gin (title gin_trgm_ops)")
+        op.execute("CREATE INDEX idx_news_content_trgm ON news USING gin (content gin_trgm_ops)")
 
     op.create_table("news_companies",
         sa.Column("news_id", postgresql.UUID(), nullable=False),
@@ -209,12 +216,12 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("company_id", postgresql.UUID(), nullable=True),
         sa.Column("author_name", sa.String(200), nullable=False),
-        sa.Column("persona", sa.Enum("ta_fa_kol", "profit_flex", "loss_flex", "dump_group", "pro_trader", "f0_newbie", "macro_guru", "insider", "memes", "scam_alert", name="persona_type"), server_default=sa.text("'f0_newbie'"), nullable=False),
+        sa.Column("persona", postgresql.ENUM("ta_fa_kol", "profit_flex", "loss_flex", "dump_group", "pro_trader", "f0_newbie", "macro_guru", "insider", "memes", "scam_alert", name="persona_type", create_type=False), server_default=sa.text("'f0_newbie'"), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("virality_score", sa.Integer(), server_default=sa.text("0"), nullable=False),
-        sa.Column("sentiment", sa.Enum("positive", "negative", "neutral", name="sentiment"), server_default=sa.text("'neutral'"), nullable=False),
+        sa.Column("sentiment", postgresql.ENUM("positive", "negative", "neutral", name="sentiment", create_type=False), server_default=sa.text("'neutral'"), nullable=False),
         sa.Column("is_trap", sa.Boolean(), server_default=sa.text("false"), nullable=False),
-        sa.Column("trap_type", sa.Enum("fomo", "panic", "pump_dump", "fake_news", "whale_trap", name="trap_type"), nullable=True),
+        sa.Column("trap_type", postgresql.ENUM("fomo", "panic", "pump_dump", "fake_news", "whale_trap", name="trap_type", create_type=False), nullable=True),
         sa.Column("simulated_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.ForeignKeyConstraint(["company_id"], ["companies.id"], ondelete="SET NULL"),
@@ -229,7 +236,7 @@ def upgrade() -> None:
         sa.Column("user_id", postgresql.UUID(), nullable=False),
         sa.Column("company_id", postgresql.UUID(), nullable=True),
         sa.Column("social_post_id", postgresql.UUID(), nullable=True),
-        sa.Column("type", sa.Enum("fomo", "panic", "pump_dump", "fake_news", "whale_trap", name="trap_type"), nullable=False),
+        sa.Column("type", postgresql.ENUM("fomo", "panic", "pump_dump", "fake_news", "whale_trap", name="trap_type", create_type=False), nullable=False),
         sa.Column("severity", sa.Integer(), server_default=sa.text("1"), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("points_deducted", sa.Integer(), server_default=sa.text("0"), nullable=False),
@@ -257,7 +264,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("keyword"),
     )
-    op.execute("CREATE INDEX idx_kb_keyword_trgm ON knowledge_base USING gin (keyword gin_trgm_ops)")
+    if pg_trgm_available:
+        op.execute("CREATE INDEX idx_kb_keyword_trgm ON knowledge_base USING gin (keyword gin_trgm_ops)")
     op.execute("CREATE INDEX idx_kb_related_keywords ON knowledge_base USING gin (related_keywords)")
 
     # ─── Scenarios ──────────────────────────────────────────
@@ -280,7 +288,7 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("user_id", postgresql.UUID(), nullable=False),
         sa.Column("scenario_id", postgresql.UUID(), nullable=False),
-        sa.Column("status", sa.Enum("pending", "active", "completed", "failed", name="scenario_status"), server_default=sa.text("'pending'"), nullable=False),
+        sa.Column("status", postgresql.ENUM("pending", "active", "completed", "failed", name="scenario_status", create_type=False), server_default=sa.text("'pending'"), nullable=False),
         sa.Column("progress", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("score", sa.Integer(), nullable=True),
         sa.Column("config_override", postgresql.JSONB(), nullable=True),
