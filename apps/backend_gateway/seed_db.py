@@ -19,9 +19,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
-from sqlalchemy import text
-
 from core.database import engine
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +61,8 @@ async def _seed_reference_rows() -> None:
                         (symbol, name, description, sector, current_price, volatility,
                          shares_outstanding, health_score, pe_ratio, roe, net_margin, max_drawdown)
                     VALUES (:symbol, :name, :description, :sector, :current_price, :volatility,
-                            :shares_outstanding, :health_score, :pe_ratio, :roe, :net_margin, :max_drawdown)
+                            :shares_outstanding, :health_score, :pe_ratio, :roe,
+                            :net_margin, :max_drawdown)
                     ON CONFLICT (symbol) DO NOTHING
                     """
                 ),
@@ -87,7 +87,8 @@ async def _seed_reference_rows() -> None:
                     """
                     INSERT INTO knowledge_base
                         (keyword, concept, definition, category, difficulty, related_keywords)
-                    VALUES (:keyword, :concept, :definition, :category, :difficulty, :related_keywords)
+                    VALUES (:keyword, :concept, :definition, :category,
+                            :difficulty, :related_keywords)
                     ON CONFLICT (keyword) DO UPDATE SET
                         concept = EXCLUDED.concept,
                         definition = EXCLUDED.definition,
@@ -109,7 +110,8 @@ async def _seed_reference_rows() -> None:
                 text(
                     """
                     INSERT INTO scenarios (name, description, scenario_type, difficulty, config)
-                    VALUES (:name, :description, :scenario_type, :difficulty, CAST(:config AS jsonb))
+                    VALUES (:name, :description, :scenario_type, :difficulty,
+                            CAST(:config AS jsonb))
                     ON CONFLICT DO NOTHING
                     """
                 ),
@@ -144,26 +146,35 @@ def _news_rows(companies: list[dict]) -> list[dict]:
 
     per_company_templates = [
         (
-            "{name} công bố kết quả kinh doanh quý vượt kỳ vọng, cổ phiếu {symbol} tăng mạnh phiên sáng",
-            "Báo cáo tài chính mới nhất của {name} vượt dự báo của giới phân tích, đẩy giá cổ phiếu {symbol} đi lên trong phiên giao dịch đầu ngày. Ban lãnh đạo cho biết sẽ tiếp tục đẩy mạnh mảng kinh doanh cốt lõi.",
+            "{name} công bố kết quả kinh doanh quý vượt kỳ vọng, "
+            "cổ phiếu {symbol} tăng mạnh phiên sáng",
+            "Báo cáo tài chính mới nhất của {name} vượt dự báo của giới phân tích, "
+            "đẩy giá cổ phiếu {symbol} đi lên trong phiên giao dịch đầu ngày. "
+            "Ban lãnh đạo cho biết sẽ tiếp tục đẩy mạnh mảng kinh doanh cốt lõi.",
             "positive",
             2.5,
         ),
         (
             "{name} đẩy nhanh kế hoạch mở rộng thị phần trong quý tới",
-            "Ban điều hành {name} công bố chiến lược mở rộng mới, tập trung vào các thị trường tiềm năng. Nhiều nhà đầu tư kỳ vọng động thái này sẽ cải thiện doanh thu dài hạn.",
+            "Ban điều hành {name} công bố chiến lược mở rộng mới, "
+            "tập trung vào các thị trường tiềm năng. "
+            "Nhiều nhà đầu tư kỳ vọng động thái này sẽ cải thiện doanh thu dài hạn.",
             "positive",
             1.8,
         ),
         (
             "Cổ đông {name} băn khoăn trước biến động ngắn hạn của cổ phiếu {symbol}",
-            "Mặc dù nền tảng cơ bản ổn định, cổ phiếu {symbol} của {name} ghi nhận những phiên điều chỉnh, khiến một bộ phận cổ đông thận trọng trước xu hướng ngắn hạn.",
+            "Mặc dù nền tảng cơ bản ổn định, cổ phiếu {symbol} của {name} "
+            "ghi nhận những phiên điều chỉnh, khiến một bộ phận cổ đông "
+            "thận trọng trước xu hướng ngắn hạn.",
             "neutral",
             1.2,
         ),
         (
             "Áp lực cạnh tranh ngày càng lớn với {name}, chuyên gia đưa khuyến nghị thận trọng",
-            "Sự xuất hiện của nhiều đối thủ mới cùng biên lợi nhuận bị thu hẹp khiến triển vọng {name} trở nên kém rõ ràng hơn. Các chuyên gia khuyến nghị theo dõi thêm trước khi ra quyết định.",
+            "Sự xuất hiện của nhiều đối thủ mới cùng biên lợi nhuận bị thu hẹp "
+            "khiến triển vọng {name} trở nên kém rõ ràng hơn. "
+            "Các chuyên gia khuyến nghị theo dõi thêm trước khi ra quyết định.",
             "negative",
             2.2,
         ),
@@ -195,19 +206,22 @@ def _news_rows(companies: list[dict]) -> list[dict]:
     macro_templates = [
         (
             "Thị trường giao dịch tích cực nhờ dòng tiền luân chuyển",
-            "Phiên giao dịch ghi nhận dòng tiền đổ vào các nhóm ngành chủ chốt, giúp chỉ số duy trì đà tăng. Thanh khoản cải thiện so với các phiên trước đó.",
+            "Phiên giao dịch ghi nhận dòng tiền đổ vào các nhóm ngành chủ chốt, "
+            "giúp chỉ số duy trì đà tăng. Thanh khoản cải thiện so với các phiên trước đó.",
             "positive",
             1.5,
         ),
         (
             "Mặt bằng lãi suất tiếp tục ổn định, hỗ trợ định giá cổ phiếu",
-            "Lãi suất giữ ở mức ổn định giúp chi phí vốn doanh nghiệp không đổi, qua đó hỗ trợ mặt bằng định giá trên thị trường chứng khoán.",
+            "Lãi suất giữ ở mức ổn định giúp chi phí vốn doanh nghiệp không đổi, "
+            "qua đó hỗ trợ mặt bằng định giá trên thị trường chứng khoán.",
             "neutral",
             1.0,
         ),
         (
             "Nhà đầu tư thận trọng chờ thêm tín hiệu vĩ mô rõ ràng",
-            "Khối lượng giao dịch sụt giảm khi nhà đầu tư đứng ngoài quan sát, chờ thêm dữ liệu kinh tế trước khi giải ngân trở lại.",
+            "Khối lượng giao dịch sụt giảm khi nhà đầu tư đứng ngoài quan sát, "
+            "chờ thêm dữ liệu kinh tế trước khi giải ngân trở lại.",
             "negative",
             1.3,
         ),
@@ -242,19 +256,22 @@ def _social_rows(companies: list[dict]) -> list[dict]:
     ]
     templates = [
         (
-            "Mình mới mua thêm {symbol} hôm nay, thấy tiềm năng dài hạn rõ ràng! Ai cùng quan điểm không?",
+            "Mình mới mua thêm {symbol} hôm nay, thấy tiềm năng dài hạn rõ ràng! "
+            "Ai cùng quan điểm không?",
             0.8,
             "positive",
             False,
         ),
         (
-            "Nhìn đồ thị {symbol} mà phát hoảng, ngắn hạn chưa nên ôm. Kiên nhẫn chờ điểm vào tốt hơn.",
+            "Nhìn đồ thị {symbol} mà phát hoảng, ngắn hạn chưa nên ôm. "
+            "Kiên nhẫn chờ điểm vào tốt hơn.",
             0.6,
             "negative",
             False,
         ),
         (
-            "Có ai để ý {symbol} của {name} không? Thanh khoản hôm nay tăng bất thường, cẩn thận nhé.",
+            "Có ai để ý {symbol} của {name} không? "
+            "Thanh khoản hôm nay tăng bất thường, cẩn thận nhé.",
             0.9,
             "negative",
             True,
@@ -266,7 +283,8 @@ def _social_rows(companies: list[dict]) -> list[dict]:
             False,
         ),
         (
-            "Tôi nghĩ giá {symbol} sẽ sideway vài tuần tới trước khi có tín hiệu rõ ràng. Cá nhân đứng ngoài.",
+            "Tôi nghĩ giá {symbol} sẽ sideway vài tuần tới "
+            "trước khi có tín hiệu rõ ràng. Cá nhân đứng ngoài.",
             0.4,
             "neutral",
             False,
@@ -351,7 +369,8 @@ async def _seed_content_rows() -> None:
                             (author_name, author_avatar, persona_type, content, virality_score,
                              sentiment, is_trap, company_id, likes_count, shares_count,
                              comments_count, simulated_at)
-                        VALUES (:author_name, :author_avatar, :persona_type, :content, :virality_score,
+                        VALUES (:author_name, :author_avatar, :persona_type, :content,
+                                :virality_score,
                                 :sentiment, :is_trap, :company_id, :likes_count, :shares_count,
                                 :comments_count, :simulated_at)
                         """
