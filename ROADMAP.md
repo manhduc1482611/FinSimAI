@@ -7,7 +7,7 @@
 ## Giai đoạn 1 — Backend Foundation (Hoàn thành)
 
 - **Dự án monorepo**: Turborepo (JS) + UV workspace (Python), docker-compose (Postgres 16 + Redis 7), Makefile, `.env.example`.
-- **Database**: schema 13 bảng + 8 ENUM + 23 index, migration Alembic, 4 bộ seed (companies, knowledge_base, scenarios, news_concept_map), script seed.
+- **Database**: schema 13 bảng + 8 ENUM + 23 index, migration Alembic, 3 bộ seed (companies, knowledge_base, scenarios), script seed.
 - **Math Engine** (thuần Python, không dùng LLM):
   - Pricing — sinh giá GBM, clip giá, bước giá kiểu VN
   - Portfolio — NAV, lãi/lỗ chưa thực hiện, mua/bán
@@ -57,9 +57,9 @@
 
 ### 3.2+ — Chưa bắt đầu triển khai
 
-Các file stub trống (0 bytes), chưa triển khai:
-- `agents/scenario_gen.py`, `agents/news_insight.py`, `agents/social_agent.py`, `agents/news_crawler.py`, `agents/behavior_analyzer.py`
-- `main_ai.py`
+Các Agent còn lại chưa triển khai: `scenario_gen`, `news_insight`, `social_agent`,
+`news_crawler`, `behavior_analyzer`. `main_ai.py` hiện chỉ là bootstrap FastAPI
+(health check) — các route AI sẽ được thêm sau.
 
 ### Trạng thái
 

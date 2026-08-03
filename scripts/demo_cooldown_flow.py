@@ -1,6 +1,6 @@
 """Demo luồng (Bước 5.1): vi phạm + bị phạt (cooldown) + khóa giao dịch + phát phạt.
 
-Chạy:  uv run python apps/backend_gateway/tests/demo_cooldown_flow.py
+Chạy:  uv run python scripts/demo_cooldown_flow.py
 Không cần Postgres / Redis / math_engine — dùng FakeSession + giả lập gRPC.
 """
 
@@ -17,7 +17,7 @@ os.environ.setdefault("JWT_SECRET", "demo-secret")
 sys.stdout.reconfigure(encoding="utf-8")
 
 sys.path.insert(
-    0, str(Path(__file__).resolve().parents[2] / "backend_gateway")
+    0, str(Path(__file__).resolve().parents[1] / "apps" / "backend_gateway")
 )
 
 from clients.math_client import math_client  # noqa: E402
