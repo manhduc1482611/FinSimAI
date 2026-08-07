@@ -15,14 +15,25 @@ import type { RequestError } from "@/types/api";
 
 const DEFAULT_API_URL = "http://localhost:8000";
 
-const apiUrlFromEnv = process.env.NEXT_PUBLIC_API_URL;
-if (!apiUrlFromEnv) {
-  console.warn(
-    `[FinSimAI] NEXT_PUBLIC_API_URL chưa được cấu hình — fallback về ${DEFAULT_API_URL}. ` +
-      "Hãy đặt biến này trong Vercel (Settings → Environment Variables) trước khi deploy production.",
-  );
+/**
+ * Base URL của API — ưu tiên `NEXT_PUBLIC_API_URL` (cấu hình trên Vercel/Render
+ * cho production). Nếu không set (dev): tự suy từ host của trang đang mở —
+ * hỗ trợ test trên điện thoại cùng mạng LAN mà không cần sửa IP thủ công
+ * (điện thoại mở `http://<IP-máy>:3000` thì API tự trỏ `http://<IP-máy>:8000`).
+ */
+export function getApiBaseUrl(): string {
+  const apiUrlFromEnv = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrlFromEnv) {
+    return apiUrlFromEnv;
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host && host !== "localhost" && host !== "127.0.0.1") {
+      return `${window.location.protocol}//${host}:8000`;
+    }
+  }
+  return DEFAULT_API_URL;
 }
-export const API_BASE_URL = apiUrlFromEnv ?? DEFAULT_API_URL;
 
 const TOKEN_STORAGE_KEY = "finsim.access_token";
 
@@ -134,11 +145,11 @@ export function buildQueryString<T extends object>(params: T | undefined): strin
 }
 
 class ApiClient {
-  readonly baseUrl: string;
+  private resolveBaseUrl: () => string;
   private accessToken: string | null;
 
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+  constructor(resolveBaseUrl: () => string) {
+    this.resolveBaseUrl = resolveBaseUrl;
     this.accessToken = null;
   }
 
@@ -165,7 +176,7 @@ class ApiClient {
       headers.set("Content-Type", "application/json");
     }
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
+    const response = await fetch(`${this.resolveBaseUrl().replace(/\/+$/, "")}${path}`, {
       ...init,
       headers,
     });
@@ -222,22 +233,13 @@ class ApiClient {
 }
 
 /** Singleton dùng chung toàn app. */
-export const apiClient = new ApiClient(API_BASE_URL);
+export const apiClient = new ApiClient(getApiBaseUrl);
 
-/** URL base WebSocket suy ra từ env hoặc từ API base (http → ws, https → wss). */
+/** URL base WebSocket — ưu tiên `NEXT_PUBLIC_WS_URL`, còn lại suy từ API base. */
 export function getWsBaseUrl(): string {
   const wsEnv = process.env.NEXT_PUBLIC_WS_URL;
   if (wsEnv) {
     return wsEnv.endsWith("/") ? wsEnv.slice(0, -1) : wsEnv;
   }
-  console.warn(
-    "[FinSimAI] NEXT_PUBLIC_WS_URL chưa được cấu hình — tự suy ra từ NEXT_PUBLIC_API_URL.",
-  );
-  if (API_BASE_URL.startsWith("https://")) {
-    return API_BASE_URL.replace(/^https:\/\//, "wss://");
-  }
-  if (API_BASE_URL.startsWith("http://")) {
-    return API_BASE_URL.replace(/^http:\/\//, "ws://");
-  }
-  return API_BASE_URL;
+  return getApiBaseUrl().replace(/^http/, "ws");
 }
