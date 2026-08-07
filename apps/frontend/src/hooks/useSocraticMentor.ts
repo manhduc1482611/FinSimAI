@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 
 import { getWsBaseUrl } from "@/services/api";
 import { fetchWsTicket } from "@/services/auth";
+import { reportTaskEvent } from "@/services/tasks";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useMentorStore } from "@/store/useMentorStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -80,6 +81,9 @@ export function useSocraticMentor(): SocraticMentor {
       return;
     }
     store.pushUserMessage(trimmed);
+    void reportTaskEvent("mentor_chat").catch(() => {
+      // Báo sự kiện thưởng lỗi không ảnh hưởng luồng chat.
+    });
     const sessionId = useMentorStore.getState().sessionId;
     if (sessionId) {
       sendMessage({ action: "ask", message: trimmed, session_id: sessionId });

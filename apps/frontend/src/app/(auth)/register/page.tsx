@@ -10,6 +10,7 @@ import { Card, CardBody } from "@/components/common/Card";
 import { TextField } from "@/components/common/Field";
 import { toRequestError } from "@/services/api";
 import { useAuthStore } from "@/store/useAuthStore";
+import { homePathForRole } from "@/utils/roles";
 
 interface FieldErrors {
   email?: string;
@@ -58,7 +59,7 @@ export default function RegisterPage() {
         password,
         display_name: displayName.trim() || null,
       });
-      router.replace("/news");
+      router.replace(homePathForRole(useAuthStore.getState().user?.role));
     } catch (error) {
       setFormError(toRequestError(error).detail);
     }

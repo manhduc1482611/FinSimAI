@@ -19,6 +19,8 @@ export interface HeaderProps {
 }
 
 const PAGE_TITLES: Array<{ pattern: string; title: string }> = [
+  { pattern: "/dashboard", title: "Bảng điều khiển" },
+  { pattern: "/contests", title: "Cuộc thi" },
   { pattern: "/news", title: "Tin tức & Cảm xúc thị trường" },
   { pattern: "/companies", title: "Doanh nghiệp" },
   { pattern: "/trade/mentor", title: "Mentor Socratic" },

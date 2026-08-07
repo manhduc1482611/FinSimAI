@@ -15,6 +15,7 @@ import {
   IconTrade,
 } from "@/components/common/Icon";
 import { useAuthStore } from "@/store/useAuthStore";
+import { homePathForRole } from "@/utils/roles";
 
 const FEATURES = [
   {
@@ -52,12 +53,13 @@ const FEATURES = [
 export default function LandingPage() {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     if (token) {
-      router.replace("/news");
+      router.replace(homePathForRole(user?.role));
     }
-  }, [token, router]);
+  }, [token, user, router]);
 
   return (
     <div className="min-h-screen bg-ink-50">

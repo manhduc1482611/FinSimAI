@@ -146,6 +146,10 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketResult {
 
       socket.onopen = () => {
         if (disposed) {
+          // Component đã unmount lúc socket còn đang CONNECTING — đóng ngay khi
+          // handshake xong (chứ không đóng giữa chừng, tránh lỗi console
+          // "WebSocket is closed before the connection is established").
+          socket.close(1000, "component unmounted");
           return;
         }
         retryCountRef.current = 0;
@@ -182,7 +186,12 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketResult {
       disposed = true;
       clearHeartbeat();
       clearReconnect();
-      socketRef.current?.close(1000, "component unmounted");
+      const socket = socketRef.current;
+      if (socket !== null && socket.readyState === WebSocket.OPEN) {
+        socket.close(1000, "component unmounted");
+      }
+      // CONNECTING: không đóng giữa chừng handshake (browser báo lỗi console).
+      // onopen sẽ thấy `disposed` và tự đóng sạch khi kết nối xong.
       socketRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

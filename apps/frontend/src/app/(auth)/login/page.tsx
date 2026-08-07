@@ -8,8 +8,9 @@ import { useState } from "react";
 import { Button } from "@/components/common/Button";
 import { Card, CardBody } from "@/components/common/Card";
 import { TextField } from "@/components/common/Field";
-import { useAuthStore } from "@/store/useAuthStore";
 import { toRequestError } from "@/services/api";
+import { useAuthStore } from "@/store/useAuthStore";
+import { homePathForRole } from "@/utils/roles";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,7 +41,8 @@ export default function LoginPage() {
     setFormError(null);
     try {
       await login({ password, username: identifier.trim() });
-      router.replace("/news");
+      // FR-8, FR-9: 1 form chung → redirect theo role.
+      router.replace(homePathForRole(useAuthStore.getState().user?.role));
     } catch (error) {
       setFormError(toRequestError(error).detail);
     }

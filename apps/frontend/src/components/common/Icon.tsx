@@ -87,6 +87,14 @@ export function IconClose(props: IconProps) {
   );
 }
 
+export function IconCheck(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
 export function IconChevronDown(props: IconProps) {
   return (
     <svg {...base(props)}>
@@ -250,6 +258,49 @@ export function IconMap(props: IconProps) {
     <svg {...base(props)}>
       <path d="M9 20 3 17V4l6 3 6-3 6 3v13l-6-3-6 3Z" />
       <path d="M9 7v13M15 4v13" />
+    </svg>
+  );
+}
+
+export function IconTrophy(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0V4Z" />
+      <path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5" />
+    </svg>
+  );
+}
+
+export function IconGift(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M20 12v9H4v-9M2 7h20v5H2zM12 7v14M12 7s-1.5-5-4-5a2 2 0 1 0 0 5M12 7s1.5-5 4-5a2 2 0 1 1 0 5" />
+    </svg>
+  );
+}
+
+export function IconCalendar(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01" />
+    </svg>
+  );
+}
+
+export function IconWarning(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M10.3 3.2 1.7 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.2a2 2 0 0 0-3.4 0Z" />
+      <path d="M12 9v4M12 17h.01" />
+    </svg>
+  );
+}
+
+export function IconStar(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z" />
     </svg>
   );
 }

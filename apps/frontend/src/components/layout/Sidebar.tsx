@@ -10,10 +10,12 @@ import { usePathname } from "next/navigation";
 import {
   IconBuilding,
   IconClose,
+  IconHome,
   IconMentor,
   IconNews,
   IconSocial,
   IconTrade,
+  IconTrophy,
 } from "@/components/common/Icon";
 import { cn } from "@/utils/cn";
 
@@ -24,7 +26,29 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-export const NAV_GROUPS: Array<{ section: string; items: NavItem[] }> = [
+export interface NavGroup {
+  section: string;
+  items: NavItem[];
+}
+
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    section: "Tổng quan",
+    items: [
+      {
+        href: "/dashboard",
+        label: "Bảng điều khiển",
+        description: "Tổng quan & cuộc thi",
+        icon: IconHome,
+      },
+      {
+        href: "/tasks",
+        label: "Nhiệm vụ",
+        description: "Điểm danh & nhận thưởng",
+        icon: IconTrophy,
+      },
+    ],
+  },
   {
     section: "Khám phá",
     items: [
@@ -75,10 +99,16 @@ export const NAV_GROUPS: Array<{ section: string; items: NavItem[] }> = [
 export interface SidebarProps {
   open: boolean;
   onClose: () => void;
+  /** Nav theo role (mặc định: NAV_GROUPS của người dùng). */
+  groups?: NavGroup[];
+  /** Trang khi bấm logo (mặc định `/`). */
+  homeHref?: string;
 }
 
-export function Sidebar({ open, onClose }: SidebarProps) {
+export function Sidebar({ open, onClose, groups, homeHref }: SidebarProps) {
   const pathname = usePathname();
+  const navGroups = groups ?? NAV_GROUPS;
+  const logoHref = homeHref ?? "/";
 
   const isActive = (href: string): boolean => {
     if (href === "/trade") {
@@ -106,7 +136,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         )}
       >
         <div className="flex h-16 items-center justify-between border-b border-ink-200 px-5 dark:border-ink-700">
-          <Link href="/" className="flex items-center gap-2" onClick={onClose}>
+          <Link href={logoHref} className="flex items-center gap-2" onClick={onClose}>
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-black text-white">
               F
             </span>
@@ -125,7 +155,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {NAV_GROUPS.map((group) => (
+          {navGroups.map((group) => (
             <div key={group.section} className="mb-5">
               <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-500">
                 {group.section}

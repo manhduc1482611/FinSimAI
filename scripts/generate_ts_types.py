@@ -43,7 +43,18 @@ OUTPUT_FILE = (
     / "api-types.ts"
 )
 
-SCHEMA_MODULES = ["user", "news", "company", "trade", "social", "knowledge", "risk"]
+SCHEMA_MODULES = [
+    "user",
+    "news",
+    "company",
+    "trade",
+    "social",
+    "knowledge",
+    "risk",
+    "contest",
+    "admin",
+    "task",
+]
 INJECTED_TYPES: list[str] = []
 
 

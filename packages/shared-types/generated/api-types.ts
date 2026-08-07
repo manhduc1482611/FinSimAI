@@ -260,6 +260,272 @@ export interface PenaltyResponse {
   reason?: string | null
 }
 
+// ─── CONTEST · CONTEST_CONFIG ───
+export interface ContestConfig {
+  template?: "classic" | "tech_news" | "fast_paced" | "micro"
+  theme?: ContestTheme
+  industry?: string
+  company_count?: number
+  difficulty?: "easy" | "normal" | "hard"
+  auto_news?: boolean
+  auto_social?: boolean
+  rules?: ContestRules
+  content?: ContestContentMeta
+}
+
+// ─── CONTEST · CONTEST_CONTENT_META ───
+export interface ContestContentMeta {
+  generated?: boolean
+  generated_at?: string | null
+  company_count?: number
+  news_count?: number
+  social_count?: number
+  symbols?: string[]
+}
+
+// ─── CONTEST · CONTEST_CREATE_REQUEST ───
+export interface ContestCreateRequest {
+  name: string
+  slug?: string | null
+  description?: string | null
+  template?: "classic" | "tech_news" | "fast_paced" | "micro"
+  industry?: string
+  company_count?: number | null
+  difficulty?: "easy" | "normal" | "hard"
+  auto_news?: boolean
+  auto_social?: boolean
+  theme?: ContestTheme
+}
+
+// ─── CONTEST · CONTEST_JOIN_RESPONSE ───
+export interface ContestJoinResponse {
+  joined: boolean
+  contest_id: string
+}
+
+// ─── CONTEST · CONTEST_LIST_RESPONSE ───
+export interface ContestListResponse {
+  items: ContestResponse[]
+  total: number
+}
+
+// ─── CONTEST · CONTEST_RESPONSE ───
+export interface ContestResponse {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  status: string
+  config: ContestConfig
+  owner_id: string | null
+  starts_at: string | null
+  ends_at: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  member_count?: number
+}
+
+// ─── CONTEST · CONTEST_RULES ───
+export interface ContestRules {
+  start_cash?: string
+  cooldown_seconds?: number
+  allow_short?: boolean
+  volatility_multiplier?: number
+  trading_duration_days?: number | null
+}
+
+// ─── CONTEST · CONTEST_TEMPLATE ───
+export interface ContestTemplate {
+  id: "classic" | "tech_news" | "fast_paced" | "micro"
+  label: string
+  description: string
+  default_company_count: number
+  default_industry: string
+  default_rules: ContestRules
+  news_emphasis: boolean
+}
+
+// ─── CONTEST · CONTEST_THEME ───
+export interface ContestTheme {
+  primary_color?: string
+  logo_url?: string | null
+}
+
+// ─── CONTEST · CONTEST_UPDATE_REQUEST ───
+export interface ContestUpdateRequest {
+  name?: string | null
+  slug?: string | null
+  description?: string | null
+  template?: "classic" | "tech_news" | "fast_paced" | "micro" | null
+  industry?: string | null
+  company_count?: number | null
+  difficulty?: "easy" | "normal" | "hard" | null
+  auto_news?: boolean | null
+  auto_social?: boolean | null
+  theme?: ContestTheme | null
+}
+
+// ─── ADMIN · ADMIN_CONTEST_LIST_RESPONSE ───
+export interface AdminContestListResponse {
+  items: AdminContestResponse[]
+  total: number
+}
+
+// ─── ADMIN · ADMIN_CONTEST_RESPONSE ───
+export interface AdminContestResponse {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  status: string
+  config: ContestConfig
+  owner_id: string | null
+  starts_at: string | null
+  ends_at: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  member_count?: number
+}
+
+// ─── ADMIN · ADMIN_CONTEST_STATUS_UPDATE ───
+export interface AdminContestStatusUpdate {
+  status: "draft" | "active" | "ended"
+}
+
+// ─── ADMIN · ADMIN_ROLE_UPDATE ───
+export interface AdminRoleUpdate {
+  role: "user" | "host" | "admin"
+}
+
+// ─── ADMIN · ADMIN_STATUS_UPDATE ───
+export interface AdminStatusUpdate {
+  is_active: boolean
+}
+
+// ─── ADMIN · ADMIN_USER_LIST_RESPONSE ───
+export interface AdminUserListResponse {
+  items: AdminUserResponse[]
+  total: number
+}
+
+// ─── ADMIN · ADMIN_USER_RESPONSE ───
+export interface AdminUserResponse {
+  id: string
+  email: string
+  username: string
+  display_name: string | null
+  role: string
+  is_active: boolean
+  created_at: string
+}
+
+// ─── TASK · CHECKIN_RESPONSE ───
+export interface CheckinResponse {
+  already_checked_in: boolean
+  current_streak: number
+  longest_streak: number
+  reward_earned: string
+}
+
+// ─── TASK · TASK_ADMIN_CREATE_REQUEST ───
+export interface TaskAdminCreateRequest {
+  code: string
+  name: string
+  description?: string | null
+  category: "onboarding" | "learning" | "daily" | "streak" | "contest"
+  reward_amount: string
+  target_count?: number
+  reset_frequency?: "none" | "daily"
+  is_active?: boolean
+  sort_order?: number
+}
+
+// ─── TASK · TASK_ADMIN_LIST_RESPONSE ───
+export interface TaskAdminListResponse {
+  items: TaskAdminResponse[]
+  total: number
+}
+
+// ─── TASK · TASK_ADMIN_RESPONSE ───
+export interface TaskAdminResponse {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  category: "onboarding" | "learning" | "daily" | "streak" | "contest"
+  reward_amount: string
+  target_count: number
+  reset_frequency: "none" | "daily"
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+// ─── TASK · TASK_ADMIN_UPDATE_REQUEST ───
+export interface TaskAdminUpdateRequest {
+  name?: string | null
+  description?: string | null
+  category?: "onboarding" | "learning" | "daily" | "streak" | "contest" | null
+  reward_amount?: string | null
+  target_count?: number | null
+  reset_frequency?: "none" | "daily" | null
+  is_active?: boolean | null
+  sort_order?: number | null
+}
+
+// ─── TASK · TASK_CLAIM_RESPONSE ───
+export interface TaskClaimResponse {
+  task: TaskResponse
+  progress_count: number
+  target_count: number
+  completed: boolean
+  reward_earned: string
+}
+
+// ─── TASK · TASK_EVENT_REQUEST ───
+export interface TaskEventRequest {
+  event: string
+}
+
+// ─── TASK · TASK_EVENT_RESPONSE ───
+export interface TaskEventResponse {
+  accepted: boolean
+  rewarded: boolean
+}
+
+// ─── TASK · TASK_LIST_RESPONSE ───
+export interface TaskListResponse {
+  streak_current: number
+  streak_longest: number
+  total_reward_earned: string
+  tasks: TaskProgressResponse[]
+}
+
+// ─── TASK · TASK_PROGRESS_RESPONSE ───
+export interface TaskProgressResponse {
+  task: TaskResponse
+  progress_count: number
+  target_count: number
+  completed: boolean
+  claimable?: boolean
+  completed_at?: string | null
+}
+
+// ─── TASK · TASK_RESPONSE ───
+export interface TaskResponse {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  category: "onboarding" | "learning" | "daily" | "streak" | "contest"
+  reward_amount: string
+  target_count: number
+  reset_frequency: "none" | "daily"
+}
+
 // ─── ERROR SHAPE (FastAPI mặc định) ───
 export interface ApiError {
   detail: string;
