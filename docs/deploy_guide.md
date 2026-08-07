@@ -5,8 +5,9 @@
 >
 > - `vercel.json` (root + `apps/frontend/vercel.json`) → Vercel tự nhận diện
 >   Root Directory, Install Command, Build Command.
-> - `render.yaml` → khai báo sẵn 4 service (math-engine, ai-engine-worker,
->   ai-engine-api, backend-gateway) với đúng `dockerContext` monorepo.
+> - `render.yaml` → khai báo sẵn **3 service** (math-engine, ai-engine-api,
+>   backend-gateway) với đúng `dockerContext` monorepo. ARQ worker chạy chung
+>   trong container `ai-engine-api` (Render free không hỗ trợ background worker).
 > - `backend_gateway` chạy **`alembic upgrade head` tự động lúc khởi động**
 >   (`run_migrations.py`) trước khi bật server.
 > - Health check: `/health/live` (backend_gateway & ai-engine-api), `/health`,
@@ -48,15 +49,15 @@
    ```
    (nếu có tùy chọn TLS, chọn bản **không TLS** `redis://` — app dùng driver redis sync).
 
-> Dùng chung `REDIS_URL` cho cả 3 service cần Redis (backend-gateway,
-> ai-engine-worker, ai-engine-api).
+> Dùng chung `REDIS_URL` cho cả 2 service cần Redis (backend-gateway,
+> ai-engine-api).
 
 ---
 
-## ✅ Bước 3 — Render Dashboard: tạo 4 service + điền Env Vars
+## ✅ Bước 3 — Render Dashboard: tạo 3 service + điền Env Vars
 
 1. Render Dashboard → **New → Blueprint Instance** → connect repo FinSimAI.
-   Render đọc `render.yaml` và tạo sẵn 4 service (tự nạp `dockerContext: .`).
+   Render đọc `render.yaml` và tạo sẵn 3 service (tự nạp `dockerContext: .`).
 2. Chờ build xong, vào **từng service → Environment** và điền các biến `sync: false`:
 
 ### 🔹 backend-gateway (Web Service)
@@ -68,19 +69,25 @@
 | `JWT_SECRET` | chuỗi ngẫu nhiên ≥ 32 ký tự (vd: `openssl rand -hex 32`) |
 | `CORS_ORIGINS` | `https://finsimai.vercel.app,https://www.finsimai.vercel.app` |
 | `FRONTEND_URL` | `https://finsimai.vercel.app` |
-| `AI_ENGINE_URL` | `https://ai-engine-api.onrender.com` |
+| `MATH_ENGINE_URL` | `https://math-engine.onrender.com` |
+| `ADMIN_EMAILS` | email tài khoản admin (phân cách dấu phẩy) — thiếu thì không ai giữ role admin |
 
 *(Đã set sẵn trong render.yaml: `JWT_ALGORITHM=HS256`, `ACCESS_TOKEN_EXPIRE_MINUTES=60`,
-`ENVIRONMENT=production`, `DEBUG=false`, `MATH_ENGINE_GRPC_HOST=math-engine`.)*
+`ENVIRONMENT=production`, `DEBUG=false`, `WS_LOCAL_MODE=true`,
+`APP_TIMEZONE=Asia/Ho_Chi_Minh`, `PYTHONPATH=/app/apps/backend_gateway`.)*
 
-### 🔹 ai-engine-worker (Background Worker) & ai-engine-api (Web Service)
+> 💡 **WebSocket không cần Redis**: free tier chạy 1 instance nên đã bật
+> `WS_LOCAL_MODE=true` — backplane/ticket store chạy trong RAM. Nếu sau này
+> mở rộng multi-instance, tắt biến này và cung cấp `REDIS_URL` hợp lệ.
+
+### 🔹 ai-engine-api (Web Service — API + ARQ worker chạy chung)
 | Env Var | Giá trị |
 |---|---|
 | `REDIS_URL` | `redis://...` (Bước 2) |
 | `GEMINI_API_KEY` | key Google AI Studio |
 
-### 🔹 math-engine (Private Service)
-- Không cần env. Backend-gateway gọi qua host nội bộ `math-engine:50051`.
+### 🔹 math-engine (Web Service HTTP)
+- Không cần env. Backend-gateway gọi qua `MATH_ENGINE_URL` (đã set ở bảng trên).
 
 > **Kiểm tra:** sau khi backend-gateway lên, migration tự chạy (xem log có dòng
 > *"Migration database hoàn tất"*). Health check Render dùng `/health/live`

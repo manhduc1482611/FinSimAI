@@ -21,6 +21,8 @@ out/
 
 # Env local (giữ .env.example)
 .env*.local
+.env.production
+.env.development
 
 # IDE / OS
 .idea/

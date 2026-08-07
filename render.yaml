@@ -66,8 +66,12 @@ services:
         sync: false
 
       # --- Redis (Render Key Value) ---
+      # Free tier chạy 1 instance → bật WS_LOCAL_MODE=true để WebSocket hoạt
+      # động không cần Redis (backplane/ticket store chạy trong RAM).
       - key: REDIS_URL
         sync: false
+      - key: WS_LOCAL_MODE
+        value: "true"
 
       # --- Auth / Security ---
       - key: JWT_SECRET
@@ -76,6 +80,10 @@ services:
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "60"
+      # Danh sách email được quyền admin (phân cách bằng dấu phẩy) —
+      # thiếu biến này sẽ không có tài khoản nào giữ role admin.
+      - key: ADMIN_EMAILS
+        sync: false
 
       # --- CORS (phải bao gồm domain Vercel frontend) ---
       - key: CORS_ORIGINS
@@ -94,3 +102,5 @@ services:
         value: "false"
       - key: PYTHONPATH
         value: /app/apps/backend_gateway
+      - key: APP_TIMEZONE
+        value: Asia/Ho_Chi_Minh
