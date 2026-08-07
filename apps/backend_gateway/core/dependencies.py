@@ -1,5 +1,5 @@
 import uuid as uuid_lib
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -43,6 +43,32 @@ async def get_current_user_optional(
     if credentials is None:
         return None
     return await _resolve_user(credentials, db)
+
+
+def require_roles(*roles: str) -> Callable[..., Awaitable[User]]:
+    """Factory trả về dependency yêu cầu user thuộc một trong các role.
+
+    Role ``admin`` còn bị ràng buộc bởi ``ADMIN_EMAILS`` (defense in depth):
+    một user chỉ được coi là admin khi email nằm trong ``settings.admin_emails``,
+    kể cả khi cột role trong DB bị set thủ công.
+    """
+
+    async def _dependency(
+        user: User = Depends(get_current_user),
+    ) -> User:
+        if user.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền thực hiện thao tác này",
+            )
+        if user.role == "admin" and user.email not in settings.admin_emails:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tài khoản admin không nằm trong danh sách cho phép",
+            )
+        return user
+
+    return _dependency
 
 
 async def _resolve_user(

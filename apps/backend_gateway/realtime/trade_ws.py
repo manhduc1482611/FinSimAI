@@ -29,7 +29,7 @@ import uuid
 from collections import deque
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from core.cache import get_cache
 from core.config import settings
@@ -87,7 +87,9 @@ class TradeNotifier:
         self._poll_source = poll_source or self._default_poll_source
         self._symbol_resolver = symbol_resolver or self._default_symbol_resolver
         if batch_symbol_resolver is not None:
-            self._batch_symbol_resolver = batch_symbol_resolver
+            self._batch_symbol_resolver: BatchSymbolResolver = cast(
+                BatchSymbolResolver, batch_symbol_resolver
+            )
         elif symbol_resolver is not None:
             # Resolver tùy chỉnh theo từng giao dịch: batch chỉ là vòng lặp gom
             # (giữ đúng hành vi per-item đã inject, không đụng DB thật).
@@ -107,7 +109,7 @@ class TradeNotifier:
         self.poll_interval = (
             poll_interval if poll_interval is not None else settings.ws_trade_poll_seconds
         )
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
         self._watermark: Watermark | None = None
         self._seen_ids: deque[str] = deque(maxlen=2000)
         self._dedup_ttl = dedup_ttl
@@ -220,7 +222,7 @@ class TradeNotifier:
         if not entries:
             return entries
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             pipe = client.pipeline()
             for tx_id, _tx, _payload in entries:
                 if tx_id:
@@ -246,7 +248,7 @@ class TradeNotifier:
         """
         channels = [f"user:{payload['user_id']}" for _tx_id, _tx, payload in entries]
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             pipe = client.pipeline()
             for channel in channels:
                 pipe.incr(f"{SEQ_PREFIX}{channel}")
@@ -266,7 +268,7 @@ class TradeNotifier:
         """Số thứ tự kế tiếp của một kênh (dùng cho ``notify_order_update`` đơn lẻ)."""
         channel = f"user:{user_id}"
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             return int(await client.incr(f"{SEQ_PREFIX}{channel}"))
         except Exception:
             self._local_seq[channel] = self._local_seq.get(channel, 0) + 1
@@ -298,7 +300,7 @@ class TradeNotifier:
         if self._watermark is None:
             return
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             wm_ts, wm_id = self._watermark
             await client.set(
                 self._watermark_key,
@@ -310,7 +312,7 @@ class TradeNotifier:
 
     async def _load_watermark(self) -> None:
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             raw = await client.get(self._watermark_key)
             if raw:
                 ts_str, wm_id = json.loads(raw)
@@ -323,7 +325,7 @@ class TradeNotifier:
         if not tx_ids:
             return []
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             pipe = client.pipeline()
             for tx_id in tx_ids:
                 pipe.exists(f"{DEDUP_PREFIX}{tx_id}")

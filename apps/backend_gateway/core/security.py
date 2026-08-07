@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import bcrypt
 import jwt
@@ -13,7 +14,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(
-    data: dict,
+    data: dict[str, Any],
     secret: str,
     algorithm: str,
     expires_minutes: int,
@@ -24,5 +25,5 @@ def create_access_token(
     return jwt.encode(to_encode, secret, algorithm=algorithm)
 
 
-def decode_access_token(token: str, secret: str, algorithms: list[str]) -> dict:
+def decode_access_token(token: str, secret: str, algorithms: list[str]) -> dict[str, Any]:
     return jwt.decode(token, secret, algorithms=algorithms)

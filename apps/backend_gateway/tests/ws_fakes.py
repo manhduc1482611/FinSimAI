@@ -1,6 +1,9 @@
 import asyncio
 import json
+import uuid
 from typing import Any
+
+from realtime.connection_manager import ConnectionManager
 
 
 class FakeWebSocket:
@@ -47,7 +50,7 @@ class SlowWebSocket(FakeWebSocket):
         self.sent.append(text)
 
 
-class FakeManager:
+class FakeManager(ConnectionManager):
     """Manager thay thế cho ConnectionManager trong test component."""
 
     def __init__(self) -> None:
@@ -56,24 +59,28 @@ class FakeManager:
         self.sent: list[dict[str, Any]] = []
 
     async def broadcast_to_room(
-        self, room: str, message: dict[str, Any]
+        self, room: str, message: dict[str, Any] | str
     ) -> int:
-        self.room_messages.setdefault(room, []).append(message)
+        self.room_messages.setdefault(room, []).append(
+            message if isinstance(message, dict) else {"payload": message}
+        )
         return 1
 
     async def broadcast_to_user(
-        self, user_id: int | str, message: dict[str, Any]
+        self, user_id: str | uuid.UUID, message: dict[str, Any] | str
     ) -> int:
-        self.user_messages.setdefault(str(user_id), []).append(message)
+        self.user_messages.setdefault(str(user_id), []).append(
+            message if isinstance(message, dict) else {"payload": message}
+        )
         return 1
 
     async def broadcast_to_user_reliable(
-        self, user_id: int | str, message: dict[str, Any]
+        self, user_id: str | uuid.UUID, message: dict[str, Any] | str
     ) -> int:
         return await self.broadcast_to_user(user_id, message)
 
     async def broadcast_to_room_reliable(
-        self, room: str, message: dict[str, Any]
+        self, room: str, message: dict[str, Any] | str
     ) -> int:
         return await self.broadcast_to_room(room, message)
 
@@ -87,9 +94,9 @@ class FakePipeline:
 
     def __init__(self, cache: "FakeCache") -> None:
         self.cache = cache
-        self.ops: list[tuple] = []
+        self.ops: list[tuple[Any, ...]] = []
 
-    def set(self, key: str, value: Any, **kwargs) -> "FakePipeline":
+    def set(self, key: str, value: Any, **kwargs: Any) -> "FakePipeline":
         self.ops.append(("set", key, value, kwargs))
         return self
 
@@ -130,18 +137,18 @@ class FakeCache:
     def __init__(self) -> None:
         self.data: dict[str, Any] = {}
         self.hashes: dict[str, dict[str, str]] = {}
-        self.pipeline_sets: list[tuple[str, dict]] = []
+        self.pipeline_sets: list[tuple[str, dict[str, Any]]] = []
 
     def pipeline(self) -> FakePipeline:
         return FakePipeline(self)
 
-    async def set(self, key: str, value: Any, **kwargs) -> bool:
+    async def set(self, key: str, value: Any, **kwargs: Any) -> bool:
         self.data[key] = value
         return True
 
     async def incr(self, key: str) -> int:
         self.data[key] = int(self.data.get(key, 0)) + 1
-        return self.data[key]
+        return int(self.data[key])
 
     async def get(self, key: str) -> Any:
         return self.data.get(key)
@@ -156,7 +163,7 @@ class FakeCache:
     async def expire(self, key: str, ttl: int) -> bool:
         return True
 
-    async def hset(self, key: str, mapping: dict[str, str] | None = None, **kwargs) -> int:
+    async def hset(self, key: str, mapping: dict[str, str] | None = None, **kwargs: Any) -> int:
         self.hashes.setdefault(key, {}).update(mapping or {})
         return len(mapping or {})
 

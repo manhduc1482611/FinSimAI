@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 from realtime import leader as leader_module
 from realtime.leader import LeaderElection
@@ -12,7 +14,7 @@ class FakeRedis:
         self.ttls: dict[str, int] = {}
         self.raise_error = False
 
-    async def eval(self, script: str, numkeys: int, *args) -> int | str:
+    async def eval(self, script: str, numkeys: int, *args: str) -> int | str:
         if self.raise_error:
             raise ConnectionError("redis down")
         lock_key, fence_key, token, ttl_ms = args[0], args[1], args[2], args[3]
@@ -34,7 +36,9 @@ class FakeRedis:
         self.ttls.pop(key, None)
 
 
-def make_election(lock_key: str = "lock:test", token: str = "tok", **kwargs):
+def make_election(
+    lock_key: str = "lock:test", token: str = "tok", **kwargs: Any
+) -> LeaderElection:
     return LeaderElection(lock_key, token=token, ttl=5, **kwargs)
 
 

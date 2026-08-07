@@ -1,11 +1,12 @@
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from typing import Any, NoReturn, cast
 
 import pytest
 from fastapi import FastAPI, WebSocket, status
 from fastapi.testclient import TestClient
 from realtime.connection_manager import ConnectionManager
-from realtime.mentor_ws import create_mentor_endpoint
+from realtime.mentor_ws import MentorStreamProvider, create_mentor_endpoint
 from starlette.exceptions import WebSocketException
 from starlette.websockets import WebSocketDisconnect
 
@@ -19,7 +20,9 @@ class FastProvider:
     def __init__(self, parts: list[str]) -> None:
         self.parts = parts
 
-    async def stream(self, *, user_id, message, session_id) -> AsyncIterator[str]:
+    async def stream(
+        self, *, user_id: str, message: str, session_id: str
+    ) -> AsyncIterator[str]:
         for part in self.parts:
             yield part
 
@@ -29,22 +32,26 @@ class SlowProvider:
         self.started = asyncio.Event()
         self.release = asyncio.Event()
 
-    async def stream(self, *, user_id, message, session_id) -> AsyncIterator[str]:
+    async def stream(
+        self, *, user_id: str, message: str, session_id: str
+    ) -> AsyncIterator[str]:
         self.started.set()
         await self.release.wait()
         yield "phản hồi đầu tiên"
         yield "phản hồi thứ hai"
 
 
-async def allow_auth(websocket: WebSocket) -> FakeUser:
+async def allow_auth(websocket: WebSocket) -> Any:
     return FakeUser()
 
 
-def _receive_until(ws, predicate, limit: int = 300):
+def _receive_until(
+    ws: Any, predicate: Callable[[dict[str, Any]], bool], limit: int = 300
+) -> dict[str, Any]:
     for _ in range(limit):
         message = ws.receive_json()
         if predicate(message):
-            return message
+            return cast(dict[str, Any], message)
     raise AssertionError("Không nhận được tin mong đợi trong giới hạn")
 
 
@@ -53,7 +60,8 @@ def test_mentor_ws_endpoint_streams_answer() -> None:
     provider = FastProvider(["chunk một", "chunk hai"])
     app = FastAPI()
     app.add_websocket_route(
-        "/ws/mentor", create_mentor_endpoint(manager, provider, allow_auth)
+        "/ws/mentor",
+        create_mentor_endpoint(manager, cast(MentorStreamProvider, provider), allow_auth),
     )
 
     with TestClient(app) as client:
@@ -82,7 +90,10 @@ def test_mentor_ws_endpoint_rejects_empty_message() -> None:
     manager = ConnectionManager()
     provider = FastProvider(["ok"])
     app = FastAPI()
-    app.add_websocket_route("/ws/mentor", create_mentor_endpoint(manager, provider, allow_auth))
+    app.add_websocket_route(
+        "/ws/mentor",
+        create_mentor_endpoint(manager, cast(MentorStreamProvider, provider), allow_auth),
+    )
 
     with TestClient(app) as client:
         with client.websocket_connect("/ws/mentor") as ws:
@@ -100,7 +111,10 @@ def test_mentor_ws_endpoint_cancel() -> None:
     manager = ConnectionManager()
     provider = SlowProvider()
     app = FastAPI()
-    app.add_websocket_route("/ws/mentor", create_mentor_endpoint(manager, provider, allow_auth))
+    app.add_websocket_route(
+        "/ws/mentor",
+        create_mentor_endpoint(manager, cast(MentorStreamProvider, provider), allow_auth),
+    )
 
     with TestClient(app) as client:
         with client.websocket_connect("/ws/mentor") as ws:
@@ -121,7 +135,7 @@ def test_mentor_ws_endpoint_cancel() -> None:
 
 
 def test_mentor_ws_endpoint_rejects_unauthenticated() -> None:
-    async def deny_auth(websocket: WebSocket):
+    async def deny_auth(websocket: WebSocket) -> NoReturn:
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION, reason="Denied in test"
         )
@@ -129,7 +143,10 @@ def test_mentor_ws_endpoint_rejects_unauthenticated() -> None:
     manager = ConnectionManager()
     app = FastAPI()
     app.add_websocket_route(
-        "/ws/mentor", create_mentor_endpoint(manager, FastProvider(["x"]), deny_auth)
+        "/ws/mentor",
+        create_mentor_endpoint(
+            manager, cast(MentorStreamProvider, FastProvider(["x"])), deny_auth
+        ),
     )
 
     client = TestClient(app)

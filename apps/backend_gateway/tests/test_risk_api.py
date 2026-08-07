@@ -6,7 +6,9 @@ lúc tài khoản đang bị khóa. Service layer được monkeypatch — khôn
 """
 
 import uuid
+from collections.abc import AsyncIterator, Iterator
 from types import SimpleNamespace
+from typing import Any
 
 import httpx
 import pytest
@@ -20,12 +22,12 @@ from services import penalty_service
 class FakeDb:
     """DB thật không dùng tới trong test — chỉ cần ``get`` cho luồng order."""
 
-    async def get(self, model, pk):
+    async def get(self, model: Any, pk: Any) -> Any:
         return None
 
 
 @pytest.fixture
-def app():
+def app() -> Iterator[FastAPI]:
     # Dùng app tối giản chỉ với 2 router — tránh Prometheus instrumentator
     # middleware (lỗi có sẵn của thư viện với `_IncludedRouter`), không cần DB.
     app = FastAPI()
@@ -41,7 +43,7 @@ def app():
 
 
 @pytest.fixture
-async def client(app):
+async def client(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
@@ -51,8 +53,10 @@ async def client(app):
 
 
 @pytest.mark.asyncio
-async def test_cooldown_status_locked(client, monkeypatch):
-    async def fake_status(user_id, db):
+async def test_cooldown_status_locked(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_status(user_id: Any, db: Any) -> dict[str, Any]:
         return {
             "success": True,
             "locked": True,
@@ -75,8 +79,10 @@ async def test_cooldown_status_locked(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_cooldown_status_unlocked(client, monkeypatch):
-    async def fake_status(user_id, db):
+async def test_cooldown_status_unlocked(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_status(user_id: Any, db: Any) -> dict[str, Any]:
         return {
             "success": True,
             "locked": False,
@@ -98,8 +104,17 @@ async def test_cooldown_status_unlocked(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_create_penalty_201(client, monkeypatch):
-    async def fake_apply(user_id, severity, db, *, trap_type, description):
+async def test_create_penalty_201(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_apply(
+        user_id: Any,
+        severity: Any,
+        db: Any,
+        *,
+        trap_type: Any,
+        description: Any,
+    ) -> dict[str, Any]:
         return {
             "success": True,
             "cooldown_seconds": 30.0,
@@ -125,7 +140,9 @@ async def test_create_penalty_201(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_create_penalty_rejects_bad_severity(client):
+async def test_create_penalty_rejects_bad_severity(
+    client: httpx.AsyncClient,
+) -> None:
     resp = await client.post(
         "/api/v1/risk/penalties",
         json={"trap_type": "fomo", "severity": 9},
@@ -137,8 +154,10 @@ async def test_create_penalty_rejects_bad_severity(client):
 
 
 @pytest.mark.asyncio
-async def test_clear_cooldown_200(client, monkeypatch):
-    async def fake_clear(user_id, db):
+async def test_clear_cooldown_200(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_clear(user_id: Any, db: Any) -> dict[str, Any]:
         return {
             "success": True,
             "cleared": True,
@@ -158,8 +177,10 @@ async def test_clear_cooldown_200(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_clear_cooldown_still_locked(client, monkeypatch):
-    async def fake_clear(user_id, db):
+async def test_clear_cooldown_still_locked(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_clear(user_id: Any, db: Any) -> dict[str, Any]:
         return {
             "success": True,
             "cleared": False,
@@ -182,8 +203,10 @@ async def test_clear_cooldown_still_locked(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_create_order_blocked_with_423(client, monkeypatch):
-    async def fake_enforce(user_id, db):
+async def test_create_order_blocked_with_423(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_enforce(user_id: Any, db: Any) -> dict[str, Any]:
         return {
             "locked": True,
             "cooldown_until": None,
@@ -212,8 +235,10 @@ async def test_create_order_blocked_with_423(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_create_order_passes_gate_when_unlocked(client, monkeypatch):
-    async def fake_enforce(user_id, db):
+async def test_create_order_passes_gate_when_unlocked(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_enforce(user_id: Any, db: Any) -> Any:
         return None
 
     monkeypatch.setattr(penalty_service, "enforce_cooldown", fake_enforce)

@@ -12,6 +12,7 @@ class News(Base):
     __tablename__ = "news"
     __table_args__ = (
         Index("idx_news_company_simulated", "company_id", "simulated_at"),
+        Index("idx_news_contest_company_simulated", "contest_id", "company_id", "simulated_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -27,6 +28,9 @@ class News(Base):
     sentiment: Mapped[str] = mapped_column(String(20), default="neutral", nullable=False)
     impact_score: Mapped[float] = mapped_column(Float, default=5.0, nullable=False)
 
+    contest_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("contests.id", ondelete="CASCADE"), nullable=True
+    )
     company_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
     )
@@ -41,3 +45,4 @@ class News(Base):
 
     company = relationship("Company", back_populates="news")
     social_posts = relationship("SocialPost", back_populates="news")
+    contest = relationship("Contest", back_populates="news")

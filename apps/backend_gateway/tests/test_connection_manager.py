@@ -1,6 +1,8 @@
 import asyncio
+from typing import Any, cast
 
 import pytest
+from fastapi import WebSocket
 from realtime.connection_manager import (
     ClientConnection,
     ConnectionManager,
@@ -23,7 +25,7 @@ async def test_build_message_shape() -> None:
 async def test_connect_disconnect_cleanup() -> None:
     mgr = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await mgr.connect(ws)
+    conn = await mgr.connect(cast(WebSocket, ws))
     assert ws.accepted is True
     assert mgr.active_connections == 1
     await mgr.disconnect(conn)
@@ -38,8 +40,8 @@ async def test_shutdown_connections_closes_with_1012() -> None:
     reconnect có backoff — không Thundering Herd khi rolling deploy."""
     mgr = ConnectionManager()
     ws1, ws2 = FakeWebSocket(), FakeWebSocket()
-    await mgr.connect(ws1)
-    await mgr.connect(ws2)
+    await mgr.connect(cast(WebSocket, ws1))
+    await mgr.connect(cast(WebSocket, ws2))
 
     closed = await mgr.shutdown_connections()
 
@@ -53,12 +55,12 @@ async def test_shutdown_connections_closes_with_1012() -> None:
 async def test_join_leave_room_and_user_room() -> None:
     mgr = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await mgr.connect(ws)
+    conn = await mgr.connect(cast(WebSocket, ws))
     await mgr.join_room(conn, "prices:ACB")
     assert mgr.connection_count("prices:ACB") == 1
     assert "prices:ACB" in conn.rooms
 
-    user_room = ConnectionManager.user_room(123)
+    user_room = ConnectionManager.user_room(cast(str, 123))
     assert user_room == "user:123"
     await mgr.join_room(conn, user_room)
     assert mgr.connection_count(user_room) == 1
@@ -76,8 +78,8 @@ async def test_join_leave_room_and_user_room() -> None:
 async def test_broadcast_to_room_delivers_and_counts() -> None:
     mgr = ConnectionManager()
     ws1, ws2 = FakeWebSocket(), FakeWebSocket()
-    c1 = await mgr.connect(ws1)
-    c2 = await mgr.connect(ws2)
+    c1 = await mgr.connect(cast(WebSocket, ws1))
+    c2 = await mgr.connect(cast(WebSocket, ws2))
     await mgr.join_room(c1, "prices:ACB")
     await mgr.join_room(c2, "prices:ACB")
 
@@ -87,7 +89,7 @@ async def test_broadcast_to_room_delivers_and_counts() -> None:
     assert len(ws1.sent) == 1
     assert len(ws2.sent) == 1
 
-    sent = await mgr.broadcast_to_user(123, build_message("trade_fill", {"n": 2}))
+    sent = await mgr.broadcast_to_user(cast(str, 123), build_message("trade_fill", {"n": 2}))
     assert sent == 0
 
     await mgr.disconnect(c1)
@@ -100,11 +102,11 @@ async def test_handle_connection_keepalive_ping_on_silence_does_not_kick() -> No
     mgr = ConnectionManager(max_queue_size=8)
     ws = FakeWebSocket()
 
-    async def on_message(conn, payload: dict):
+    async def on_message(conn: ClientConnection, payload: dict[str, Any]) -> None:
         await mgr.send(conn, build_message("echo", payload))
 
     task = asyncio.create_task(
-        mgr.handle_connection(ws, on_message, heartbeat_seconds=0.05)
+        mgr.handle_connection(cast(WebSocket, ws), on_message, heartbeat_seconds=0.05)
     )
     for _ in range(100):
         await asyncio.sleep(0.01)
@@ -159,7 +161,7 @@ async def test_handle_connection_revalidates_periodically_and_closes() -> None:
         return calls < 2  # lần 1 hợp lệ; lần 2 → token hết hạn / user bị khoá
 
     task = asyncio.create_task(
-        mgr.handle_connection(ws, on_validate=on_validate, heartbeat_seconds=0.05)
+        mgr.handle_connection(cast(WebSocket, ws), on_validate=on_validate, heartbeat_seconds=0.05)
     )
     await asyncio.wait_for(task, timeout=5)
 
@@ -183,7 +185,7 @@ async def test_handle_connection_validate_error_keeps_connection_alive() -> None
         raise RuntimeError("db blip")
 
     task = asyncio.create_task(
-        mgr.handle_connection(ws, on_validate=on_validate, heartbeat_seconds=0.05)
+        mgr.handle_connection(cast(WebSocket, ws), on_validate=on_validate, heartbeat_seconds=0.05)
     )
     for _ in range(200):
         await asyncio.sleep(0.01)
@@ -204,10 +206,12 @@ async def test_handle_connection_internal_error_reports_but_keeps_open() -> None
     mgr = ConnectionManager()
     ws = FakeWebSocket()
 
-    async def on_message(conn, payload: dict):
+    async def on_message(conn: ClientConnection, payload: dict[str, Any]) -> None:
         raise RuntimeError("boom")
 
-    task = asyncio.create_task(mgr.handle_connection(ws, on_message, heartbeat_seconds=5))
+    task = asyncio.create_task(
+        mgr.handle_connection(cast(WebSocket, ws), on_message, heartbeat_seconds=5)
+    )
     for _ in range(100):
         await asyncio.sleep(0.01)
         if ws.accepted:
@@ -247,7 +251,7 @@ async def test_on_connect_and_on_disconnect_hooks() -> None:
 
     task = asyncio.create_task(
         mgr.handle_connection(
-            ws,
+            cast(WebSocket, ws),
             on_connect=on_connect,
             on_disconnect=on_disconnect,
             heartbeat_seconds=0.05,
@@ -270,7 +274,7 @@ async def test_on_connect_and_on_disconnect_hooks() -> None:
 async def test_drop_oldest_when_consumer_slow() -> None:
     mgr = ConnectionManager(max_queue_size=2)
     ws = SlowWebSocket()
-    conn = await mgr.connect(ws)
+    conn = await mgr.connect(cast(WebSocket, ws))
 
     await mgr.send(conn, build_message("m", {"n": 1}))
     await asyncio.wait_for(ws.started.wait(), timeout=1)
@@ -302,7 +306,7 @@ async def test_writer_send_timeout_closes_stalled_socket() -> None:
 
     mgr = ConnectionManager(write_timeout=0.05)
     ws = StalledSocket()
-    conn = await mgr.connect(ws)
+    conn = await mgr.connect(cast(WebSocket, ws))
     await mgr.send(conn, build_message("m", {"n": 1}))
 
     for _ in range(200):
@@ -316,10 +320,10 @@ async def test_writer_send_timeout_closes_stalled_socket() -> None:
     assert conn.writer_task.done() is True
 
 
-def json_of(raw: str) -> dict:
+def json_of(raw: str) -> dict[str, Any]:
     import json
 
-    return json.loads(raw)
+    return cast(dict[str, Any], json.loads(raw))
 
 
 @pytest.mark.asyncio
@@ -330,7 +334,7 @@ async def test_writer_failure_cleans_up_connection() -> None:
 
     mgr = ConnectionManager()
     ws = BrokenSocket()
-    conn = await mgr.connect(ws)
+    conn = await mgr.connect(cast(WebSocket, ws))
     await mgr.send(conn, build_message("m", {"n": 1}))
 
     for _ in range(100):
@@ -348,7 +352,7 @@ async def test_writer_failure_cleans_up_connection() -> None:
 async def test_welcome_includes_realtime_status() -> None:
     mgr = ConnectionManager()
     ws = FakeWebSocket()
-    task = asyncio.create_task(mgr.handle_connection(ws, heartbeat_seconds=5))
+    task = asyncio.create_task(mgr.handle_connection(cast(WebSocket, ws), heartbeat_seconds=5))
     for _ in range(100):
         await asyncio.sleep(0.01)
         if any(m["type"] == "welcome" for m in ws.sent_messages()):
@@ -365,7 +369,7 @@ async def test_reliable_message_prioritized_over_best_effort() -> None:
     """Khi cả 2 queue đều có tin, writer gửi reliable trước (trade fill ưu tiên)."""
     mgr = ConnectionManager()
     ws = SlowWebSocket()
-    conn = await mgr.connect(ws)
+    conn = await mgr.connect(cast(WebSocket, ws))
 
     await mgr.send(conn, build_message("m", {"n": 1}))  # best-effort — writer đang ghi
     await asyncio.wait_for(ws.started.wait(), timeout=1)
@@ -389,7 +393,7 @@ async def test_reliable_overflow_closes_connection_with_1011() -> None:
     KHÔNG drop tin giao dịch thầm lặng."""
     mgr = ConnectionManager(max_queue_size=8, reliable_max_queue_size=2)
     ws = SlowWebSocket()
-    conn = await mgr.connect(ws)
+    conn = await mgr.connect(cast(WebSocket, ws))
 
     await mgr.send_reliable(conn, build_message("trade_fill", {"n": 1}))
     await asyncio.wait_for(ws.started.wait(), timeout=1)  # writer đang ghi n1
@@ -413,11 +417,11 @@ async def test_reliable_overflow_closes_connection_with_1011() -> None:
 async def test_broadcast_to_user_reliable_delivers() -> None:
     mgr = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await mgr.connect(ws)
-    await mgr.join_room(conn, mgr.user_room(123))
+    conn = await mgr.connect(cast(WebSocket, ws))
+    await mgr.join_room(conn, mgr.user_room(cast(str, 123)))
 
     sent = await mgr.broadcast_to_user_reliable(
-        123, build_message("trade_fill", {"n": 5})
+        cast(str, 123), build_message("trade_fill", {"n": 5})
     )
     assert sent == 1
     await asyncio.sleep(0.01)
@@ -431,8 +435,8 @@ async def test_broadcast_status_reaches_all_connections() -> None:
     """feed_status gửi tới MỌI kết nối local (không qua backplane) kèm resync_via."""
     mgr = ConnectionManager()
     ws1, ws2 = FakeWebSocket(), FakeWebSocket()
-    c1 = await mgr.connect(ws1)
-    c2 = await mgr.connect(ws2)
+    c1 = await mgr.connect(cast(WebSocket, ws1))
+    c2 = await mgr.connect(cast(WebSocket, ws2))
 
     sent = await mgr.broadcast_status(
         "degraded", "realtime_bridge_down", resync_via=["/api/v1/trades/orders"]

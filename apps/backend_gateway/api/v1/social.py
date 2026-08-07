@@ -74,7 +74,7 @@ async def list_social_posts(
     limit: int = Query(20, ge=1, le=100),
     user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
-):
+) -> SocialPostListResponse:
     stmt = select(SocialPost)
     if persona_type:
         stmt = stmt.where(SocialPost.persona_type == persona_type)
@@ -96,7 +96,7 @@ async def get_social_post(
     post_id: uuid.UUID,
     user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
-):
+) -> SocialPostResponse:
     entry = await db.get(SocialPost, post_id)
     if not entry:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Social post not found")
@@ -109,7 +109,7 @@ async def create_social_post(
     body: SocialPostCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> SocialPostResponse:
     company_id = None
     if body.company_symbol:
         company = (
@@ -144,7 +144,7 @@ async def list_social_comments(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-):
+) -> SocialCommentListResponse:
     post = await db.get(SocialPost, post_id)
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Social post not found")
@@ -155,7 +155,10 @@ async def list_social_comments(
         .order_by(SocialComment.created_at.asc())
     )
     items, total = await paginate(db, stmt, skip, limit)
-    return SocialCommentListResponse(items=items, total=total)
+    return SocialCommentListResponse(
+        items=[SocialCommentResponse.model_validate(c) for c in items],
+        total=total,
+    )
 
 
 @router.post(
@@ -168,7 +171,7 @@ async def create_social_comment(
     body: SocialCommentCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> SocialComment:
     post = await db.get(SocialPost, post_id)
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Social post not found")
@@ -192,7 +195,7 @@ async def toggle_social_like(
     post_id: uuid.UUID,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> SocialLikeResponse:
     post = await db.get(SocialPost, post_id)
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Social post not found")

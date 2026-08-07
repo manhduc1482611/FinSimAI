@@ -25,7 +25,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from core.config import settings
 from fastapi import WebSocket
@@ -121,7 +121,7 @@ class _AskSession:
     """Phiên streaming Mentor: generation + cờ cancelled để dừng task cũ nhanh."""
 
     generation: int
-    task: asyncio.Task | None = field(default=None, init=False)
+    task: asyncio.Task[None] | None = field(default=None, init=False)
     cancelled: bool = field(default=False, init=False)
 
 
@@ -134,7 +134,7 @@ def create_mentor_endpoint(
     revalidate_auth: bool | None = None,
 ) -> Callable[[WebSocket], Any]:
     manager = manager or connection_manager
-    provider = provider or mentor_stream_provider
+    stream_provider = cast(Any, provider or mentor_stream_provider)
     auth = auth_provider or get_ws_user
     heartbeat = (
         heartbeat_seconds if heartbeat_seconds is not None else settings.ws_heartbeat_seconds
@@ -165,7 +165,7 @@ def create_mentor_endpoint(
                 ),
             ):
                 return
-            async for chunk in provider.stream(
+            async for chunk in stream_provider.stream(
                 user_id=user_id, message=message, session_id=session_id
             ):
                 if session.cancelled:
@@ -249,10 +249,10 @@ def create_mentor_endpoint(
                 session.task = task
                 active_sessions[conn.connection_id] = session
             elif action == "cancel":
-                session = active_sessions.get(conn.connection_id)
-                if session is not None and session.task is not None and not session.task.done():
-                    session.cancelled = True
-                    session.task.cancel()
+                current = active_sessions.get(conn.connection_id)
+                if current is not None and current.task is not None and not current.task.done():
+                    current.cancelled = True
+                    current.task.cancel()
                     await manager.send(
                         conn,
                         build_message(

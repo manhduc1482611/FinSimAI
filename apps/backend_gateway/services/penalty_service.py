@@ -20,6 +20,7 @@ import math
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_UP, Decimal
+from typing import Any
 
 from clients.math_client import math_client
 from models.trade import Order
@@ -53,7 +54,7 @@ async def _penalty_reason(user_id: uuid.UUID, db: AsyncSession) -> str | None:
     return _build_reason(event.type, event.severity, event.description)
 
 
-async def get_penalty_status(user_id: uuid.UUID, db: AsyncSession) -> dict:
+async def get_penalty_status(user_id: uuid.UUID, db: AsyncSession) -> dict[str, Any]:
     """Trả về trạng thái cooldown của user (KHÔNG gây lỗi khi không bị phạt).
 
     Cooldown đã hết hạn sẽ được gỡ "lười biếng" (lazy-clear) trước khi trả về.
@@ -90,7 +91,7 @@ async def get_penalty_status(user_id: uuid.UUID, db: AsyncSession) -> dict:
     }
 
 
-async def enforce_cooldown(user_id: uuid.UUID, db: AsyncSession) -> dict | None:
+async def enforce_cooldown(user_id: uuid.UUID, db: AsyncSession) -> dict[str, Any] | None:
     """Gate cho mọi thao tác giao dịch.
 
     Trả về dict trạng thái cooldown khi đang bị khóa (→ API trả HTTP 423),
@@ -118,7 +119,7 @@ async def apply_penalty(
     *,
     trap_type: str = "discipline_violation",
     description: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Áp dụng phạt từ một lần vi phạm: tăng risk_score, trừ tiền, đặt cooldown.
 
     - Gọi math engine để tính ``new_risk_score`` / ``cooldown_seconds``.
@@ -237,7 +238,7 @@ async def apply_penalty(
     }
 
 
-async def clear_cooldown(user_id: uuid.UUID, db: AsyncSession) -> dict:
+async def clear_cooldown(user_id: uuid.UUID, db: AsyncSession) -> dict[str, Any]:
     """Gỡ khóa giao dịch — chỉ khi cooldown đã hết hạn (không thể rút ngắn).
 
     Đồng thời đánh dấu các lần vi phạm chưa xử lý là đã resolved

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -20,7 +20,7 @@ class OrderRequest(BaseModel):
     quantity: Decimal = Field(gt=Decimal("0"))
 
     @model_validator(mode="after")
-    def check_price(self):
+    def check_price(self) -> Self:
         if self.type == "limit" and self.price is None:
             raise ValueError("price is required when type='limit'")
         if self.type == "market" and self.price is not None:

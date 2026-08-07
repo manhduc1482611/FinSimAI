@@ -7,10 +7,10 @@ async def test_notify_fills_pushes_transactions(monkeypatch: pytest.MonkeyPatch)
     """match_orders sau commit phải đẩy các fill qua trade_notifier (event-driven)."""
     import realtime.trade_ws as trade_ws_module
 
-    pushed: list[list[dict]] = []
+    pushed: list[list[dict[str, object]]] = []
 
     class FakeNotifier:
-        async def notify_transactions(self, transactions):
+        async def notify_transactions(self, transactions: list[dict[str, object]]) -> int:
             pushed.append(transactions)
             return len(transactions)
 
@@ -30,7 +30,7 @@ async def test_notify_fills_tolerates_notifier_failure(
     import realtime.trade_ws as trade_ws_module
 
     class BrokenNotifier:
-        async def notify_transactions(self, transactions):
+        async def notify_transactions(self, transactions: list[dict[str, object]]) -> int:
             raise RuntimeError("redis down")
 
     monkeypatch.setattr(trade_ws_module, "trade_notifier", BrokenNotifier())
@@ -45,7 +45,7 @@ async def test_notify_fills_skips_empty(monkeypatch: pytest.MonkeyPatch) -> None
     called = False
 
     class FakeNotifier:
-        async def notify_transactions(self, transactions):
+        async def notify_transactions(self, transactions: list[dict[str, object]]) -> int:
             nonlocal called
             called = True
             return 0

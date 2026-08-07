@@ -35,7 +35,7 @@ import json
 import logging
 import random
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from core.cache import get_cache
 
@@ -78,8 +78,8 @@ class Backplane:
         self.manager = manager
         self.channel_prefix = channel_prefix
         self._pubsub: Any = None
-        self._task: asyncio.Task | None = None
-        self._retry_task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
+        self._retry_task: asyncio.Task[None] | None = None
         self._stopped = False
         self._fallback_mode = False
         # Trạng thái realtime đã thông báo (None = chưa thông báo): dùng để chỉ phát
@@ -157,7 +157,7 @@ class Backplane:
         self._subscribed.clear()
         pubsub: Any = None
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             pubsub = client.pubsub()
             await self._activate_pubsub(pubsub)
         except Exception:
@@ -254,7 +254,7 @@ class Backplane:
             if self._stopped or not self._fallback_mode:
                 break
             try:
-                client = get_cache()
+                client = cast(Any, get_cache())
                 await client.ping()
                 pubsub = client.pubsub()
             except Exception:
@@ -349,7 +349,7 @@ class Backplane:
         if self._fallback_mode:
             return local_sent
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             await client.publish(
                 self._channel(room), self._envelope(room, payload, reliable=reliable)
             )

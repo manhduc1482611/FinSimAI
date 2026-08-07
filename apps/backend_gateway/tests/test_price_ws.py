@@ -1,6 +1,8 @@
 import uuid
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timezone, tzinfo
+from typing import Any, cast
 
 import pytest
 import realtime.price_ws as price_ws_module
@@ -19,7 +21,7 @@ class FakePriceSource:
         self.prices = dict(prices)
         self.calls = 0
 
-    async def __call__(self) -> list[dict]:
+    async def __call__(self) -> list[dict[str, Any]]:
         self.calls += 1
         return [
             {
@@ -39,13 +41,17 @@ class FakeClock:
     now_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
     @classmethod
-    def now(cls, tz: object = None) -> datetime:
+    def now(cls, tz: tzinfo | None = None) -> datetime:
         if tz is not None:
             return cls.now_value.astimezone(tz)
         return cls.now_value
 
 
-def make_broadcaster(manager=None, source=None, **kwargs):
+def make_broadcaster(
+    manager: ConnectionManager | None = None,
+    source: price_ws_module.PriceSource | None = None,
+    **kwargs: Any,
+) -> PriceBroadcaster:
     return PriceBroadcaster(
         manager or FakeManager(),
         source or FakePriceSource({"ACB": 100.0}),
@@ -93,6 +99,62 @@ async def test_price_change_computes_change_and_pct() -> None:
     assert len(ticks) == 1
     assert ticks[0]["change"] == 2.0
     assert ticks[0]["change_pct"] == 2.0
+
+
+@pytest.mark.asyncio
+async def test_contest_room_namespace_isolates_same_symbol() -> None:
+    """2 contest dùng chung symbol → room riêng, không tràn sang ``prices:*``."""
+    cid1 = uuid.uuid4()
+    cid2 = uuid.uuid4()
+
+    class ContestSource:
+        async def __call__(self) -> list[dict[str, Any]]:
+            return [
+                {
+                    "company_id": uuid.uuid4(),
+                    "symbol": "VNM",
+                    "name": "VNM Contest 1",
+                    "sector": "Consumer",
+                    "price": 60.0,
+                    "market_cap": 100000.0,
+                    "contest_id": cid1,
+                    "updated_at": datetime.now(timezone.utc),
+                },
+                {
+                    "company_id": uuid.uuid4(),
+                    "symbol": "VNM",
+                    "name": "VNM Contest 2",
+                    "sector": "Consumer",
+                    "price": 61.0,
+                    "market_cap": 100000.0,
+                    "contest_id": cid2,
+                    "updated_at": datetime.now(timezone.utc),
+                },
+            ]
+
+    manager = FakeManager()
+    broadcaster = make_broadcaster(manager=manager, source=ContestSource())
+    ticks = await broadcaster.process_snapshots(await broadcaster.price_source())
+
+    rooms = sorted(manager.room_messages)
+    assert rooms == sorted([f"prices:{cid1}:VNM", f"prices:{cid2}:VNM"])
+    # Contest tick KHÔNG tràn sang prices:* của thị trường chính.
+    assert ALL_SYMBOLS_ROOM not in manager.room_messages
+    assert {t["contest_id"] for t in ticks} == {str(cid1), str(cid2)}
+    # State nội bộ theo room — 2 contest cùng symbol không ghi đè nhau.
+    assert broadcaster._current[f"prices:{cid1}:VNM"]["price"] == 60.0
+    assert broadcaster._current[f"prices:{cid2}:VNM"]["price"] == 61.0
+
+
+@pytest.mark.asyncio
+async def test_main_market_still_broadcasts_to_all() -> None:
+    """Thị trường chính (contest_id null) vẫn phát tới prices:* như cũ (NFR-1)."""
+    manager = FakeManager()
+    broadcaster = make_broadcaster(manager=manager)
+    await broadcaster.process_snapshots(await broadcaster.price_source())
+    assert f"{PRICE_ROOM_PREFIX}ACB" in manager.room_messages
+    assert ALL_SYMBOLS_ROOM in manager.room_messages
+    assert len(manager.room_messages[ALL_SYMBOLS_ROOM]) == 1
 
 
 @pytest.mark.asyncio
@@ -174,13 +236,13 @@ async def test_leader_takeover_rebuilds_session_state_from_cache(
     broadcaster._current.clear()
     await broadcaster._load_state_from_cache()
 
-    assert broadcaster._last_price["ACB"] == 100.0
-    session = broadcaster._session["ACB"]
+    assert broadcaster._last_price["prices:ACB"] == 100.0
+    session = broadcaster._session["prices:ACB"]
     assert session["open"] == 100.0
     assert session["high"] == 100.0
     assert session["low"] == 100.0
     assert session["prev_close"] == 100.0
-    assert broadcaster._current["ACB"]["price"] == 100.0
+    assert broadcaster._current["prices:ACB"]["price"] == 100.0
 
 
 @pytest.mark.asyncio
@@ -212,12 +274,12 @@ async def test_secondary_worker_caches_snapshot_locally(
         "prev_close": 100.0,
         "sim_day": 720,
     }
-    await cache.hset(broadcaster._snapshot_key, {"ACB": jsonlib.dumps(tick)})
+    await cache.hset(broadcaster._snapshot_key, {"prices:ACB": jsonlib.dumps(tick)})
 
     first = await broadcaster.snapshots_for_delivery()
-    assert first["ACB"]["price"] == 100.0
+    assert first["prices:ACB"]["price"] == 100.0
     second = await broadcaster.snapshots_for_delivery()
-    assert second["ACB"]["price"] == 100.0
+    assert second["prices:ACB"]["price"] == 100.0
     # Lần 2 được phục vụ từ RAM local — KHÔNG gọi HGETALL lần nữa.
     assert cache.hgetall_calls == 1
 
@@ -251,7 +313,7 @@ async def test_leader_lost_during_db_read_skips_broadcast() -> None:
     manager = FakeManager()
     source = FakePriceSource({"ACB": 100.0})
     broadcaster = make_broadcaster(manager=manager, source=source)
-    broadcaster._election = LostLeadership()
+    broadcaster._election = cast(Any, LostLeadership())
 
     task = asyncio.create_task(broadcaster._run_loop())
     await asyncio.sleep(0.05)
@@ -262,11 +324,13 @@ async def test_leader_lost_during_db_read_skips_broadcast() -> None:
     assert ALL_SYMBOLS_ROOM not in manager.room_messages
 
 
-def _receive_until(ws, predicate, limit: int = 300):
+def _receive_until(
+    ws: Any, predicate: Callable[[dict[str, Any]], bool], limit: int = 300
+) -> dict[str, Any]:
     for _ in range(limit):
         message = ws.receive_json()
         if predicate(message):
-            return message
+            return cast(dict[str, Any], message)
     raise AssertionError("Không nhận được tin mong đợi trong giới hạn")
 
 
@@ -276,7 +340,7 @@ def test_price_ws_endpoint_full_flow() -> None:
     broadcaster = make_broadcaster(manager=manager, source=source, tick_seconds=0.05)
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await broadcaster.start()
         yield
         await broadcaster.stop()

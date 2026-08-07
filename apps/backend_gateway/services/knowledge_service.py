@@ -25,4 +25,4 @@ async def match_knowledge(text: str, db: AsyncSession) -> list[KnowledgeBase]:
         .order_by(KnowledgeBase.difficulty)
     )
     result = await db.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())

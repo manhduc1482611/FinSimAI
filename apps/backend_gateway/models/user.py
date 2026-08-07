@@ -13,7 +13,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
@@ -54,7 +54,11 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(200))
     avatar_url: Mapped[str | None] = mapped_column(String(500))
-    role: Mapped[str] = mapped_column(String(20), default="user", nullable=False)
+    role: Mapped[str] = mapped_column(
+        ENUM("user", "admin", "bot", "host", name="user_role", create_type=False),
+        default="user",
+        nullable=False,
+    )
 
     cash_balance: Mapped[Decimal] = mapped_column(
         Numeric(20, 2), default=Decimal("100000000.00"), nullable=False
@@ -80,3 +84,15 @@ class User(Base):
     portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
+    hosted_contests = relationship(
+        "Contest", back_populates="owner", foreign_keys="Contest.owner_id"
+    )
+    contest_memberships = relationship(
+        "ContestMember", back_populates="member"
+    )
+    task_progress = relationship(
+        "UserTaskProgress", back_populates="user", cascade="all, delete-orphan"
+    )
+    streak = relationship(
+        "UserStreak", back_populates="user", cascade="all, delete-orphan", uselist=False
+    )

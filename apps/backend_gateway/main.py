@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable
 from contextlib import asynccontextmanager
+from typing import Any
 
 import uvicorn
 from api.v1.router import api_router
@@ -69,11 +70,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Shutdown complete: math engine client and database engine disposed")
 
 
-async def _run_health_checks() -> dict:
-    checks: dict = {}
+async def _run_health_checks() -> dict[str, Any]:
+    checks: dict[str, Any] = {}
     healthy = True
 
-    async def _check(name: str, coro, hard: bool = True) -> None:
+    async def _check(name: str, coro: Awaitable[Any], hard: bool = True) -> None:
         nonlocal healthy
         try:
             async with asyncio.timeout(settings.health_check_timeout):
@@ -119,19 +120,19 @@ def create_app() -> FastAPI:
     register_websocket_routes(app)
 
     @app.get("/health/live", tags=["health"])
-    async def health_live():
+    async def health_live() -> dict[str, str]:
         return {"status": "ok", "service": "backend_gateway"}
 
-    @app.get("/health/ready", tags=["health"])
-    async def health_ready():
+    @app.get("/health/ready", tags=["health"], response_model=None)
+    async def health_ready() -> JSONResponse | dict[str, Any]:
         checks = await _run_health_checks()
         healthy = checks.pop("healthy")
         if not healthy:
             return JSONResponse(status_code=503, content={"status": "degraded", "checks": checks})
         return {"status": "ok", "checks": checks}
 
-    @app.get("/health", tags=["health"])
-    async def health():
+    @app.get("/health", tags=["health"], response_model=None)
+    async def health() -> JSONResponse | dict[str, Any]:
         return await health_ready()
 
     return app

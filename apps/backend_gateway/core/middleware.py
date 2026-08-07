@@ -1,6 +1,8 @@
 import time
 import uuid
+from typing import cast
 
+from fastapi import FastAPI
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -40,7 +42,8 @@ class RequestMetadataMiddleware:
 def setup_middleware(app: ASGIApp) -> None:
     from fastapi.middleware.cors import CORSMiddleware
 
-    app.add_middleware(
+    app_with_middleware = cast(FastAPI, app)
+    app_with_middleware.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_origin_regex=settings.cors_origin_regex,
@@ -48,4 +51,4 @@ def setup_middleware(app: ASGIApp) -> None:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(RequestMetadataMiddleware)
+    app_with_middleware.add_middleware(RequestMetadataMiddleware)

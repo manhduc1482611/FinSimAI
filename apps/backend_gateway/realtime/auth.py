@@ -39,6 +39,7 @@ import secrets
 import time
 import uuid
 from collections import OrderedDict
+from typing import Any, cast
 
 from core.cache import get_cache
 from core.config import settings
@@ -83,7 +84,7 @@ class TicketStore:
         if self._local_mode:
             self._memory[ticket] = (time.monotonic() + ttl, user_id)
             return ticket
-        client = get_cache()
+        client = cast(Any, get_cache())
         await client.set(f"{TICKET_PREFIX}{ticket}", user_id, ex=int(ttl))
         return ticket
 
@@ -98,8 +99,9 @@ class TicketStore:
                 return None
             return user_id
         try:
-            client = get_cache()
-            return await client.getdel(f"{TICKET_PREFIX}{ticket}")
+            client = cast(Any, get_cache())
+            value: str | None = await client.getdel(f"{TICKET_PREFIX}{ticket}")
+            return value
         except Exception:
             # Redis hỏng → không xác minh được ticket → fail-closed (từ chối).
             logger.warning("WS ticket consume failed (Redis unavailable)")

@@ -17,6 +17,7 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import yaml
 from core.database import engine
@@ -31,7 +32,7 @@ _MACRO_CATEGORIES = ("thị trường", "vĩ mô")
 _CATEGORIES = ("doanh nghiệp", "thị trường", "phân tích", "nhận định")
 
 
-def _load_yaml(filename: str) -> dict:
+def _load_yaml(filename: str) -> dict[str, Any]:
     path = SEEDS_DIR / filename
     if not path.exists():
         logger.warning("Seed file not found: %s", path)
@@ -58,12 +59,12 @@ async def _seed_reference_rows() -> None:
                 text(
                     """
                     INSERT INTO companies
-                        (symbol, name, description, sector, current_price, volatility,
+                        (symbol, name, description, sector, contest_id, current_price, volatility,
                          shares_outstanding, health_score, pe_ratio, roe, net_margin, max_drawdown)
-                    VALUES (:symbol, :name, :description, :sector, :current_price, :volatility,
-                            :shares_outstanding, :health_score, :pe_ratio, :roe,
-                            :net_margin, :max_drawdown)
-                    ON CONFLICT (symbol) DO NOTHING
+                    VALUES (:symbol, :name, :description, :sector, :contest_id,
+                            :current_price, :volatility, :shares_outstanding, :health_score,
+                            :pe_ratio, :roe, :net_margin, :max_drawdown)
+                    ON CONFLICT (symbol) WHERE contest_id IS NULL DO NOTHING
                     """
                 ),
                 {
@@ -71,6 +72,7 @@ async def _seed_reference_rows() -> None:
                     "name": row["name"],
                     "description": row.get("description", ""),
                     "sector": row["sector"],
+                    "contest_id": None,
                     "current_price": str(row["current_price"]),
                     "volatility": str(row.get("volatility", 0.01)),
                     "shares_outstanding": str(row.get("shares_outstanding", 10000000)),
@@ -131,7 +133,7 @@ async def _seed_reference_rows() -> None:
     )
 
 
-async def _companies() -> list[dict]:
+async def _companies() -> list[dict[str, Any]]:
     async with engine.connect() as conn:
         rows = await conn.execute(
             text("SELECT symbol, name, id::text FROM companies ORDER BY symbol")
@@ -139,10 +141,10 @@ async def _companies() -> list[dict]:
         return [{"symbol": s, "name": n, "id": i} for s, n, i in rows.all()]
 
 
-def _news_rows(companies: list[dict]) -> list[dict]:
+def _news_rows(companies: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sinh bộ tin tức mẫu (deterministic) gắn với công ty đã seed."""
     now = datetime.now(timezone.utc)
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
 
     per_company_templates = [
         (
@@ -244,7 +246,7 @@ def _news_rows(companies: list[dict]) -> list[dict]:
     return rows
 
 
-def _social_rows(companies: list[dict]) -> list[dict]:
+def _social_rows(companies: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sinh bộ bài đăng mạng xã hội mẫu (deterministic)."""
     now = datetime.now(timezone.utc)
     personas = [
@@ -291,7 +293,7 @@ def _social_rows(companies: list[dict]) -> list[dict]:
         ),
     ]
 
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for idx, company in enumerate(companies[:14]):
         symbol = company["symbol"]
         name = company["name"]
@@ -395,11 +397,170 @@ async def _seed_content_rows() -> None:
         logger.info("social_posts table already has %d rows — skip sample seeding.", social_count)
 
 
+async def _seed_sample_contest() -> None:
+    """Nếu chưa có contest nào, tạo 1 contest mẫu bằng chính pipeline §4.3."""
+    count = await _table_count("contests")
+    if count > 0:
+        logger.info("contests table already has %d rows — skip sample contest.", count)
+        return
+
+    from core.database import async_session_factory
+    from models.contest import Contest
+    from schemas.contest import ContestCreateRequest, build_config
+    from services import contest_service
+
+    async with async_session_factory() as db:
+        request = ContestCreateRequest(
+            name="Thị trường chính ảo",
+            slug="thi-truong-chinh-ao",
+            description=(
+                "Cuộc thi mẫu do hệ thống tự tạo khi chưa có contest nào, "
+                "minh hoạ generator nội dung deterministic hoạt động."
+            ),
+            template="classic",
+            difficulty="normal",
+        )
+        contest = Contest(
+            slug=request.slug,
+            name=request.name,
+            description=request.description,
+            status="draft",
+            config=build_config(request).model_dump(mode="json"),
+            owner_id=None,
+        )
+        db.add(contest)
+        await db.commit()
+        await db.refresh(contest)
+        await contest_service.generate_content(db, contest)
+        logger.info("Seeded sample contest '%s' via generator pipeline.", contest.name)
+
+
+_TASKS = [
+    # ── A. Định hướng (onboarding) ──────────────────────────────────────────
+    ("profile_complete", "Hoàn thiện hồ sơ cá nhân",
+     "Cập nhật đầy đủ thông tin hồ sơ để bắt đầu hành trình đầu tư.",
+     "onboarding", "50000", 1, "none", True, 100),
+    ("first_trade", "Đặt lệnh giao dịch đầu tiên",
+     "Đặt thành công lệnh mua hoặc bán đầu tiên của bạn.",
+     "onboarding", "20000", 1, "none", True, 110),
+    ("first_knowledge_read", "Đọc bài kiến thức đầu tiên",
+     "Khám phá kho kiến thức chứng khoán của FinSimAI.",
+     "onboarding", "10000", 1, "none", True, 120),
+    ("first_news_read", "Đọc tin tức đầu tiên",
+     "Cập nhật tin tức thị trường mới nhất trong ngày.",
+     "onboarding", "10000", 1, "none", True, 130),
+    ("first_company_view", "Xem hồ sơ công ty đầu tiên",
+     "Tìm hiểu thông tin một doanh nghiệp niêm yết.",
+     "onboarding", "10000", 1, "none", True, 140),
+    ("first_mentor_chat", "Trò chuyện Mentor lần đầu",
+     "Đặt câu hỏi đầu tiên cho Mentor AI của bạn.",
+     "onboarding", "20000", 1, "none", True, 150),
+    ("scenario_1_done", "Hoàn thành kịch bản đầu tiên",
+     "Vượt qua kịch bản mô phỏng đầu tiên trong chế độ luyện tập.",
+     "onboarding", "30000", 1, "none", True, 160),
+    ("onboarding_complete", "Hoàn tất định hướng",
+     "Hoàn thành TẤT CẢ nhiệm vụ định hướng để nhận thưởng lớn.",
+     "onboarding", "100000", 1, "none", True, 190),
+    # ── B. Học tập (learning) ───────────────────────────────────────────────
+    ("read_5_knowledge", "Đọc 5 bài kiến thức",
+     "Tích lũy 5 bài kiến thức đã đọc (cộng dồn).",
+     "learning", "30000", 5, "none", True, 200),
+    ("read_10_knowledge", "Đọc 10 bài kiến thức",
+     "Tích lũy 10 bài kiến thức đã đọc (cộng dồn).",
+     "learning", "50000", 10, "none", True, 210),
+    ("read_10_news", "Đọc 10 tin tức",
+     "Cập nhật 10 tin tức thị trường (cộng dồn).",
+     "learning", "40000", 10, "none", True, 220),
+    ("analyze_3_companies", "Phân tích 3 công ty",
+     "Xem hồ sơ chi tiết của 3 doanh nghiệp (cộng dồn).",
+     "learning", "30000", 3, "none", True, 230),
+    ("mentor_3_chats", "Trò chuyện Mentor 3 lần",
+     "Trao đổi 3 lượt với Mentor AI (cộng dồn).",
+     "learning", "40000", 3, "none", True, 240),
+    # ── C. Hằng ngày (daily) ────────────────────────────────────────────────
+    ("daily_checkin", "Điểm danh hằng ngày",
+     "Đăng nhập và điểm danh mỗi ngày để giữ chuỗi ngày liên tiếp.",
+     "daily", "5000", 1, "daily", True, 300),
+    ("daily_trade_1", "Giao dịch trong ngày",
+     "Đặt ít nhất 1 lệnh giao dịch trong ngày hôm nay.",
+     "daily", "10000", 1, "daily", True, 310),
+    ("daily_read_3_knowledge", "Đọc 3 bài kiến thức trong ngày",
+     "Đọc 3 bài kiến thức trong ngày hôm nay.",
+     "daily", "10000", 3, "daily", True, 320),
+    ("daily_read_2_news", "Đọc 2 tin tức trong ngày",
+     "Đọc 2 tin tức trong ngày hôm nay.",
+     "daily", "10000", 2, "daily", True, 330),
+    ("daily_mentor_1", "Trò chuyện Mentor trong ngày",
+     "Trò chuyện với Mentor ít nhất 1 lần trong ngày.",
+     "daily", "10000", 1, "daily", True, 340),
+    ("daily_all_4", "Hoàn thành 4/5 nhiệm vụ hằng ngày",
+     "Hoàn thành 4 trong 5 nhiệm vụ hằng ngày để nhận thưởng lớn.",
+     "daily", "50000", 1, "daily", True, 390),
+    # ── D. Chuỗi ngày (streak) ──────────────────────────────────────────────
+    ("streak_3", "Chuỗi 3 ngày liên tiếp",
+     "Duy trì chuỗi điểm danh 3 ngày liên tiếp.",
+     "streak", "20000", 3, "none", True, 400),
+    ("streak_7", "Chuỗi 7 ngày liên tiếp",
+     "Duy trì chuỗi điểm danh 7 ngày liên tiếp.",
+     "streak", "50000", 7, "none", True, 410),
+    ("streak_30", "Chuỗi 30 ngày liên tiếp",
+     "Duy trì chuỗi điểm danh 30 ngày liên tiếp.",
+     "streak", "200000", 30, "none", True, 420),
+    # ── E. Cuộc thi (contest) ───────────────────────────────────────────────
+    ("contest_join_1", "Tham gia cuộc thi đầu tiên",
+     "Gia nhập một cuộc thi đầu tư ảo để cạnh tranh thứ hạng.",
+     "contest", "20000", 1, "none", True, 500),
+    ("contest_top10", "Lọt top 10 cuộc thi",
+     "Đứng trong top 10 bảng xếp hạng một cuộc thi — nhận thưởng thủ công.",
+     "contest", "200000", 1, "none", True, 510),
+]
+
+
+async def _seed_tasks() -> None:
+    """Upsert nhiệm vụ theo ``code`` — idempotent, chạy lại không nhân đôi."""
+    async with engine.begin() as conn:
+        for row in _TASKS:
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO tasks
+                        (code, name, description, category, reward_amount,
+                         target_count, reset_frequency, is_active, sort_order)
+                    VALUES (:code, :name, :description, :category, :reward_amount,
+                            :target_count, :reset_frequency, :is_active, :sort_order)
+                    ON CONFLICT (code) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        description = EXCLUDED.description,
+                        category = EXCLUDED.category,
+                        reward_amount = EXCLUDED.reward_amount,
+                        target_count = EXCLUDED.target_count,
+                        reset_frequency = EXCLUDED.reset_frequency,
+                        is_active = EXCLUDED.is_active,
+                        sort_order = EXCLUDED.sort_order
+                    """
+                ),
+                {
+                    "code": row[0],
+                    "name": row[1],
+                    "description": row[2],
+                    "category": row[3],
+                    "reward_amount": row[4],
+                    "target_count": row[5],
+                    "reset_frequency": row[6],
+                    "is_active": row[7],
+                    "sort_order": row[8],
+                },
+            )
+    logger.info("Seeded %d task definitions.", len(_TASKS))
+
+
 async def seed_if_empty() -> None:
     """Entry point — chạy sau migrations. Fail-soft: lỗi chỉ log, không crash boot."""
     try:
         await _seed_reference_rows()
         await _seed_content_rows()
+        await _seed_sample_contest()
+        await _seed_tasks()
         logger.info("Database seeding finished.")
     except Exception as e:  # noqa: BLE001
         logger.error("Database seeding failed (non-fatal): %s", e, exc_info=True)

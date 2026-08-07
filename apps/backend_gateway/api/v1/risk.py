@@ -20,7 +20,7 @@ router = APIRouter(prefix="/risk", tags=["risk"])
 async def get_cooldown(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> CooldownStatus:
     result = await penalty_service.get_penalty_status(current_user.id, db)
     if not result["success"]:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=result["error"])
@@ -36,7 +36,7 @@ async def create_penalty(
     body: PenaltyRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> PenaltyResponse:
     result = await penalty_service.apply_penalty(
         current_user.id,
         body.severity,
@@ -56,7 +56,7 @@ async def create_penalty(
 async def clear_cooldown(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> CooldownStatus:
     result = await penalty_service.clear_cooldown(current_user.id, db)
     if not result["success"]:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=result["error"])

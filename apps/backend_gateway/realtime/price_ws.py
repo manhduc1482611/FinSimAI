@@ -29,7 +29,7 @@ import logging
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, cast
 
 from core.cache import get_cache
 from core.config import settings
@@ -55,6 +55,14 @@ PRICE_ROOM_PREFIX = "prices:"
 ALL_SYMBOLS_ROOM = "prices:*"
 
 
+def price_room(contest_id: Any, symbol: str) -> str:
+    """Tên phòng broadcast theo scope: ``prices:{SYMBOL}`` (thị trường chính)
+    hay ``prices:{contest_id}:{SYMBOL}`` (contest) — 2 contest cùng symbol không nhiễu."""
+    if contest_id is None:
+        return f"{PRICE_ROOM_PREFIX}{symbol}"
+    return f"{PRICE_ROOM_PREFIX}{contest_id}:{symbol}"
+
+
 async def default_price_source() -> list[dict[str, Any]]:
     """Lấy snapshot giá của mọi công ty đang hoạt động từ DB."""
     async with async_session_factory() as session:
@@ -67,6 +75,7 @@ async def default_price_source() -> list[dict[str, Any]]:
                     Company.sector,
                     Company.current_price,
                     Company.market_cap,
+                    Company.contest_id,
                     Company.updated_at,
                 ).where(Company.is_active.is_(True))
             )
@@ -80,7 +89,8 @@ async def default_price_source() -> list[dict[str, Any]]:
             "sector": r[3],
             "price": float(r[4]),
             "market_cap": float(r[5]) if r[5] is not None else None,
-            "updated_at": r[6],
+            "contest_id": r[6],
+            "updated_at": r[7],
         }
         for r in rows
     ]
@@ -110,7 +120,7 @@ class PriceBroadcaster:
         self.sim_anchor = sim_anchor or datetime.fromtimestamp(
             settings.ws_sim_anchor_epoch, tz=timezone.utc
         )
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
         self._last_price: dict[str, float] = {}
         self._session: dict[str, dict[str, Any]] = {}
         self._current: dict[str, dict[str, Any]] = {}
@@ -172,10 +182,10 @@ class PriceBroadcaster:
         từ đó để chỉ số biến động giá không bị reset sai lệch khi chuyển giao.
         """
         cached = await self.fetch_cached_snapshots()
-        for symbol, tick in cached.items():
-            self._current[symbol] = tick
-            self._last_price[symbol] = tick["price"]
-            self._session[symbol] = {
+        for room, tick in cached.items():
+            self._current[room] = tick
+            self._last_price[room] = tick["price"]
+            self._session[room] = {
                 "sim_day": tick["sim_day"],
                 "open": tick["open"],
                 "high": tick["high"],
@@ -191,7 +201,7 @@ class PriceBroadcaster:
     # ── Snapshot cache (Redis) ───────────────────────────────────────
     async def _persist_snapshots(self) -> None:
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             mapping = {
                 symbol: json.dumps(tick, ensure_ascii=False, default=str)
                 for symbol, tick in self._current.items()
@@ -204,7 +214,7 @@ class PriceBroadcaster:
 
     async def fetch_cached_snapshots(self) -> dict[str, dict[str, Any]]:
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             raw = await client.hgetall(self._snapshot_key)
             return {symbol: json.loads(v) for symbol, v in raw.items()}
         except Exception:
@@ -265,17 +275,21 @@ class PriceBroadcaster:
         sim_day = sim_day_of(sim_epoch)
 
         ticks: list[dict[str, Any]] = []
+        rooms: list[str] = []
         for snap in snapshots:
-            tick = self._build_tick(snap, sim_epoch, sim_day)
-            if tick is not None:
+            built = self._build_tick(snap, sim_epoch, sim_day)
+            if built is not None:
+                room, tick = built
                 ticks.append(tick)
+                rooms.append(room)
 
-        for tick in ticks:
+        for room, tick in zip(rooms, ticks):
             message = build_message("price_tick", tick)
-            await self.manager.broadcast_to_room(
-                f"{PRICE_ROOM_PREFIX}{tick['symbol']}", message
-            )
-            await self.manager.broadcast_to_room(ALL_SYMBOLS_ROOM, message)
+            await self.manager.broadcast_to_room(room, message)
+            # Tick của contest chỉ vào phòng contest — không tràn sang ``prices:*``
+            # của thị trường chính (tránh 2 contest cùng symbol nhiễu nhau).
+            if tick.get("contest_id") is None:
+                await self.manager.broadcast_to_room(ALL_SYMBOLS_ROOM, message)
         return ticks
 
     def _build_tick(
@@ -283,14 +297,15 @@ class PriceBroadcaster:
         snap: dict[str, Any],
         sim_epoch: float,
         sim_day: int,
-    ) -> dict[str, Any] | None:
+    ) -> tuple[str, dict[str, Any]] | None:
         symbol = snap["symbol"]
+        room = price_room(snap.get("contest_id"), symbol)
         price = round(float(snap["price"]), 2)
-        session = self._session.get(symbol)
+        session = self._session.get(room)
 
         if session is not None and session["sim_day"] == sim_day:
             # Cùng phiên: chỉ phát tick khi giá thay đổi.
-            if self._last_price.get(symbol) == price:
+            if self._last_price.get(room) == price:
                 return None
             session["high"] = max(session["high"], price)
             session["low"] = min(session["low"], price)
@@ -302,17 +317,20 @@ class PriceBroadcaster:
                 "open": price,
                 "high": price,
                 "low": price,
-                "prev_close": self._last_price.get(symbol, price),
+                "prev_close": self._last_price.get(room, price),
             }
-            self._session[symbol] = session
+            self._session[room] = session
 
-        self._last_price[symbol] = price
+        self._last_price[room] = price
         prev_close = session["prev_close"]
         change = round(price - prev_close, 2)
         change_pct = round((change / prev_close) * 100, 4) if prev_close else 0.0
 
         tick: dict[str, Any] = {
             "symbol": symbol,
+            "contest_id": (
+                str(snap["contest_id"]) if snap.get("contest_id") is not None else None
+            ),
             "company_id": str(snap.get("company_id", "")),
             "name": snap.get("name"),
             "sector": snap.get("sector"),
@@ -327,8 +345,8 @@ class PriceBroadcaster:
             "sim_day": session["sim_day"],
             "simulated_at": format_sim_label(sim_epoch),
         }
-        self._current[symbol] = tick
-        return tick
+        self._current[room] = tick
+        return room, tick
 
 
 price_broadcaster = PriceBroadcaster(connection_manager)
@@ -349,21 +367,18 @@ async def _send_snapshot(
     conn: ClientConnection,
     broadcaster: PriceBroadcaster,
 ) -> None:
-    wants_all = ALL_SYMBOLS_ROOM in conn.rooms
-    symbols = {
-        room[len(PRICE_ROOM_PREFIX):]
-        for room in conn.rooms
-        if room.startswith(PRICE_ROOM_PREFIX) and room != ALL_SYMBOLS_ROOM
-    }
-    if not wants_all and not symbols:
+    rooms = {room for room in conn.rooms if room.startswith(PRICE_ROOM_PREFIX)}
+    wants_all = ALL_SYMBOLS_ROOM in rooms
+    specific = rooms - {ALL_SYMBOLS_ROOM}
+    if not wants_all and not specific:
         return
 
     # Ưu tiên snapshot local (leader); worker phụ dùng cache RAM TTL ngắn nạp từ
     # Redis — tránh mỗi client mới gây 1 lệnh HGETALL và không cần đọc DB.
     snapshots = await broadcaster.snapshots_for_delivery()
 
-    for symbol, tick in snapshots.items():
-        if wants_all or symbol in symbols:
+    for room, tick in snapshots.items():
+        if wants_all or room in specific:
             await manager.send(conn, build_message("price_snapshot", tick))
 
 

@@ -1,21 +1,21 @@
 import asyncio
 import logging
 
+from redis.asyncio import Redis
+
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_client = None
+_client: Redis | None = None
 
 
-def get_cache():
+def get_cache() -> Redis:
     global _client
     if _client is None:
-        from redis.asyncio import from_url
-
         # socket_connect_timeout: không treo hàng giây khi Redis mất kết nối —
         # caller (leader lock, dedup, backplane) tự fallback về chế độ local.
-        _client = from_url(
+        _client = Redis.from_url(
             settings.redis_url,
             decode_responses=True,
             socket_connect_timeout=1.0,

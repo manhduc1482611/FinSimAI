@@ -1,9 +1,10 @@
 import importlib.util
 import sys
 from pathlib import Path
+from typing import Any
 
 
-def _load_external_websockets_module():
+def _load_external_websockets_module() -> Any:
     local_dir = Path(__file__).resolve().parent
     for entry in sys.path:
         if not entry:

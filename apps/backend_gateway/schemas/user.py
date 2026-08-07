@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Self
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
@@ -22,7 +23,7 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1)
 
     @model_validator(mode="after")
-    def check_identifier(self):
+    def check_identifier(self) -> Self:
         if not self.username and not self.email:
             raise ValueError("username hoặc email là bắt buộc")
         return self

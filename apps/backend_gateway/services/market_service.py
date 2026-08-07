@@ -2,6 +2,7 @@ import asyncio
 import logging
 import uuid
 from decimal import Decimal
+from typing import Any
 
 from clients.math_client import math_client
 from models.company import Company
@@ -55,7 +56,16 @@ async def update_all_prices(
     db: AsyncSession,
     dt_years: float = 1.0 / 252,
     seed: int | None = None,
+    contest_id: uuid.UUID | None = None,
 ) -> int:
+    """Cập nhật giá một scope nhất định.
+
+    - ``contest_id`` cung cấp → chỉ công ty của contest đó.
+    - ``contest_id=None`` → thị trường chính (dòng ``contest_id IS NULL``).
+
+    Contest ``draft``/``ended`` không có công ty (pipeline chỉ sinh công ty lúc
+    ``active``), nên không cần lọc thêm theo status.
+    """
     stmt = (
         select(
             Company.id,
@@ -66,6 +76,10 @@ async def update_all_prices(
         )
         .where(Company.is_active.is_(True))
     )
+    if contest_id is not None:
+        stmt = stmt.where(Company.contest_id == contest_id)
+    else:
+        stmt = stmt.where(Company.contest_id.is_(None))
     rows = (await db.execute(stmt)).all()
     await db.commit()
 
@@ -107,7 +121,6 @@ async def update_all_prices(
             .where(Company.id == company_id)
             .values(
                 current_price=price_or_err,
-                market_cap=price_or_err * shares_outstanding,
                 updated_at=func.now(),
             )
         )
@@ -135,7 +148,6 @@ async def update_company_price(
         return False
 
     company.current_price = new_price
-    company.market_cap = new_price * company.shares_outstanding
     await db.commit()
     return True
 
@@ -143,7 +155,7 @@ async def update_company_price(
 async def get_portfolio_summary(
     user_id: uuid.UUID,
     db: AsyncSession,
-) -> dict:
+) -> dict[str, Any]:
     u = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if not u:
         return {}
@@ -157,7 +169,7 @@ async def get_portfolio_summary(
     rows = result.all()
 
     total_nav = u.cash_balance + u.frozen_cash
-    holdings = []
+    holdings: list[dict[str, Any]] = []
     for pf, comp in rows:
         mv = pf.quantity * comp.current_price
         cb = pf.quantity * pf.average_buy_price

@@ -29,6 +29,7 @@ class Portfolio(Base):
         CheckConstraint(
             "quantity >= frozen_quantity", name="chk_portfolio_qty_solvency",
         ),
+        Index("idx_portfolios_user_contest", "user_id", "contest_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -36,6 +37,9 @@ class Portfolio(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    contest_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("contests.id", ondelete="CASCADE"), nullable=True
     )
     company_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -67,6 +71,7 @@ class Portfolio(Base):
 
     user = relationship("User", back_populates="portfolios")
     company = relationship("Company", back_populates="portfolios")
+    contest = relationship("Contest")
 
 
 class Order(Base):

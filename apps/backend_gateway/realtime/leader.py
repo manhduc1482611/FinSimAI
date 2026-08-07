@@ -23,6 +23,8 @@ token tăng dần cục bộ mà không đụng Redis — không có worker nào
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from core.cache import get_cache
 
 # Gia hạn lock theo nguyên tố (atomic): chỉ thành công nếu key vẫn do TOKEN của
@@ -101,7 +103,7 @@ class LeaderElection:
             self._is_leader = True
             return self._fencing_token
         try:
-            client = get_cache()
+            client = cast(Any, get_cache())
             result = await client.eval(
                 ACQUIRE_OR_RENEW_LUA,
                 2,

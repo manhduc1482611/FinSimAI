@@ -1,7 +1,10 @@
 import asyncio
 import json
+from collections.abc import AsyncIterator, Callable
+from typing import Any, cast
 
 import pytest
+from fastapi import WebSocket
 from realtime import backplane as backplane_module
 from realtime.backplane import DEFAULT_CHANNEL_PREFIX, Backplane
 from realtime.connection_manager import ConnectionManager, build_message
@@ -13,7 +16,7 @@ class FakePubSub:
         self.owner = owner
         self.subscribed: set[str] = set()
         self.pattern: str | None = None
-        self.messages: asyncio.Queue = asyncio.Queue()
+        self.messages: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self.closed = False
         self.subscribe_gate: asyncio.Event | None = None
 
@@ -41,7 +44,7 @@ class FakePubSub:
             raise ConnectionError("redis down")
         self.pattern = pattern
 
-    async def listen(self):
+    async def listen(self) -> AsyncIterator[dict[str, Any]]:
         while True:
             message = await self.messages.get()
             yield message
@@ -84,7 +87,7 @@ class FreshPubSubRedis(FakeRedis):
         return ps
 
 
-def make_message(channel: str, payload: str, mtype: str = "message") -> dict:
+def make_message(channel: str, payload: str, mtype: str = "message") -> dict[str, Any]:
     return {
         "type": mtype,
         "channel": channel,
@@ -98,7 +101,7 @@ def envelope(room: str, payload: str, sender: str, qos: str = "best_effort") -> 
     )
 
 
-async def wait_for(predicate, limit: int = 300) -> None:
+async def wait_for(predicate: Callable[[], bool], limit: int = 300) -> None:
     for _ in range(limit):
         await asyncio.sleep(0.01)
         if predicate():
@@ -134,7 +137,7 @@ async def test_publish_room_falls_back_to_local_when_redis_down(
 ) -> None:
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
     await manager.join_room(conn, "prices:ACB")
 
     fake = FakeRedis()
@@ -170,7 +173,7 @@ async def test_publisher_broadcasts_local_immediately_and_skips_own_echo(
 ) -> None:
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
     await manager.join_room(conn, "prices:ACB")
 
     fake = FakeRedis()
@@ -206,7 +209,7 @@ async def test_listener_relays_redis_message_to_local_clients(
 ) -> None:
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
     await manager.join_room(conn, "prices:ACB")
 
     fake = FakeRedis()
@@ -235,7 +238,7 @@ async def test_listener_relays_message_from_other_worker(
 ) -> None:
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
     await manager.join_room(conn, "prices:ACB")
 
     fake = FakeRedis()
@@ -262,7 +265,7 @@ async def test_dynamic_subscription_only_for_rooms_with_local_clients(
     """Worker KHÔNG subscribe channel của room không có client local (cắt CPU thừa)."""
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
 
     fake = FakeRedis()
     monkeypatch.setattr(backplane_module, "get_cache", lambda: fake)
@@ -295,7 +298,7 @@ async def test_reconnect_loop_recovers_when_redis_returns(
 ) -> None:
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
     await manager.join_room(conn, "prices:ACB")
 
     fake = FakeRedis(up=False)
@@ -350,7 +353,7 @@ async def test_manager_broadcast_routes_through_backplane_when_attached(
 ) -> None:
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
     await manager.join_room(conn, "prices:ACB")
 
     fake = FakeRedis()
@@ -379,7 +382,7 @@ async def test_interleaved_join_leave_does_not_leak_subscription(
     """
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
 
     fake = FakeRedis()
     monkeypatch.setattr(backplane_module, "get_cache", lambda: fake)
@@ -427,7 +430,7 @@ async def test_reconnect_closes_old_pubsub_and_stops_old_listener(
     """Reconnect không để rò handle PubSub cũ trong event loop."""
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
     await manager.join_room(conn, "prices:ACB")
 
     fake = FreshPubSubRedis(up=False)
@@ -467,7 +470,7 @@ async def test_reconnect_after_publish_failure_stops_old_listener(
     """
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
     await manager.join_room(conn, "prices:ACB")
 
     fake = FreshPubSubRedis()
@@ -526,7 +529,7 @@ async def test_listener_relays_reliable_message_via_reliable_channel(
     (không đi qua best-effort drop-oldest)."""
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
     await manager.join_room(conn, "user:7")
 
     fake = FakeRedis()
@@ -552,7 +555,7 @@ async def test_realtime_status_reflects_backplane_status(
     """Welcome frame của client mới phản ánh đúng trạng thái nguồn realtime."""
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    conn = await manager.connect(ws)
+    conn = await manager.connect(cast(WebSocket, ws))
     await manager.join_room(conn, "prices:ACB")
 
     fake = FakeRedis()
@@ -580,7 +583,7 @@ async def test_feed_status_broadcast_only_on_state_change(
     publish gặp lỗi liên tiếp."""
     manager = ConnectionManager()
     ws = FakeWebSocket()
-    await manager.connect(ws)
+    await manager.connect(cast(WebSocket, ws))
 
     fake = FakeRedis()
     monkeypatch.setattr(backplane_module, "get_cache", lambda: fake)

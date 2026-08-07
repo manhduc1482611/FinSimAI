@@ -1,6 +1,7 @@
 import logging
 import uuid
 from decimal import Decimal
+from typing import Any
 
 from models.company import Company
 from models.trade import Order, Portfolio, Transaction
@@ -180,7 +181,7 @@ async def _apply_sell_fill(
 async def match_orders(
     company_id: uuid.UUID,
     db: AsyncSession,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     company = await db.get(Company, company_id)
     if not company:
         return []
@@ -188,7 +189,7 @@ async def match_orders(
     simulated_at = company.updated_at
     market_price = company.current_price
 
-    transactions: list[dict] = []
+    transactions: list[dict[str, Any]] = []
     skip_buy_ids: set[uuid.UUID] = set()
     skip_sell_ids: set[uuid.UUID] = set()
 
@@ -356,7 +357,7 @@ async def match_orders(
     return transactions
 
 
-async def _notify_fills(transactions: list[dict]) -> None:
+async def _notify_fills(transactions: list[dict[str, Any]]) -> None:
     """Đẩy khớp lệnh real-time qua TradeNotifier sau khi commit (best-effort).
 
     Import muộn tránh vòng dependency services → websockets ở module-level. Nếu

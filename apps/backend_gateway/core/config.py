@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated, Union
+from typing import Annotated, Union, cast
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -7,8 +7,13 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 def _find_project_root() -> Path:
     current = Path(__file__).resolve()
+    # Ưu tiên thư mục có `.env` thật sự (monorepo: apps/backend_gateway cũng có
+    # pyproject.toml nhưng không có .env — nếu dừng ở đó sẽ bỏ qua `.env` root).
     for parent in current.parents:
-        if (parent / ".env").exists() or (parent / "pyproject.toml").exists():
+        if (parent / ".env").exists():
+            return parent
+    for parent in current.parents:
+        if (parent / "pyproject.toml").exists():
             return parent
     return current.parent  # fallback harmless — pydantic-settings ignores missing .env
 
@@ -34,9 +39,19 @@ class Settings(BaseSettings):
     debug: bool = False
     frontend_url: str = "http://localhost:3000"
 
+    # Múi giờ của người dùng cho việc tính "ngày hôm nay" của nhiệm vụ hằng ngày
+    # và chuỗi ngày (streak). Không dùng UTC để tránh reset lệch so với thói quen
+    # của người dùng Việt Nam (check-in tối muộn vẫn tính cùng ngày).
+    app_timezone: str = "Asia/Ho_Chi_Minh"
+
     math_engine_url: str = "http://localhost:8000"
 
     health_check_timeout: float = 2.0
+
+    # Admin toàn hệ thống — danh sách email được phép mang role "admin"
+    # (env: ADMIN_EMAILS, phân tách bằng dấu phẩy). Kẻ ra ngoài danh sách này
+    # không bao giờ được coi là admin, kể cả khi role trong DB bị set thủ công.
+    admin_emails: Annotated[list[str], NoDecode] = []
 
     # Seed dữ liệu idempotent lúc boot (companies/knowledge/scenarios + mẫu news/social
     # khi bảng rỗng). Chạy trong mạng Render để reach được Postgres free-tier.
@@ -87,7 +102,14 @@ class Settings(BaseSettings):
     def assemble_cors_origins(cls, v: Union[str, list[str]]) -> list[str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",") if i.strip()]
-        return v
+        return cast(list[str], v)
+
+    @field_validator("admin_emails", mode="before")
+    @classmethod
+    def assemble_admin_emails(cls, v: Union[str, list[str]]) -> list[str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip().lower() for i in v.split(",") if i.strip()]
+        return cast(list[str], v)
 
     model_config = SettingsConfigDict(
         env_file=_find_project_root() / ".env",

@@ -8,6 +8,7 @@ tra đúng nghiệp vụ khóa-mở-khóa mà không phụ thuộc DB.
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Any, cast
 
 import pytest
 from clients.math_client import math_client
@@ -15,9 +16,10 @@ from models.trade import Order
 from models.trap import TrapEvent
 from models.user import User
 from services import penalty_service
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
-def make_user(**overrides) -> User:
+def make_user(**overrides: Any) -> User:
     defaults = {
         "id": uuid.uuid4(),
         "risk_score": 10,
@@ -28,7 +30,7 @@ def make_user(**overrides) -> User:
     return User(**{**defaults, **overrides})
 
 
-def make_order(**overrides) -> Order:
+def make_order(**overrides: Any) -> Order:
     defaults = {
         "id": uuid.uuid4(),
         "user_id": uuid.uuid4(),
@@ -48,31 +50,31 @@ def make_order(**overrides) -> Order:
 class FakeScalarResult:
     """Wrap danh sách row để giả lập ``Result`` / ``ScalarResult`` của SQLAlchemy."""
 
-    def __init__(self, rows: list) -> None:
+    def __init__(self, rows: list[Any]) -> None:
         self._rows = rows
 
-    def first(self):
+    def first(self) -> Any:
         return self._rows[0] if self._rows else None
 
-    def scalar_one_or_none(self):
+    def scalar_one_or_none(self) -> Any:
         return self._rows[0] if self._rows else None
 
-    def scalar_one(self):
+    def scalar_one(self) -> Any:
         if not self._rows:
             raise ValueError("No row was found when one was required")
         return self._rows[0]
 
-    def scalars(self):
+    def scalars(self) -> "FakeScalarResult":
         return self
 
-    def all(self):
+    def all(self) -> list[Any]:
         return self._rows
 
 
 class FakeRow:
     """Row cho ``select(User.risk_score)`` — truy cập theo tên cột."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         self.__dict__.update(kwargs)
 
 
@@ -83,13 +85,13 @@ class FakeSession:
         self.users: dict[uuid.UUID, User] = {}
         self.trap_events: list[TrapEvent] = []
         self.orders: list[Order] = []
-        self.added: list = []
+        self.added: list[Any] = []
         self.rolled_back = False
 
     def install(self, user: User) -> None:
         self.users[user.id] = user
 
-    def add(self, obj) -> None:
+    def add(self, obj: Any) -> None:
         if isinstance(obj, TrapEvent):
             self.trap_events.append(obj)
         elif isinstance(obj, Order):
@@ -114,9 +116,10 @@ class FakeSession:
         except ValueError:
             return None
 
-    async def execute(self, stmt):
+    async def execute(self, stmt: Any) -> FakeScalarResult:
         sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
         table = self._table_from_sql(sql)
+        rows: list[Any] = []
 
         if table == "users":
             user_id = self._uuid_param(sql, "users.id")
@@ -165,8 +168,12 @@ class FakeSession:
         return None
 
 
-def _patch_math(monkeypatch: pytest.MonkeyPatch, *, cooldown_seconds: float = 0.0):
-    async def fake_check_penalty_status(risk_score: int, trap_severity: int):
+def _patch_math(
+    monkeypatch: pytest.MonkeyPatch, *, cooldown_seconds: float = 0.0
+) -> None:
+    async def fake_check_penalty_status(
+        risk_score: int, trap_severity: int
+    ) -> dict[str, Any]:
         return {
             "cooldown_seconds": cooldown_seconds,
             "risk_score_delta": trap_severity,
@@ -189,7 +196,7 @@ async def test_status_unlocked_when_no_cooldown() -> None:
     user = make_user()
     db.install(user)
 
-    status = await penalty_service.get_penalty_status(user.id, db)
+    status = await penalty_service.get_penalty_status(user.id, cast(AsyncSession, db))
 
     assert status["success"] is True
     assert status["locked"] is False
@@ -218,7 +225,7 @@ async def test_status_locked_returns_remaining_and_reason() -> None:
         )
     )
 
-    status = await penalty_service.get_penalty_status(user.id, db)
+    status = await penalty_service.get_penalty_status(user.id, cast(AsyncSession, db))
 
     assert status["locked"] is True
     assert 0 < status["remaining_seconds"] <= 300
@@ -233,7 +240,7 @@ async def test_status_lazy_clears_expired_cooldown() -> None:
     user = make_user(cooldown_until=datetime.now(timezone.utc) - timedelta(seconds=1))
     db.install(user)
 
-    status = await penalty_service.get_penalty_status(user.id, db)
+    status = await penalty_service.get_penalty_status(user.id, cast(AsyncSession, db))
 
     assert status["locked"] is False
     assert status["cooldown_until"] is None
@@ -243,7 +250,7 @@ async def test_status_lazy_clears_expired_cooldown() -> None:
 @pytest.mark.asyncio
 async def test_status_user_not_found() -> None:
     db = FakeSession()
-    status = await penalty_service.get_penalty_status(uuid.uuid4(), db)
+    status = await penalty_service.get_penalty_status(uuid.uuid4(), cast(AsyncSession, db))
     assert status["success"] is False
 
 
@@ -255,7 +262,7 @@ async def test_enforce_cooldown_allows_when_unlocked() -> None:
     db = FakeSession()
     user = make_user()
     db.install(user)
-    assert await penalty_service.enforce_cooldown(user.id, db) is None
+    assert await penalty_service.enforce_cooldown(user.id, cast(AsyncSession, db)) is None
 
 
 @pytest.mark.asyncio
@@ -264,7 +271,7 @@ async def test_enforce_cooldown_blocks_when_locked() -> None:
     user = make_user(cooldown_until=datetime.now(timezone.utc) + timedelta(seconds=60))
     db.install(user)
 
-    lock = await penalty_service.enforce_cooldown(user.id, db)
+    lock = await penalty_service.enforce_cooldown(user.id, cast(AsyncSession, db))
 
     assert lock is not None
     assert lock["locked"] is True
@@ -282,7 +289,7 @@ async def test_apply_penalty_sets_risk_and_cooldown(monkeypatch: pytest.MonkeyPa
     db.install(user)
 
     result = await penalty_service.apply_penalty(
-        user.id, 4, db, trap_type="panic", description="Cắt lỗ theo cảm xúc"
+        user.id, 4, cast(AsyncSession, db), trap_type="panic", description="Cắt lỗ theo cảm xúc"
     )
 
     assert result["success"] is True
@@ -297,7 +304,7 @@ async def test_apply_penalty_sets_risk_and_cooldown(monkeypatch: pytest.MonkeyPa
 
 @pytest.mark.asyncio
 async def test_apply_penalty_math_failure_returns_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def fake_failure(risk_score: int, trap_severity: int):
+    async def fake_failure(risk_score: int, trap_severity: int) -> dict[str, Any]:
         return {"success": False, "cooldown_seconds": 0.0, "new_risk_score": risk_score}
 
     monkeypatch.setattr(math_client, "check_penalty_status", fake_failure)
@@ -305,7 +312,7 @@ async def test_apply_penalty_math_failure_returns_error(monkeypatch: pytest.Monk
     user = make_user()
     db.install(user)
 
-    result = await penalty_service.apply_penalty(user.id, 3, db)
+    result = await penalty_service.apply_penalty(user.id, 3, cast(AsyncSession, db))
 
     assert result["success"] is False
     assert user.cooldown_until is None
@@ -316,7 +323,7 @@ async def test_apply_penalty_math_failure_returns_error(monkeypatch: pytest.Monk
 async def test_apply_penalty_cancels_pending_orders_to_cover_deduction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_check(risk_score: int, trap_severity: int):
+    async def fake_check(risk_score: int, trap_severity: int) -> dict[str, Any]:
         return {
             "cooldown_seconds": 30.0,
             "risk_score_delta": 20,
@@ -353,7 +360,7 @@ async def test_apply_penalty_cancels_pending_orders_to_cover_deduction(
         )
     )
 
-    result = await penalty_service.apply_penalty(user.id, 5, db)
+    result = await penalty_service.apply_penalty(user.id, 5, cast(AsyncSession, db))
 
     assert result["success"] is True
     assert user.cash_balance == Decimal("0.00")  # 100 + 80 + 20 - 200
@@ -365,7 +372,7 @@ async def test_apply_penalty_cancels_pending_orders_to_cover_deduction(
 
 @pytest.mark.asyncio
 async def test_apply_penalty_rolls_back_when_short(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def fake_check(risk_score: int, trap_severity: int):
+    async def fake_check(risk_score: int, trap_severity: int) -> dict[str, Any]:
         return {
             "cooldown_seconds": 30.0,
             "risk_score_delta": 20,
@@ -379,7 +386,7 @@ async def test_apply_penalty_rolls_back_when_short(monkeypatch: pytest.MonkeyPat
     user = make_user(cash_balance=Decimal("100.00"))
     db.install(user)
 
-    result = await penalty_service.apply_penalty(user.id, 5, db)
+    result = await penalty_service.apply_penalty(user.id, 5, cast(AsyncSession, db))
 
     assert result["success"] is False
     assert db.rolled_back is True
@@ -395,7 +402,7 @@ async def test_clear_cooldown_cannot_shorten_penalty() -> None:
     user = make_user(cooldown_until=datetime.now(timezone.utc) + timedelta(seconds=120))
     db.install(user)
 
-    result = await penalty_service.clear_cooldown(user.id, db)
+    result = await penalty_service.clear_cooldown(user.id, cast(AsyncSession, db))
 
     assert result["locked"] is True
     assert result["cleared"] is False
@@ -417,7 +424,7 @@ async def test_clear_cooldown_after_expiry_resolves_traps() -> None:
     )
     db.add(event)
 
-    result = await penalty_service.clear_cooldown(user.id, db)
+    result = await penalty_service.clear_cooldown(user.id, cast(AsyncSession, db))
 
     assert result["success"] is True
     assert result["cleared"] is True
@@ -432,7 +439,7 @@ async def test_clear_cooldown_noop_when_never_locked() -> None:
     user = make_user()
     db.install(user)
 
-    result = await penalty_service.clear_cooldown(user.id, db)
+    result = await penalty_service.clear_cooldown(user.id, cast(AsyncSession, db))
 
     assert result["success"] is True
     assert result["cleared"] is False
@@ -447,4 +454,4 @@ async def test_reason_falls_back_when_no_trap_event() -> None:
     db = FakeSession()
     user = make_user()
     db.install(user)
-    assert await penalty_service._penalty_reason(user.id, db) is not None
+    assert await penalty_service._penalty_reason(user.id, cast(AsyncSession, db)) is not None

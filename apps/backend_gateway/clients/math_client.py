@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import httpx
 from core.config import settings
@@ -37,18 +38,19 @@ class MathClient:
             logger.error("Math engine health check failed: %s", e)
             return False
 
-    async def _post(self, path: str, payload: dict, timeout: float) -> dict:
+    async def _post(self, path: str, payload: dict[str, Any], timeout: float) -> dict[str, Any]:
         client = await self._ensure_client()
         resp = await client.post(path, json=payload, timeout=timeout)
         resp.raise_for_status()
-        return resp.json()
+        data: dict[str, Any] = resp.json()
+        return data
 
     async def calculate_portfolio(
         self,
         cash: float,
-        holdings: list[dict],
+        holdings: list[dict[str, Any]],
         timeout: int = 5,
-    ) -> dict:
+    ) -> dict[str, Any]:
         try:
             data = await self._post(
                 "/api/v1/portfolio/calculate",
@@ -77,7 +79,7 @@ class MathClient:
         jump_mu: float = 0.0,
         jump_sigma: float = 0.0,
         timeout: int = 10,
-    ) -> dict:
+    ) -> dict[str, Any]:
         payload = {
             "current_price": current_price,
             "mu": mu,
@@ -103,7 +105,7 @@ class MathClient:
         nav_history: list[float],
         risk_free_rate: float = 0.05,
         timeout: int = 5,
-    ) -> dict:
+    ) -> dict[str, Any]:
         try:
             data = await self._post(
                 "/api/v1/risk/calculate",
@@ -130,7 +132,7 @@ class MathClient:
         risk_score: int,
         trap_severity: int,
         timeout: int = 5,
-    ) -> dict:
+    ) -> dict[str, Any]:
         try:
             data = await self._post(
                 "/api/v1/penalty/check",

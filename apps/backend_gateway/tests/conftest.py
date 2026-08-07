@@ -1,6 +1,8 @@
 import os
 import sys
+from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -21,13 +23,13 @@ class _UnavailableCache:
     không chờ retry kết nối.
     """
 
-    def __getattr__(self, name):
-        async def _raise(*args, **kwargs):
+    def __getattr__(self, name: str) -> Callable[..., Awaitable[None]]:
+        async def _raise(*args: Any, **kwargs: Any) -> None:
             raise ConnectionError("Redis unavailable in tests")
 
         return _raise
 
-    def pipeline(self):
+    def pipeline(self) -> None:
         raise ConnectionError("Redis unavailable in tests")
 
 

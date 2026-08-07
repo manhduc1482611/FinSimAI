@@ -22,6 +22,7 @@ class SocialPost(Base):
     __tablename__ = "social_posts"
     __table_args__ = (
         Index("idx_social_company_simulated", "company_id", "simulated_at"),
+        Index("idx_social_posts_contest", "contest_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -40,6 +41,9 @@ class SocialPost(Base):
     shares_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     comments_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    contest_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("contests.id", ondelete="CASCADE"), nullable=True
+    )
     company_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
     )
@@ -56,6 +60,7 @@ class SocialPost(Base):
 
     company = relationship("Company", back_populates="social_posts")
     news = relationship("News", back_populates="social_posts")
+    contest = relationship("Contest", back_populates="social_posts")
     comments = relationship(
         "SocialComment",
         back_populates="post",

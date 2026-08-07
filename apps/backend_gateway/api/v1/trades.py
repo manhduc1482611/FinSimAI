@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from decimal import Decimal
 
 from core.dependencies import get_current_user, get_db
@@ -11,7 +12,7 @@ from schemas.trade import (
     PortfolioListResponse,
     PortfolioResponse,
 )
-from services import penalty_service
+from services import penalty_service, task_service
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/trades", tags=["trades"])
 async def get_portfolio(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> PortfolioListResponse:
     stmt = select(Portfolio, Company).join(
         Company, Portfolio.company_id == Company.id
     ).where(Portfolio.user_id == current_user.id, Portfolio.quantity > 0)
@@ -63,7 +64,7 @@ async def create_order(
     body: OrderRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> Order:
     lock = await penalty_service.enforce_cooldown(current_user.id, db)
     if lock is not None:
         raise HTTPException(
@@ -157,6 +158,7 @@ async def create_order(
     db.add(order)
     await db.commit()
     await db.refresh(order)
+    await task_service.record_event(db, current_user, "trade_placed")
     return order
 
 
@@ -167,7 +169,7 @@ async def list_orders(
     limit: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> Sequence[Order]:
     stmt = select(Order).where(Order.user_id == current_user.id)
     if status_filter:
         stmt = stmt.where(Order.status == status_filter)

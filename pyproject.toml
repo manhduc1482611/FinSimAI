@@ -30,8 +30,13 @@ extend-exclude = [
 select = ["E", "F", "I", "N", "W"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
+exclude = [
+    "^apps/backend_gateway/clients/proto/",
+    "^apps/backend_gateway/grpc_services/",
+    "^apps/math_engine/grpc_services/",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

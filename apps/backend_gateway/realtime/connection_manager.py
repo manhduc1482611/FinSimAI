@@ -87,9 +87,9 @@ class ClientConnection:
     user_id: str | None = None
     rooms: set[str] = field(default_factory=set)
     connected_at: float = field(default_factory=time.monotonic)
-    queue: asyncio.Queue = field(init=False)
-    reliable_queue: asyncio.Queue = field(init=False)
-    writer_task: asyncio.Task | None = field(default=None, init=False)
+    queue: asyncio.Queue[str] = field(init=False)
+    reliable_queue: asyncio.Queue[str] = field(init=False)
+    writer_task: asyncio.Task[None] | None = field(default=None, init=False)
     dropped_messages: int = field(default=0, init=False)
     reliable_overflow: bool = field(default=False, init=False)
     closed: bool = field(default=False, init=False)
@@ -164,7 +164,7 @@ class ConnectionManager:
         """
         backplane = self._backplane
         if backplane is not None:
-            status = getattr(backplane, "status", None)
+            status: str | None = getattr(backplane, "status", None)
             if status:
                 return status
         return "live"

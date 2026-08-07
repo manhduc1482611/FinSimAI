@@ -1,16 +1,18 @@
 import uuid
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from typing import Any, NoReturn, cast
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.testclient import TestClient
 from realtime.connection_manager import ConnectionManager
 from realtime.trade_ws import TradeNotifier, create_trade_endpoint
 from starlette import status as http_status
 from starlette.exceptions import WebSocketException
 from starlette.websockets import WebSocketDisconnect
-from ws_fakes import FakeCache, FakeManager
+from ws_fakes import FakeCache, FakeManager, FakePipeline
 
 
 class FakeUser:
@@ -18,17 +20,17 @@ class FakeUser:
         self.id = user_id
 
 
-async def deny_auth(websocket) -> FakeUser:
+async def deny_auth(websocket: WebSocket) -> NoReturn:
     raise WebSocketException(
         code=http_status.WS_1008_POLICY_VIOLATION, reason="Denied in test"
     )
 
 
-async def allow_auth(websocket) -> FakeUser:
+async def allow_auth(websocket: WebSocket) -> Any:
     return FakeUser()
 
 
-def tx_row(user_id: int = 42, symbol: str | None = None) -> dict:
+def tx_row(user_id: int = 42, symbol: str | None = None) -> dict[str, Any]:
     return {
         "transaction_id": str(uuid.uuid4()),
         "order_id": str(uuid.uuid4()),
@@ -68,7 +70,7 @@ async def test_enrich_resolves_symbol_via_resolver() -> None:
     manager = FakeManager()
     calls: list[object] = []
 
-    async def resolver(company_id) -> dict[str, str] | None:
+    async def resolver(company_id: Any) -> dict[str, str] | None:
         calls.append(company_id)
         return {"symbol": "VCB", "name": "Vietcombank"}
 
@@ -87,7 +89,7 @@ async def test_enrich_resolves_symbol_via_resolver() -> None:
 async def test_enrich_skips_when_symbol_unresolvable() -> None:
     manager = FakeManager()
 
-    async def resolver(company_id):
+    async def resolver(company_id: Any) -> Any:
         return None
 
     notifier = TradeNotifier(manager, symbol_resolver=resolver, poll_interval=60.0)
@@ -107,21 +109,21 @@ async def test_push_batch_resolves_missing_symbols_in_single_call() -> None:
     batch_calls: list[list[object]] = []
     per_item_calls: list[object] = []
 
-    async def batch_resolver(company_ids):
+    async def batch_resolver(company_ids: list[Any]) -> dict[str, dict[str, str]]:
         batch_calls.append(company_ids)
         return {
             str(cid): {"symbol": f"SYM{cid}", "name": f"Company{cid}"}
             for cid in company_ids
         }
 
-    async def per_item_resolver(company_id):
+    async def per_item_resolver(company_id: Any) -> Any:
         per_item_calls.append(company_id)
         return None
 
     notifier = TradeNotifier(
         manager,
         symbol_resolver=per_item_resolver,
-        batch_symbol_resolver=batch_resolver,
+        batch_symbol_resolver=cast(Any, batch_resolver),
         poll_interval=60.0,
     )
     rows = [tx_row(symbol=None, user_id=i) for i in (1, 2, 3)]
@@ -144,10 +146,10 @@ async def test_push_falls_back_to_single_resolver_when_batch_fails() -> None:
     manager = FakeManager()
     per_item_calls: list[object] = []
 
-    async def failing_batch(company_ids):
+    async def failing_batch(company_ids: list[Any]) -> NoReturn:
         raise ConnectionError("database unavailable")
 
-    async def per_item_resolver(company_id):
+    async def per_item_resolver(company_id: Any) -> dict[str, str] | None:
         per_item_calls.append(company_id)
         return {"symbol": "VCB", "name": "Vietcombank"}
 
@@ -174,21 +176,21 @@ async def test_default_batch_symbol_resolver_builds_single_in_query(
     import realtime.trade_ws as trade_ws_module
 
     class EmptyRows:
-        def all(self):
+        def all(self) -> list[Any]:
             return []
 
     class CapturingSession:
         def __init__(self) -> None:
-            self.executed = None
+            self.executed: Any = None
 
-        async def execute(self, stmt):
+        async def execute(self, stmt: Any) -> EmptyRows:
             self.executed = stmt
             return EmptyRows()
 
-        async def __aenter__(self):
+        async def __aenter__(self) -> "CapturingSession":
             return self
 
-        async def __aexit__(self, *exc):
+        async def __aexit__(self, *exc: Any) -> bool:
             return False
 
     session = CapturingSession()
@@ -206,9 +208,9 @@ async def test_default_batch_symbol_resolver_builds_single_in_query(
 @pytest.mark.asyncio
 async def test_poll_once_delivers_and_dedupes() -> None:
     manager = FakeManager()
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
 
-    async def poll_source(watermark):
+    async def poll_source(watermark: Any) -> list[dict[str, Any]]:
         return list(rows)
 
     notifier = TradeNotifier(manager, poll_source=poll_source, poll_interval=60.0)
@@ -230,9 +232,9 @@ async def test_poll_once_delivers_and_dedupes() -> None:
 @pytest.mark.asyncio
 async def test_poll_once_composite_watermark_handles_same_timestamp() -> None:
     manager = FakeManager()
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
 
-    async def poll_source(watermark):
+    async def poll_source(watermark: Any) -> list[dict[str, Any]]:
         if watermark is None:
             return list(rows)
         wm_ts, wm_id = watermark
@@ -263,9 +265,9 @@ async def test_poll_once_composite_watermark_handles_same_timestamp() -> None:
 @pytest.mark.asyncio
 async def test_notify_then_poll_does_not_double_deliver() -> None:
     manager = FakeManager()
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
 
-    async def poll_source(watermark):
+    async def poll_source(watermark: Any) -> list[dict[str, Any]]:
         return list(rows)
 
     notifier = TradeNotifier(manager, poll_source=poll_source, poll_interval=60.0)
@@ -290,9 +292,9 @@ async def test_watermark_persists_and_loads_on_leader_takeover(
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
 
     manager = FakeManager()
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
 
-    async def poll_source(watermark):
+    async def poll_source(watermark: Any) -> list[dict[str, Any]]:
         return list(rows)
 
     notifier = TradeNotifier(manager, poll_source=poll_source, poll_interval=60.0)
@@ -320,9 +322,9 @@ async def test_leader_takeover_with_watermark_does_not_rescan(
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
 
     manager = FakeManager()
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
 
-    async def poll_source(watermark):
+    async def poll_source(watermark: Any) -> list[dict[str, Any]]:
         return list(rows)
 
     notifier = TradeNotifier(manager, poll_source=poll_source, poll_interval=60.0)
@@ -340,7 +342,7 @@ async def test_leader_takeover_with_watermark_does_not_rescan(
     await notifier._load_watermark()
     captured: list[object] = []
 
-    async def tracking_poll_source(watermark):
+    async def tracking_poll_source(watermark: Any) -> list[dict[str, Any]]:
         captured.append(watermark)
         return []
 
@@ -359,7 +361,7 @@ async def test_pipeline_batches_mark_delivered_ops(monkeypatch: pytest.MonkeyPat
             super().__init__()
             self.pipeline_executions = 0
 
-        def pipeline(self) -> FakeCache:
+        def pipeline(self) -> FakePipeline:
             self.pipeline_executions += 1
             return super().pipeline()
 
@@ -389,7 +391,7 @@ async def test_poll_dedupe_check_uses_single_pipeline(
             super().__init__()
             self.pipeline_executions = 0
 
-        def pipeline(self) -> FakeCache:
+        def pipeline(self) -> FakePipeline:
             self.pipeline_executions += 1
             return super().pipeline()
 
@@ -399,7 +401,7 @@ async def test_poll_dedupe_check_uses_single_pipeline(
     manager = FakeManager()
     rows = [tx_row(symbol="ACB") for _ in range(20)]
 
-    async def poll_source(watermark):
+    async def poll_source(watermark: Any) -> list[dict[str, Any]]:
         return list(rows)
 
     notifier = TradeNotifier(manager, poll_source=poll_source, poll_interval=60.0)
@@ -430,8 +432,10 @@ async def test_push_claims_before_broadcast_closes_poll_race(
             super().__init__()
             self.all_claimed_at_broadcast = True
 
-        async def broadcast_to_user(self, user_id, message):
-            tx_id = message["data"]["transaction_id"]
+        async def broadcast_to_user(
+            self, user_id: str | uuid.UUID, message: dict[str, Any] | str
+        ) -> int:
+            tx_id = cast(dict[str, Any], message)["data"]["transaction_id"]
             if f"{trade_ws_module.DEDUP_PREFIX}{tx_id}" not in cache.data:
                 self.all_claimed_at_broadcast = False
             return await super().broadcast_to_user(user_id, message)
@@ -480,9 +484,9 @@ async def test_poll_advances_watermark_over_already_delivered_rows(
     monkeypatch.setattr(trade_ws_module, "get_cache", lambda: cache)
 
     manager = FakeManager()
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
 
-    async def poll_source(watermark):
+    async def poll_source(watermark: Any) -> list[dict[str, Any]]:
         return list(rows)
 
     notifier = TradeNotifier(manager, poll_source=poll_source, poll_interval=60.0)
@@ -607,21 +611,21 @@ async def test_default_poll_source_uses_lookback_window(
     from sqlalchemy.dialects import postgresql
 
     class EmptyRows:
-        def all(self):
+        def all(self) -> list[Any]:
             return []
 
     class CapturingSession:
         def __init__(self) -> None:
-            self.executed = None
+            self.executed: Any = None
 
-        async def execute(self, stmt):
+        async def execute(self, stmt: Any) -> EmptyRows:
             self.executed = stmt
             return EmptyRows()
 
-        async def __aenter__(self):
+        async def __aenter__(self) -> "CapturingSession":
             return self
 
-        async def __aexit__(self, *exc):
+        async def __aexit__(self, *exc: Any) -> bool:
             return False
 
     session = CapturingSession()
@@ -632,7 +636,8 @@ async def test_default_poll_source_uses_lookback_window(
     await notifier._default_poll_source((wm_ts, "id-1"))
     sql = str(
         session.executed.compile(
-            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
+            dialect=postgresql.dialect(),  # type: ignore[no-untyped-call]
+            compile_kwargs={"literal_binds": True},
         )
     )
 
@@ -643,12 +648,12 @@ async def test_default_poll_source_uses_lookback_window(
 
 def test_trade_ws_endpoint_streams_fills() -> None:
     manager = ConnectionManager()
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
 
-    async def poll_source(watermark):
+    async def poll_source(watermark: Any) -> list[dict[str, Any]]:
         return list(rows)
 
-    async def no_resolver(company_id):
+    async def no_resolver(company_id: Any) -> Any:
         return None
 
     notifier = TradeNotifier(
@@ -656,7 +661,7 @@ def test_trade_ws_endpoint_streams_fills() -> None:
     )
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await notifier.start()
         yield
         await notifier.stop()
@@ -697,9 +702,11 @@ def test_trade_ws_endpoint_rejects_unauthenticated() -> None:
     assert exc_info.value.code == 1008
 
 
-def _receive_until(ws, predicate, limit: int = 300):
+def _receive_until(
+    ws: Any, predicate: Callable[[dict[str, Any]], bool], limit: int = 300
+) -> dict[str, Any]:
     for _ in range(limit):
         message = ws.receive_json()
         if predicate(message):
-            return message
+            return cast(dict[str, Any], message)
     raise AssertionError("Không nhận được tin mong đợi trong giới hạn")
