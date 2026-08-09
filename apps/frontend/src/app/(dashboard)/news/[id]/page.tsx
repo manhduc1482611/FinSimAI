@@ -84,7 +84,7 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <nav className="mb-4 text-sm text-ink-500 dark:text-ink-400">
+      <nav className="mb-4 text-sm text-ink-500 dark:text-granite-400">
         <Link href="/news" className="hover:text-brand-600 dark:hover:text-brand-400">
           ← Tin tức
         </Link>
@@ -93,7 +93,7 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
       <article>
         <header className="mb-6">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="rounded-sm bg-brand-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
+            <span className="rounded-sm bg-brand-500 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-granite-950">
               {newsCategoryLabel(news.category)}
             </span>
             <Badge variant={sentimentVariant(news.sentiment)}>
@@ -102,18 +102,18 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
             {news.is_ai_generated && <Badge variant="info">AI tạo</Badge>}
           </div>
 
-          <h1 className="text-2xl font-bold leading-snug text-ink-900 sm:text-3xl dark:text-ink-100">
+          <h1 className="text-2xl font-bold leading-snug text-ink-900 sm:text-3xl dark:text-slip">
             {news.title}
           </h1>
 
           {news.summary !== null && (
-            <p className="mt-4 border-l-2 border-brand-500 pl-4 text-base font-medium leading-relaxed text-ink-700 dark:text-ink-200">
+            <p className="mt-4 border-l-2 border-brand-500 pl-4 text-base font-medium leading-relaxed text-ink-700 dark:text-slip">
               {news.summary}
             </p>
           )}
 
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-500 dark:text-ink-400">
-            <span className="font-semibold text-ink-700 dark:text-ink-200">{news.source}</span>
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-500 dark:text-granite-400">
+            <span className="font-semibold text-ink-700 dark:text-slip">{news.source}</span>
             <span>·</span>
             <time dateTime={news.simulated_at}>{formatDateTime(news.simulated_at)}</time>
             <span className="flex items-center gap-1">
@@ -121,7 +121,7 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
               <span
                 className={cn(
                   "flex items-center gap-1 font-semibold",
-                  positive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400",
+                  positive ? "text-mkt-up dark:text-mkt-up-400" : "text-mkt-down dark:text-mkt-down-400",
                 )}
               >
                 {positive ? <IconTrendUp className="h-4 w-4" /> : <IconTrendDown className="h-4 w-4" />}
@@ -131,8 +131,8 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
           </div>
         </header>
 
-        <div className="space-y-4 border-t border-ink-100 pt-6 whitespace-pre-line text-[15px] leading-relaxed text-ink-800 dark:border-ink-800 dark:text-ink-200">
-          <p className="text-base leading-relaxed text-ink-900 first-letter:text-3xl first-letter:font-bold first-letter:text-brand-600 dark:text-ink-100 dark:first-letter:text-brand-400">
+        <div className="space-y-4 border-t border-line pt-6 whitespace-pre-line text-sm leading-relaxed text-ink-800 dark:border-granite-800 dark:text-slip">
+          <p className="text-base leading-relaxed text-ink-900 first-letter:text-3xl first-letter:font-bold first-letter:text-brand-600 dark:text-slip dark:first-letter:text-brand-400">
             {news.content}
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
 
       {related.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 border-b border-ink-100 pb-2 text-sm font-bold uppercase tracking-wide text-ink-900 dark:border-ink-800 dark:text-ink-100">
+          <h2 className="mb-3 border-b border-line pb-2 text-sm font-bold uppercase tracking-wide text-ink-900 dark:border-granite-800 dark:text-slip">
             Tin liên quan
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -154,11 +154,11 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
                   <Badge variant="neutral">{newsCategoryLabel(item.category)}</Badge>
                   <span className="text-xs text-ink-400">{formatDateTime(item.simulated_at)}</span>
                 </div>
-                <h3 className="line-clamp-2 text-sm font-semibold text-ink-900 group-hover:text-brand-700 dark:text-ink-100 dark:group-hover:text-brand-400">
+                <h3 className="line-clamp-2 text-sm font-semibold text-ink-900 group-hover:text-brand-700 dark:text-slip dark:group-hover:text-brand-400">
                   {item.title}
                 </h3>
                 {item.summary !== null && (
-                  <p className="mt-1 line-clamp-2 text-xs text-ink-500 dark:text-ink-400">{item.summary}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-ink-500 dark:text-granite-400">{item.summary}</p>
                 )}
               </Link>
             ))}
@@ -171,12 +171,12 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
           <CardHeader title="Kiến thức liên quan" description="Học nhanh các khái niệm gặp trong bài" />
           <CardBody className="space-y-3">
             {matches.map((item) => (
-              <div key={item.id} className="rounded-lg border border-ink-100 p-3 dark:border-ink-800">
+              <div key={item.id} className="rounded-lg border border-line p-3 dark:border-granite-800">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-ink-900 dark:text-ink-100">{item.concept}</p>
+                  <p className="text-sm font-semibold text-ink-900 dark:text-slip">{item.concept}</p>
                   <Badge variant="info">Độ khó {item.difficulty}</Badge>
                 </div>
-                <p className="mt-1 text-sm text-ink-600 dark:text-ink-300">{item.definition}</p>
+                <p className="mt-1 text-sm text-ink-600 dark:text-granite-300">{item.definition}</p>
               </div>
             ))}
           </CardBody>

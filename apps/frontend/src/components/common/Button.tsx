@@ -19,13 +19,12 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500/40 border border-transparent dark:bg-brand-500 dark:hover:bg-brand-600",
+    "border border-transparent bg-brand-500 text-granite-950 hover:bg-brand-400 focus:ring-brand-500/40 dark:bg-brand-400 dark:text-granite-950 dark:hover:bg-brand-300",
   secondary:
-    "border border-ink-300 bg-white text-ink-700 hover:bg-ink-100 focus:ring-brand-500/30 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-200 dark:hover:bg-ink-700",
+    "border border-ink-300 bg-[#FFFDF8] text-ink-700 hover:border-brand-500 hover:text-brand-700 focus:ring-brand-500/30 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-200 dark:hover:border-brand-400 dark:hover:text-brand-300",
   ghost:
-    "border border-transparent text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-ink-100",
-  danger:
-    "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500/40 border border-transparent",
+    "border border-transparent text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-granite-200 dark:hover:bg-granite-800 dark:hover:text-slip",
+  danger: "bg-mkt-down text-white hover:bg-mkt-down-500 focus:ring-mkt-down/40 border border-transparent",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {

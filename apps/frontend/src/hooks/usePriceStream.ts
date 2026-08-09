@@ -29,7 +29,7 @@ export interface UsePriceStreamResult {
 }
 
 export function usePriceStream(symbol: string): UsePriceStreamResult {
-  const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<PriceTick | null>(null);
   const [ticks, setTicks] = useState<TimedPriceTick[]>([]);
@@ -41,7 +41,7 @@ export function usePriceStream(symbol: string): UsePriceStreamResult {
   );
 
   useEffect(() => {
-    if (!token) {
+    if (!user) {
       setTicketUrl(null);
       return;
     }
@@ -63,7 +63,7 @@ export function usePriceStream(symbol: string): UsePriceStreamResult {
     return () => {
       cancelled = true;
     };
-  }, [token, symbol]);
+  }, [user, symbol]);
 
   useEffect(() => {
     setSnapshot(null);

@@ -96,7 +96,7 @@ export default function AdminContestsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400 dark:border-ink-700">
+                  <tr className="board-label border-b border-line dark:border-granite-700">
                     <th className="px-4 py-3 font-semibold">Cuộc thi</th>
                     <th className="px-4 py-3 font-semibold">Khuôn · Độ khó</th>
                     <th className="px-4 py-3 font-semibold">Thành viên</th>
@@ -104,13 +104,13 @@ export default function AdminContestsPage() {
                     <th className="px-4 py-3 font-semibold">Trạng thái</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-ink-100 dark:divide-ink-700/60">
+                <tbody className="divide-y divide-line dark:divide-granite-800">
                   {data?.items.map((contest) => {
                     const busy = busyId === contest.id;
                     return (
                       <tr key={contest.id}>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-ink-900 dark:text-ink-100">
+                          <p className="font-medium text-ink-900 dark:text-slip">
                             {contest.name}
                           </p>
                           <p className="text-xs text-ink-400">/contests/{contest.slug}</p>
@@ -120,7 +120,7 @@ export default function AdminContestsPage() {
                           {difficultyLabel(contest.config.difficulty)} ·{" "}
                           {contest.config.company_count} công ty
                         </td>
-                        <td className="px-4 py-3 text-sm text-ink-700 dark:text-ink-200">
+                        <td className="board-num px-4 py-3 text-sm text-ink-700 dark:text-slip">
                           {contest.member_count}
                         </td>
                         <td className="px-4 py-3 text-xs text-ink-500">

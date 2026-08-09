@@ -3,7 +3,7 @@
  *
  * - Gắn/xoá class `dark` trên `<html>` (Tailwind `darkMode: "class"`).
  * - Lưu lựa chọn trong localStorage (chỉ client, tránh hydration mismatch).
- * - Lần đầu: ưu tiên lựa chọn đã lưu, nếu chưa có thì theo hệ điều hành.
+ * - Lần đầu (chưa có lựa chọn lưu): mặc định theo chế độ tối — quầy buổi tối.
  */
 "use client";
 
@@ -12,7 +12,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 export type Theme = "light" | "dark";
 
 const THEME_STORAGE_KEY = "finsim.theme";
-const THEME_QUERY = "(prefers-color-scheme: dark)";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -45,11 +44,7 @@ export function ThemeProvider({ children }: Readonly<{ children: React.ReactNode
 
   useEffect(() => {
     const stored = readStoredTheme();
-    const prefersDark =
-      typeof window !== "undefined" && typeof window.matchMedia === "function"
-        ? window.matchMedia(THEME_QUERY).matches
-        : false;
-    const initial: Theme = stored ?? (prefersDark ? "dark" : "light");
+    const initial: Theme = stored ?? "dark";
     setTheme(initial);
     applyTheme(initial);
   }, []);

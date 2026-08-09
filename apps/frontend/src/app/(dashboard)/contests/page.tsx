@@ -4,7 +4,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -12,16 +12,24 @@ import { Card, CardBody } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorPanel } from "@/components/common/ErrorPanel";
 import { IconGrid } from "@/components/common/Icon";
+import { LoggedOutPrompt } from "@/components/common/LoggedOutPrompt";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Spinner } from "@/components/common/Spinner";
 import { ContestStatusBadge } from "@/components/contests/ContestStatusBadge";
 import { useAsync } from "@/hooks/useAsync";
 import { joinContest, listContests } from "@/services/contests";
 import { toRequestError } from "@/services/api";
+import { useAuthStore } from "@/store/useAuthStore";
 import { difficultyLabel, templateLabel } from "@/utils/contest";
 
 export default function ContestsPage() {
-  const { data, loading, error, reload } = useAsync(() => listContests({ limit: 100 }));
+  const user = useAuthStore((state) => state.user);
+  const { data, loading, error, reload } = useAsync(
+    useCallback(
+      () => (user ? listContests({ limit: 100 }) : Promise.resolve(null)),
+      [user],
+    ),
+  );
   const [busySlug, setBusySlug] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [joinedSlug, setJoinedSlug] = useState<string | null>(null);
@@ -49,15 +57,22 @@ export default function ContestsPage() {
 
       {actionError !== null && <ErrorPanel error={actionError} />}
 
-      {loading && (
+      {!user && (
+        <LoggedOutPrompt
+          title="Đăng nhập để xem cuộc thi"
+          description="Các đấu trường mô phỏng dành cho tài khoản đã đăng nhập — tham gia, theo dõi thứ hạng và nhận thưởng theo contest."
+        />
+      )}
+
+      {user && loading && (
         <div className="flex justify-center py-16">
           <Spinner size="lg" />
         </div>
       )}
 
-      {!loading && error !== null && <ErrorPanel error={error} />}
+      {user && !loading && error !== null && <ErrorPanel error={error} />}
 
-      {!loading && error === null && (data?.items.length ?? 0) === 0 && (
+      {user && !loading && error === null && (data?.items.length ?? 0) === 0 && (
         <EmptyState
           title="Chưa có cuộc thi nào đang mở"
           description="Quay lại sau khi host kích hoạt một cuộc thi mới."
@@ -65,7 +80,7 @@ export default function ContestsPage() {
         />
       )}
 
-      {!loading && error === null && (data?.items.length ?? 0) > 0 && (
+      {user && !loading && error === null && (data?.items.length ?? 0) > 0 && (
         <div className="grid gap-4 md:grid-cols-2">
           {data?.items.map((contest) => {
             const config = contest.config;
@@ -77,11 +92,11 @@ export default function ContestsPage() {
                     <div className="min-w-0">
                       <Link
                         href={`/contests/${contest.slug}`}
-                        className="text-sm font-semibold text-ink-900 hover:text-brand-700 dark:text-ink-100"
+                        className="text-sm font-semibold text-ink-900 hover:text-brand-700 dark:text-slip"
                       >
                         {contest.name}
                       </Link>
-                      <p className="mt-0.5 text-xs text-ink-400 dark:text-ink-500">
+                      <p className="mt-0.5 text-xs text-ink-400 dark:text-granite-400">
                         /contests/{contest.slug}
                       </p>
                     </div>
@@ -89,7 +104,7 @@ export default function ContestsPage() {
                   </div>
 
                   {contest.description !== null && contest.description !== "" && (
-                    <p className="line-clamp-2 text-sm text-ink-500 dark:text-ink-400">
+                    <p className="line-clamp-2 text-sm text-ink-500 dark:text-granite-400">
                       {contest.description}
                     </p>
                   )}

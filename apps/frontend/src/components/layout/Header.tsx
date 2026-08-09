@@ -1,6 +1,6 @@
 /**
- * Header — thanh trên cùng của dashboard.
- * Hiển thị: menu mobile + tiêu đề trang | NAV · Cash · Điểm rủi ro | UserMenu.
+ * Header — thanh trên cùng của dashboard (mặt quầy).
+ * Hiển thị: menu mobile + tiêu đề trang · board NAV/Cash/Rủi ro · UserMenu.
  */
 "use client";
 
@@ -38,20 +38,35 @@ function getPageTitle(pathname: string): string {
 function RiskBadge({ score }: { score: number }) {
   const tone =
     score < 30
-      ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/30"
+      ? "border-mkt-up/50 text-mkt-up"
       : score < 60
-        ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/30"
-        : "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/30";
+        ? "border-amber-400/50 text-amber-400"
+        : "border-mkt-down/60 text-mkt-down-400";
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset",
+        "inline-flex items-center gap-1 rounded-sm border-2 px-2 py-1 font-mono text-xs font-bold tracking-board",
         tone,
       )}
       title="Điểm rủi ro (0-100)"
     >
-      Rủi ro {score}
+      RỦI RO {score}
     </span>
+  );
+}
+
+function CounterMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="board text-right" aria-label={`${label}: ${value}`}>
+      <p className="board-label">{label}</p>
+      <p className="board-num text-sm font-bold text-slip">{value}</p>
+    </div>
   );
 }
 
@@ -77,7 +92,7 @@ export function Header({ onOpenSidebar }: HeaderProps) {
   const risk = user !== null ? user.risk_score : null;
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-ink-200 bg-white/90 px-4 backdrop-blur dark:border-ink-700 dark:bg-ink-900/90 sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-[#FFFDF8]/90 px-4 backdrop-blur dark:border-granite-800 dark:bg-granite-950/85 sm:px-6">
       <button
         type="button"
         className="btn-ghost p-2 lg:hidden"
@@ -88,11 +103,11 @@ export function Header({ onOpenSidebar }: HeaderProps) {
       </button>
 
       <div className="min-w-0 flex-1">
-        <h2 className="truncate text-sm font-semibold text-ink-900 dark:text-ink-100 sm:text-base">
+        <h2 className="truncate text-sm font-bold tracking-tight text-ink-900 dark:text-slip sm:text-base">
           {getPageTitle(pathname)}
         </h2>
         {!token && (
-          <p className="hidden text-xs text-amber-600 dark:text-amber-400 sm:block">
+          <p className="hidden text-xs text-amber-700 dark:text-amber-400 sm:block">
             Chế độ xem thử — đăng nhập để có dữ liệu thật
           </p>
         )}
@@ -114,18 +129,8 @@ export function Header({ onOpenSidebar }: HeaderProps) {
         </button>
 
         <div className="hidden items-center gap-2 md:flex">
-          <div className="rounded-lg bg-ink-50 px-3 py-1.5 text-right dark:bg-ink-800/80">
-            <p className="text-[10px] uppercase tracking-wide text-ink-400 dark:text-ink-500">NAV</p>
-            <p className="text-sm font-bold text-ink-900 dark:text-ink-100">
-              {nav !== null ? formatCompactVND(nav) : "—"}
-            </p>
-          </div>
-          <div className="rounded-lg bg-ink-50 px-3 py-1.5 text-right dark:bg-ink-800/80">
-            <p className="text-[10px] uppercase tracking-wide text-ink-400 dark:text-ink-500">Cash</p>
-            <p className="text-sm font-bold text-ink-900 dark:text-ink-100">
-              {cash !== null ? formatCompactVND(cash) : "—"}
-            </p>
-          </div>
+          <CounterMetric label="NAV" value={nav !== null ? formatCompactVND(nav) : "—"} />
+          <CounterMetric label="Cash" value={cash !== null ? formatCompactVND(cash) : "—"} />
           {risk !== null && <RiskBadge score={risk} />}
         </div>
 

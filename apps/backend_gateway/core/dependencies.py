@@ -1,7 +1,8 @@
+import secrets
 import uuid as uuid_lib
 from collections.abc import AsyncGenerator, Awaitable, Callable
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import PyJWTError
 from models.user import User
@@ -43,6 +44,24 @@ async def get_current_user_optional(
     if credentials is None:
         return None
     return await _resolve_user(credentials, db)
+
+
+def require_internal_api_key(
+    api_key: str = Header(default="", alias="X-Internal-Api-Key"),
+) -> str:
+    """Endpoint nội bộ chỉ dành cho service khác (AI Engine) — không phải user.
+
+    Key so sánh bằng ``secrets.compare_digest`` (chống timing attack). Khi
+    ``INTERNAL_API_KEY`` chưa cấu hình, endpoint bị khoá vĩnh viễn (403) —
+    fail-closed, tránh lộ endpoint trong lúc cấu hình dang dở.
+    """
+    expected = settings.internal_api_key
+    if not expected or not api_key or not secrets.compare_digest(api_key, expected):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or missing internal API key",
+        )
+    return api_key
 
 
 def require_roles(*roles: str) -> Callable[..., Awaitable[User]]:

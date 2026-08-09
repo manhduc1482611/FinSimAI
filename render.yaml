@@ -95,6 +95,12 @@ services:
       - key: MATH_ENGINE_URL
         sync: false
 
+      # --- Mentor (mặc định deterministic 0 token; bật LLM mới tốn lượt Gemini) ---
+      - key: MENTOR_LLM_MODE
+        value: "off"
+      - key: AI_ENGINE_URL
+        sync: false
+
       # --- Runtime ---
       - key: ENVIRONMENT
         value: production

@@ -74,7 +74,7 @@ class MathClient:
         dt_years: float,
         n_steps: int,
         seed: int | None = None,
-        price_limit_pct: float = 0.0,
+        price_limit_pct: float = 0.07,
         jump_lambda: float = 0.0,
         jump_mu: float = 0.0,
         jump_sigma: float = 0.0,

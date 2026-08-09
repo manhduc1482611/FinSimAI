@@ -7,7 +7,13 @@ def _apply_vn_tick_size(prices: np.ndarray | float) -> np.ndarray | float:
     is_scalar = np.isscalar(prices) or (isinstance(prices, np.ndarray) and prices.ndim == 0)
     arr = np.atleast_1d(prices).astype(np.float64, copy=True)
 
-    mask1 = arr < 10000
+    # Giá toy của sim (vd 14.60 / 42.10 / 156.80) dưới 1000: chỉ làm tròn 2 chữ số
+    # thập phân (tick 0.01). Áp tick size VN (10/50/100) vào thang này sẽ nén mọi
+    # bước giá GBM về bội số 10 — thị trường gần như đứng yên hoặc nhảy bậc 5%.
+    mask_toy = arr < 1000
+    arr[mask_toy] = np.round(arr[mask_toy] / 0.01) * 0.01
+
+    mask1 = (arr >= 1000) & (arr < 10000)
     arr[mask1] = np.round(arr[mask1] / 10.0) * 10.0
 
     mask2 = (arr >= 10000) & (arr < 50000)

@@ -1,5 +1,6 @@
 /**
  * Nhiệm vụ & Thưởng — streak, danh sách nhiệm vụ theo nhóm và nhận thưởng.
+ * Chất liệu: quầy — vé chờ (ticket) cho streak, bảng số cho thống kê, dấu xác nhận cho phần thưởng.
  */
 "use client";
 
@@ -17,9 +18,9 @@ import {
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
-import { Badge } from "@/components/common/Badge";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorPanel } from "@/components/common/ErrorPanel";
+import { LoggedOutPrompt } from "@/components/common/LoggedOutPrompt";
 import { Spinner } from "@/components/common/Spinner";
 import type {
   TaskProgressResponse,
@@ -27,6 +28,7 @@ import type {
 } from "@finsim/shared-types/generated/api-types";
 import { checkinToday, claimTask, listTasks } from "@/services/tasks";
 import { toRequestError } from "@/services/api";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useToastStore } from "@/store/useToastStore";
 import { formatCompactVND, formatVND, parseDecimal } from "@/utils/format";
 import { cn } from "@/utils/cn";
@@ -45,7 +47,7 @@ const CATEGORY_META: Record<TaskCategory, CategoryMeta> = {
     label: "Hành trình khởi đầu",
     blurb: "Làm quen nền tảng — nhận vốn thưởng ban đầu.",
     icon: IconTrophy,
-    accent: "text-brand-600 dark:text-brand-400",
+    accent: "text-brand-700 dark:text-brand-400",
   },
   learning: {
     label: "Học hỏi",
@@ -95,6 +97,7 @@ function statusOf(task: TaskProgressResponse) {
 }
 
 export default function TasksPage() {
+  const user = useAuthStore((state) => state.user);
   const [data, setData] = useState<TaskListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +106,10 @@ export default function TasksPage() {
   const toast = useToastStore((state) => state.push);
 
   const load = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -112,7 +119,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     void load();
@@ -154,6 +161,21 @@ export default function TasksPage() {
     }
   };
 
+  if (!user) {
+    return (
+      <div>
+        <PageHeader
+          title="Nhiệm vụ & Thưởng"
+          description="Hoàn thành nhiệm vụ để nhận thưởng vốn mô phỏng — rèn kỷ luật mỗi ngày."
+        />
+        <LoggedOutPrompt
+          title="Đăng nhập để xem nhiệm vụ"
+          description="Điểm danh hằng ngày, hoàn thành nhiệm vụ và nhận thưởng vốn mô phỏng. Bạn cần đăng nhập để theo dõi chuỗi kỷ luật của mình."
+        />
+      </div>
+    );
+  }
+
   if (loading && !data) {
     return (
       <div className="flex justify-center py-24">
@@ -180,7 +202,7 @@ export default function TasksPage() {
         description="Hoàn thành nhiệm vụ để nhận thưởng vốn mô phỏng — rèn kỷ luật mỗi ngày."
       />
 
-      <div className="mb-6 grid gap-4 md:grid-cols-4">
+      <div className="mb-6 grid gap-3 md:grid-cols-4">
         <StreakCard
           current={data.streak_current}
           longest={data.streak_longest}
@@ -220,25 +242,25 @@ export default function TasksPage() {
         const Icon = meta.icon;
         return (
           <Card key={category} className="mb-5 overflow-hidden">
-            <div className="flex items-center gap-3 border-b border-ink-200 px-4 py-3 dark:border-ink-700">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink-50 dark:bg-ink-800">
+            <div className="flex items-center gap-3 border-b border-line px-4 py-3 dark:border-granite-700">
+              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-ink-100 dark:bg-granite-800">
                 <Icon className={cn("h-5 w-5", meta.accent)} />
               </span>
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">
+                <h3 className="text-sm font-bold text-ink-900 dark:text-slip">
                   {meta.label}
-                  <span className="ml-2 text-xs font-normal text-ink-400 dark:text-ink-500">
+                  <span className="board-num ml-2 text-xs font-medium text-ink-400 dark:text-granite-400">
                     {done}/{tasks.length}
                   </span>
                 </h3>
-                <p className="truncate text-xs text-ink-500 dark:text-ink-400">{meta.blurb}</p>
+                <p className="truncate text-xs text-ink-500 dark:text-granite-300">{meta.blurb}</p>
               </div>
               {done === tasks.length ? (
-                <Badge variant="success">Hoàn thành</Badge>
+                <span className="stamp stamp-success animate-stamp-in">Hoàn thành</span>
               ) : null}
             </div>
 
-            <ul className="divide-y divide-ink-100 dark:divide-ink-800">
+            <ul className="divide-y divide-ink-100 dark:divide-granite-800">
               {tasks.map((task) => (
                 <TaskRow
                   key={task.task.id}
@@ -273,37 +295,32 @@ function StreakCard({
   onCheckin: () => void;
 }) {
   return (
-    <Card className="md:col-span-1 flex flex-col">
+    <div className="ticket ticket-notch flex flex-col md:col-span-1">
       <div className="flex items-center justify-between px-4 pt-4">
-        <p className="text-sm font-semibold text-ink-900 dark:text-ink-100">Điểm danh hằng ngày</p>
+        <p className="board-label">Số vé kỷ luật</p>
         <IconStar className="h-5 w-5 text-amber-500" aria-hidden="true" />
       </div>
       <div className="flex items-baseline gap-1 px-4 pt-2">
-        <span className="text-3xl font-black text-brand-600 dark:text-brand-400">{current}</span>
-        <span className="text-sm text-ink-500 dark:text-ink-400">ngày liên tiếp</span>
+        <span className="board-num text-4xl font-black text-brand-600 dark:text-brand-400">
+          {current}
+        </span>
+        <span className="text-sm text-ink-500 dark:text-granite-300">ngày liên tiếp</span>
       </div>
-      <p className="px-4 pb-3 text-xs text-ink-500 dark:text-ink-400">
-        Kỷ lục: <span className="font-semibold text-ink-700 dark:text-ink-200">{longest} ngày</span>
+      <p className="px-4 pb-3 text-xs text-ink-500 dark:text-granite-300">
+        Kỷ lục: <span className="font-semibold text-ink-700 dark:text-slip">{longest} ngày</span>
       </p>
       <div className="mt-auto px-4 pb-4">
-        <Button
-          size="md"
-          fullWidth
-          loading={checking}
-          disabled={alreadyCheckedIn}
-          onClick={onCheckin}
-          className={alreadyCheckedIn ? "opacity-90" : undefined}
-        >
-          {alreadyCheckedIn ? (
-            <>
-              <IconCheck className="h-4 w-4" /> Đã điểm danh
-            </>
-          ) : (
-            <>Điểm danh nhận thưởng</>
-          )}
-        </Button>
+        {alreadyCheckedIn ? (
+          <span className="stamp stamp-success animate-stamp-in">
+            <IconCheck className="mr-1 h-3.5 w-3.5" /> Đã điểm danh
+          </span>
+        ) : (
+          <Button size="md" fullWidth loading={checking} onClick={onCheckin}>
+            Điểm danh nhận thưởng
+          </Button>
+        )}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -319,16 +336,16 @@ function StatCard({
   hint: string;
 }) {
   return (
-    <Card>
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-          <Icon className="h-5 w-5" />
-        </span>
-        <p className="text-sm font-medium text-ink-600 dark:text-ink-300">{label}</p>
+    <div className="board flex items-center gap-2.5">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-500/15 text-brand-400">
+        <Icon className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
+        <p className="board-label">{label}</p>
+        <p className="board-num truncate text-xl font-bold text-slip">{value}</p>
+        <p className="truncate text-xs text-ink-400 dark:text-granite-300">{hint}</p>
       </div>
-      <p className="mt-2 text-2xl font-bold text-ink-900 dark:text-ink-100">{value}</p>
-      <p className="text-xs text-ink-400 dark:text-ink-500">{hint}</p>
-    </Card>
+    </div>
   );
 }
 
@@ -350,28 +367,30 @@ function TaskRow({
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium text-ink-900 dark:text-ink-100">{task.task.name}</p>
-            {status === "completed" && <Badge variant="success">Hoàn thành</Badge>}
-            {status === "claimable" && <Badge variant="warning">Sẵn sàng nhận</Badge>}
+            <p className="text-sm font-medium text-ink-900 dark:text-slip">{task.task.name}</p>
+            {status === "completed" && (
+              <span className="stamp stamp-success text-[10px]">Hoàn thành</span>
+            )}
+            {status === "claimable" && <span className="stamp text-[10px]">Sẵn sàng nhận</span>}
           </div>
           {task.task.description && (
-            <p className="mt-0.5 line-clamp-2 text-xs text-ink-500 dark:text-ink-400">
+            <p className="mt-0.5 line-clamp-2 text-xs text-ink-500 dark:text-granite-300">
               {task.task.description}
             </p>
           )}
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">
+          <p className="board-num text-sm font-bold text-brand-700 dark:text-brand-400">
             +{formatCompactVND(reward)}
           </p>
-          <p className="text-xs text-ink-400 dark:text-ink-500">
+          <p className="board-num text-xs text-ink-400 dark:text-granite-400">
             {task.progress_count}/{task.target_count}
           </p>
         </div>
       </div>
 
       <div className="mt-2 flex items-center gap-3">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-100 dark:bg-granite-800">
           <div
             className={cn(
               "h-full rounded-full transition-all",
@@ -379,7 +398,7 @@ function TaskRow({
                 ? "bg-brand-500"
                 : status === "in_progress"
                   ? "bg-brand-400"
-                  : "bg-ink-200 dark:bg-ink-700",
+                  : "bg-ink-300 dark:bg-granite-700",
             )}
             style={{ width: `${pct}%` }}
           />
@@ -390,7 +409,9 @@ function TaskRow({
           </Button>
         )}
         {status === "in_progress" && (
-          <span className="text-xs font-medium text-ink-400 dark:text-ink-500">{pct}%</span>
+          <span className="board-num text-xs font-medium text-ink-400 dark:text-granite-300">
+            {pct}%
+          </span>
         )}
       </div>
     </li>

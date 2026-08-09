@@ -69,14 +69,14 @@ export default function RegisterPage() {
     <Card>
       <CardBody className="space-y-5 px-6 py-8">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Tạo tài khoản</h1>
-          <p className="mt-1 text-sm text-ink-500">
+          <h1 className="text-xl font-black text-ink-900 dark:text-slip">Tạo tài khoản</h1>
+          <p className="mt-1 text-sm text-ink-500 dark:text-granite-400">
             Bắt đầu với vốn mô phỏng 100.000.000 ₫ và rèn kỷ luật cùng AI Mentor.
           </p>
         </div>
 
         {formError !== null && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="rounded-lg border border-mkt-down/40 bg-mkt-down/10 px-3 py-2 text-sm text-mkt-down dark:text-mkt-down-400">
             {formError}
           </div>
         )}
@@ -136,9 +136,9 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        <p className="text-center text-sm text-ink-500">
+        <p className="text-center text-sm text-ink-500 dark:text-granite-400">
           Đã có tài khoản?{" "}
-          <Link href="/login" className="font-semibold text-brand-600 hover:underline">
+          <Link href="/login" className="font-semibold text-brand-700 underline-offset-2 hover:underline dark:text-brand-300">
             Đăng nhập
           </Link>
         </p>

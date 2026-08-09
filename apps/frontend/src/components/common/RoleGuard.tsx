@@ -42,9 +42,9 @@ export function RoleGuard({ allow, children }: RoleGuardProps) {
 
   if (loading || denied) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-ink-50 dark:bg-ink-900">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slip dark:bg-granite-950">
         <Spinner size="lg" />
-        <p className="text-sm text-ink-400 dark:text-ink-500">Đang tải...</p>
+        <p className="text-sm text-ink-500 dark:text-granite-400">Đang tải...</p>
       </div>
     );
   }

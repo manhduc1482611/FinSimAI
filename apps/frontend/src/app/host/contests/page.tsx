@@ -107,22 +107,22 @@ export default function HostContestsPage() {
                     <div className="min-w-0">
                       <Link
                         href={`/contests/${contest.slug}`}
-                        className="text-sm font-semibold text-ink-900 hover:text-brand-700 dark:text-ink-100"
+                        className="text-sm font-semibold text-ink-900 hover:text-brand-700 dark:text-slip"
                       >
                         {contest.name}
                       </Link>
-                      <p className="mt-0.5 text-xs text-ink-400 dark:text-ink-500">
+                      <p className="mt-0.5 text-xs text-ink-400 dark:text-granite-400">
                         /contests/{contest.slug}
                       </p>
                     </div>
                     <ContestStatusBadge status={contest.status} />
                   </div>
 
-                  <p className="text-xs text-ink-500 dark:text-ink-400">
+                  <p className="text-xs text-ink-500 dark:text-granite-400">
                     {templateLabel(config.template)} · {difficultyLabel(config.difficulty)} ·{" "}
                     {config.company_count} công ty · {contest.member_count} thành viên
                   </p>
-                  <p className="text-xs text-ink-400 dark:text-ink-500">
+                  <p className="text-xs text-ink-400 dark:text-granite-400">
                     Tạo lúc {formatDateTime(contest.created_at)}
                   </p>
 

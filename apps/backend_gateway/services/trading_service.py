@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -19,6 +20,21 @@ def _price_crosses(
     if buy_price is None or sell_price is None:
         return True
     return buy_price >= sell_price
+
+
+def _is_marketable(order: Order, market_price: Decimal) -> bool:
+    """Lệnh đã khớp được ngay với giá thị trường (market maker).
+
+    Market → luôn khớp. Limit → khớp khi giá thị trường vượt/ngang mức limit
+    (mua: limit >= giá thị trường; bán: limit <= giá thị trường).
+    """
+    if order.type == "market":
+        return True
+    if order.price is None:
+        return False
+    if order.side == "buy":
+        return order.price >= market_price
+    return order.price <= market_price
 
 
 async def _peek_best_buy(
@@ -176,6 +192,74 @@ async def _apply_sell_fill(
     pf.frozen_quantity -= fill_qty
     pf.quantity -= fill_qty
     pf.realized_pnl += revenue - fill_qty * pf.average_buy_price
+
+
+async def _fill_against_market(
+    order: Order,
+    *,
+    market_price: Decimal,
+    simulated_at: datetime,
+    db: AsyncSession,
+) -> dict[str, Any] | None:
+    """Fill một lệnh "marketable" với giá thị trường mô phỏng (market maker).
+
+    Thị trường đóng vai đối ứng: lệnh market, hoặc lệnh limit đã lệch giá
+    (mua: limit >= giá thị trường; bán: limit <= giá thị trường), được fill
+    TOÀN BỘ ngay tại ``market_price`` — một người dùng đơn lẻ vẫn giao dịch
+    được mà không cần chờ đối ứng thật. Lock theo thứ tự order → user để không
+    deadlock với route ``create_order`` / ``cancel_order``.
+    """
+    locked = (
+        await db.execute(select(Order).where(Order.id == order.id).with_for_update())
+    ).scalar_one_or_none()
+    if (
+        locked is None
+        or locked.status not in ("pending", "partially_filled")
+        or locked.quantity <= locked.filled_quantity
+    ):
+        return None
+
+    user = (
+        await db.execute(select(User).where(User.id == locked.user_id).with_for_update())
+    ).scalar_one()
+
+    fill_qty = locked.quantity - locked.filled_quantity
+    fill_price = market_price
+
+    tx = Transaction(
+        order_id=locked.id,
+        user_id=locked.user_id,
+        company_id=locked.company_id,
+        side=locked.side,
+        quantity=fill_qty,
+        price=fill_price,
+        simulated_at=simulated_at,
+    )
+    db.add(tx)
+
+    if locked.side == "buy":
+        await _apply_buy_fill(locked, fill_qty, fill_price, market_price, user, db)
+    else:
+        await _apply_sell_fill(locked, fill_qty, fill_price, user, db)
+
+    locked.filled_quantity += fill_qty
+    locked.status = "filled"
+
+    await db.commit()
+    await db.refresh(tx)
+
+    fill: dict[str, Any] = {
+        "order_id": locked.id,
+        "user_id": locked.user_id,
+        "company_id": locked.company_id,
+        "side": locked.side,
+        "quantity": fill_qty,
+        "price": fill_price,
+        "simulated_at": simulated_at,
+    }
+    fill["transaction_id"] = tx.id
+    fill["created_at"] = tx.created_at
+    return fill
 
 
 async def match_orders(
@@ -353,6 +437,37 @@ async def match_orders(
         transactions.append(fill)
         transactions.append(sell_fill)
 
+    # ── Market-maker pass ──────────────────────────────────────────────
+    # Sau khi khớp user ↔ user, các lệnh "marketable" còn sót (market / limit đã
+    # lệch giá so với current_price) được fill ngay với giá thị trường. Đây là
+    # mảnh ghép khiến 1 người dùng đơn lẻ đặt lệnh vẫn khớp được — trước đây
+    # lệnh treo pending mãi vì thiếu đối ứng trong sổ lệnh.
+    while True:
+        buy = await _peek_best_buy(company_id, db, skip_buy_ids)
+        sell = await _peek_best_sell(company_id, db, skip_sell_ids)
+
+        if buy is not None and _is_marketable(buy, market_price):
+            mm_fill = await _fill_against_market(
+                buy, market_price=market_price, simulated_at=simulated_at, db=db
+            )
+            skip_buy_ids.add(buy.id)
+            if mm_fill is not None:
+                transactions.append(mm_fill)
+                continue
+            continue
+
+        if sell is not None and _is_marketable(sell, market_price):
+            mm_fill = await _fill_against_market(
+                sell, market_price=market_price, simulated_at=simulated_at, db=db
+            )
+            skip_sell_ids.add(sell.id)
+            if mm_fill is not None:
+                transactions.append(mm_fill)
+                continue
+            continue
+
+        break
+
     await _notify_fills(transactions)
     return transactions
 
@@ -375,3 +490,74 @@ async def _notify_fills(transactions: list[dict[str, Any]]) -> None:
             "Trade fill push failed — poll catch-up will cover %d fill(s)",
             len(transactions),
         )
+
+
+async def cancel_order(
+    order_id: uuid.UUID,
+    user_id: uuid.UUID,
+    db: AsyncSession,
+) -> Order:
+    """Huỷ lệnh còn treo (pending / partially_filled) và hoàn tiền/CP đã đóng băng.
+
+    - Mua: trả lại ``frozen_cash`` còn lại cho ``cash_balance``.
+    - Bán: trả lại phần cổ phiếu chưa khớp về ``frozen_quantity`` của portfolio.
+    Lock order → user theo cùng thứ tự với ``_fill_against_market`` để không
+    deadlock khi leader đang khớp lệnh trong cùng chu kỳ tick.
+    """
+    locked = (
+        await db.execute(
+            select(Order)
+            .where(Order.id == order_id, Order.user_id == user_id)
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if locked is None:
+        raise LookupError("Order not found")
+    if locked.status not in ("pending", "partially_filled"):
+        raise ValueError("Order already finalised")
+
+    if locked.side == "buy":
+        user = (
+            await db.execute(select(User).where(User.id == locked.user_id).with_for_update())
+        ).scalar_one()
+        user.cash_balance += locked.frozen_cash
+        user.frozen_cash -= locked.frozen_cash
+        locked.frozen_cash = Decimal("0.00")
+    else:
+        pf_stmt = (
+            select(Portfolio)
+            .where(
+                Portfolio.user_id == locked.user_id,
+                Portfolio.company_id == locked.company_id,
+            )
+            .with_for_update()
+        )
+        pf = (await db.execute(pf_stmt)).scalar_one_or_none()
+        if pf:
+            pf.frozen_quantity -= locked.quantity - locked.filled_quantity
+        locked.frozen_quantity = Decimal("0.0000")
+
+    locked.status = "cancelled"
+    await db.commit()
+    await db.refresh(locked)
+
+    try:
+        from realtime.trade_ws import trade_notifier
+
+        await trade_notifier.notify_order_update(
+            {
+                "order_id": locked.id,
+                "user_id": locked.user_id,
+                "company_id": locked.company_id,
+                "symbol": None,
+                "status": locked.status,
+                "side": locked.side,
+                "quantity": locked.quantity,
+                "filled_quantity": locked.filled_quantity,
+                "simulated_at": locked.simulated_at,
+            }
+        )
+    except Exception:
+        logger.exception("Order cancel notify failed for %s", locked.id)
+
+    return locked

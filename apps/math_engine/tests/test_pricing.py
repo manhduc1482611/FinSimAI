@@ -104,6 +104,23 @@ class TestVNTickSize:
         result = _apply_vn_tick_size(prices)
         np.testing.assert_array_equal(result, [5430.0, 25000.0, 55000.0])
 
+    def test_toy_prices_keep_two_decimals(self):
+        # Giá toy của sim (< 1000, vd 42.10 / 156.80) phải giữ 2 chữ số thập phân,
+        # KHÔNG được nén về bội số 10 — nén sẽ làm giá đứng yên / nhảy bậc 5%.
+        assert _apply_vn_tick_size(42.10) == 42.10
+        assert _apply_vn_tick_size(110.20) == 110.20
+        assert _apply_vn_tick_size(156.80) == 156.80
+        assert _apply_vn_tick_size(14.60) == 14.60
+
+    def test_toy_price_rounds_to_cents(self):
+        assert _apply_vn_tick_size(42.137) == 42.14
+        assert _apply_vn_tick_size(42.103) == 42.10
+
+    def test_array_mixed_toy_and_vn(self):
+        prices = np.array([42.10, 156.80, 5430.0])
+        result = _apply_vn_tick_size(prices)
+        np.testing.assert_array_equal(result, [42.10, 156.80, 5430.0])
+
 
 class TestSeedReproducibility:
     def test_same_seed_same_path(self):

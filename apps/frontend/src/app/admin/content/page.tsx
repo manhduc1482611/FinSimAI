@@ -50,7 +50,7 @@ export default function AdminContentPage() {
         description="Dữ liệu toàn cục của mọi cuộc thi — không lọc theo contest."
       />
 
-      <div className="mb-4 flex gap-1 border-b border-ink-200 dark:border-ink-700">
+      <div className="mb-4 flex gap-1 border-b border-line dark:border-granite-700">
         {TABS.map((item) => (
           <button
             key={item.id}
@@ -60,7 +60,7 @@ export default function AdminContentPage() {
               "border-b-2 px-4 py-2 text-sm font-medium transition-colors",
               tab === item.id
                 ? "border-brand-600 text-brand-700 dark:text-brand-400"
-                : "border-transparent text-ink-500 hover:text-ink-700 dark:hover:text-ink-200",
+                : "border-transparent text-ink-500 hover:text-ink-700 dark:hover:text-granite-200",
             )}
           >
             {item.label}
@@ -88,7 +88,7 @@ export default function AdminContentPage() {
                 {tab === "companies" && companies.data !== null && (
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400 dark:border-ink-700">
+                      <tr className="board-label border-b border-line dark:border-granite-700">
                         <th className="px-4 py-3 font-semibold">Symbol</th>
                         <th className="px-4 py-3 font-semibold">Tên</th>
                         <th className="px-4 py-3 font-semibold">Ngành</th>
@@ -96,20 +96,20 @@ export default function AdminContentPage() {
                         <th className="px-4 py-3 font-semibold">Sức khỏe</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-ink-100 dark:divide-ink-700/60">
+                    <tbody className="divide-y divide-line dark:divide-granite-800">
                       {companies.data.items.map((company) => (
                         <tr key={company.id}>
-                          <td className="px-4 py-3 font-semibold text-ink-900">
+                          <td className="board-num px-4 py-3 font-semibold text-ink-900 dark:text-slip">
                             {company.symbol}
                           </td>
-                          <td className="px-4 py-3 text-ink-700 dark:text-ink-200">
+                          <td className="px-4 py-3 text-ink-700 dark:text-slip">
                             {company.name}
                           </td>
                           <td className="px-4 py-3 text-xs text-ink-500">{company.sector}</td>
-                          <td className="px-4 py-3 text-ink-700 dark:text-ink-200">
+                          <td className="board-num px-4 py-3 text-ink-700 dark:text-slip">
                             {formatPrice(parseDecimal(company.current_price))}
                           </td>
-                          <td className="px-4 py-3 text-ink-700 dark:text-ink-200">
+                          <td className="board-num px-4 py-3 text-ink-700 dark:text-slip">
                             {company.health_score}
                           </td>
                         </tr>
@@ -119,11 +119,11 @@ export default function AdminContentPage() {
                 )}
 
                 {tab === "news" && news.data !== null && (
-                  <ul className="divide-y divide-ink-100 dark:divide-ink-700/60">
+                  <ul className="divide-y divide-line dark:divide-granite-800">
                     {news.data.items.map((item) => (
                       <li key={item.id} className="flex items-center justify-between gap-4 px-4 py-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-ink-900 dark:text-ink-100">
+                          <p className="truncate text-sm font-medium text-ink-900 dark:text-slip">
                             {item.title}
                           </p>
                           <p className="text-xs text-ink-400">
@@ -139,7 +139,7 @@ export default function AdminContentPage() {
                 )}
 
                 {tab === "social" && social.data !== null && (
-                  <ul className="divide-y divide-ink-100 dark:divide-ink-700/60">
+                  <ul className="divide-y divide-line dark:divide-granite-800">
                     {social.data.items.map((post) => (
                       <li key={post.id} className="px-4 py-3">
                         <div className="flex items-center justify-between gap-4">
@@ -150,7 +150,7 @@ export default function AdminContentPage() {
                             {formatDateTime(post.simulated_at)}
                           </span>
                         </div>
-                        <p className="mt-1 line-clamp-2 text-sm text-ink-700 dark:text-ink-200">
+                        <p className="mt-1 line-clamp-2 text-sm text-ink-700 dark:text-slip">
                           {post.content}
                         </p>
                       </li>

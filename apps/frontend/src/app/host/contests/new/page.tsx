@@ -103,7 +103,7 @@ export default function NewContestPage() {
         <Card>
           <CardBody className="space-y-4">
             <div>
-              <p className="text-sm font-semibold text-ink-900">{created.name}</p>
+              <p className="text-sm font-semibold text-ink-900 dark:text-slip">{created.name}</p>
               <p className="text-xs text-ink-400">/contests/{created.slug}</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -152,20 +152,20 @@ export default function NewContestPage() {
                     className={cn(
                       "rounded-xl border p-4 text-left transition-colors",
                       selected
-                        ? "border-brand-500 bg-brand-50 ring-2 ring-brand-500/30 dark:bg-brand-500/10"
-                        : "border-ink-200 hover:border-ink-300 dark:border-ink-700",
+                        ? "border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/30 dark:bg-brand-500/10"
+                        : "border-line hover:border-brand-500 dark:border-granite-700 dark:hover:border-brand-400",
                     )}
                   >
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-ink-900 dark:text-ink-100">
+                      <p className="text-sm font-semibold text-ink-900 dark:text-slip">
                         {option.label}
                       </p>
                       {selected && <IconCheck className="h-4 w-4 text-brand-600" />}
                     </div>
-                    <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
+                    <p className="mt-1 text-xs text-ink-500 dark:text-granite-400">
                       {option.description}
                     </p>
-                    <p className="mt-2 text-xs text-ink-400 dark:text-ink-500">
+                    <p className="mt-2 text-xs text-ink-400 dark:text-granite-400">
                       {option.defaultCompanyCount} công ty · {formatCompactVND(option.defaultStartCash)} vốn
                     </p>
                   </button>
@@ -231,21 +231,21 @@ export default function NewContestPage() {
               </SelectField>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="flex items-center gap-2 text-sm text-ink-700 dark:text-ink-200">
+              <label className="flex items-center gap-2 text-sm text-ink-700 dark:text-slip">
                 <input
                   type="checkbox"
                   checked={autoNews}
                   onChange={(event) => setAutoNews(event.target.checked)}
-                  className="h-4 w-4 rounded border-ink-300"
+                  className="h-4 w-4 rounded border-line"
                 />
                 Tự sinh tin tức & bài viết
               </label>
-              <label className="flex items-center gap-2 text-sm text-ink-700 dark:text-ink-200">
+              <label className="flex items-center gap-2 text-sm text-ink-700 dark:text-slip">
                 <input
                   type="checkbox"
                   checked={autoSocial}
                   onChange={(event) => setAutoSocial(event.target.checked)}
-                  className="h-4 w-4 rounded border-ink-300"
+                  className="h-4 w-4 rounded border-line"
                 />
                 Tự sinh bài đăng xã hội
               </label>
@@ -257,7 +257,7 @@ export default function NewContestPage() {
                   type="color"
                   value={primaryColor}
                   onChange={(event) => setPrimaryColor(event.target.value)}
-                  className="h-10 w-16 cursor-pointer rounded-lg border border-ink-300 bg-white dark:border-ink-700"
+                  className="h-10 w-16 cursor-pointer rounded-lg border border-line bg-[#FFFDF8] dark:border-granite-700"
                 />
               </div>
             </div>
@@ -272,26 +272,26 @@ export default function NewContestPage() {
           <CardBody>
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
-                <dt className="text-[11px] uppercase tracking-wide text-ink-400">Vốn khởi đầu</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink-900">
+                <dt className="board-label">Vốn khởi đầu</dt>
+                <dd className="board-num mt-1 text-sm font-semibold text-ink-900 dark:text-slip">
                   {formatCompactVND(rules.startCash)}
                 </dd>
               </div>
               <div>
-                <dt className="text-[11px] uppercase tracking-wide text-ink-400">Cooldown</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink-900">
+                <dt className="board-label">Cooldown</dt>
+                <dd className="board-num mt-1 text-sm font-semibold text-ink-900 dark:text-slip">
                   {rules.cooldownSeconds} giây
                 </dd>
               </div>
               <div>
-                <dt className="text-[11px] uppercase tracking-wide text-ink-400">Đòn bẩy giá</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink-900">
+                <dt className="board-label">Đòn bẩy giá</dt>
+                <dd className="board-num mt-1 text-sm font-semibold text-ink-900 dark:text-slip">
                   ×{rules.volatilityMultiplier}
                 </dd>
               </div>
               <div>
-                <dt className="text-[11px] uppercase tracking-wide text-ink-400">Bán khống</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink-900">
+                <dt className="board-label">Bán khống</dt>
+                <dd className="board-num mt-1 text-sm font-semibold text-ink-900 dark:text-slip">
                   {activeTemplate.allowShort ? "Cho phép" : "Không cho phép"}
                 </dd>
               </div>

@@ -13,6 +13,7 @@ class SocialPostResponse(BaseModel):
     persona_type: str
     content: str
     sentiment: str
+    is_trap: bool = False
     virality_score: float
     likes_count: int
     shares_count: int

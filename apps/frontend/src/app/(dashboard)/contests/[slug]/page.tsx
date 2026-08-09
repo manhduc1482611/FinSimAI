@@ -94,17 +94,17 @@ export default function ContestLandingPage() {
     <div>
       {/* Hero theo theme config */}
       <div
-        className="rounded-xl border border-ink-200 bg-white p-6 dark:border-ink-700 dark:bg-ink-800"
+        className="rounded-xl border border-line bg-[#FFFDF8] p-6 dark:border-granite-700 dark:bg-granite-800"
         style={{ borderTop: `4px solid ${accent}` }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-ink-900 dark:text-ink-100">{c.name}</h1>
+              <h1 className="text-xl font-bold text-ink-900 dark:text-slip">{c.name}</h1>
               <ContestStatusBadge status={c.status} />
             </div>
             {c.description !== null && c.description !== "" && (
-              <p className="mt-2 max-w-2xl text-sm text-ink-500 dark:text-ink-400">
+              <p className="mt-2 max-w-2xl text-sm text-ink-500 dark:text-granite-400">
                 {c.description}
               </p>
             )}
@@ -118,28 +118,28 @@ export default function ContestLandingPage() {
         </div>
 
         {rules !== undefined && (
-          <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-ink-100 pt-4 dark:border-ink-700 sm:grid-cols-4">
+          <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4 dark:border-granite-700 sm:grid-cols-4">
             <div>
-              <dt className="text-[11px] uppercase tracking-wide text-ink-400">Vốn khởi đầu</dt>
-              <dd className="mt-1 text-sm font-semibold text-ink-900 dark:text-ink-100">
+              <dt className="board-label">Vốn khởi đầu</dt>
+              <dd className="board-num mt-1 text-sm font-semibold text-ink-900 dark:text-slip">
                 {formatCompactVND(parseDecimal(rules.start_cash))}
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] uppercase tracking-wide text-ink-400">Cooldown</dt>
-              <dd className="mt-1 text-sm font-semibold text-ink-900 dark:text-ink-100">
+              <dt className="board-label">Cooldown</dt>
+              <dd className="board-num mt-1 text-sm font-semibold text-ink-900 dark:text-slip">
                 {rules.cooldown_seconds ?? 0} giây
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] uppercase tracking-wide text-ink-400">Đòn bẩy giá</dt>
-              <dd className="mt-1 text-sm font-semibold text-ink-900 dark:text-ink-100">
+              <dt className="board-label">Đòn bẩy giá</dt>
+              <dd className="board-num mt-1 text-sm font-semibold text-ink-900 dark:text-slip">
                 ×{rules.volatility_multiplier ?? 1}
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] uppercase tracking-wide text-ink-400">Bán khống</dt>
-              <dd className="mt-1 text-sm font-semibold text-ink-900 dark:text-ink-100">
+              <dt className="board-label">Bán khống</dt>
+              <dd className="board-num mt-1 text-sm font-semibold text-ink-900 dark:text-slip">
                 {rules.allow_short ? "Cho phép" : "Không cho phép"}
               </dd>
             </div>
@@ -152,7 +152,7 @@ export default function ContestLandingPage() {
         <Card className="mt-6">
           <CardBody className="flex flex-col items-center justify-between gap-3 sm:flex-row">
             <div>
-              <p className="text-sm font-semibold text-ink-900 dark:text-ink-100">
+              <p className="text-sm font-semibold text-ink-900 dark:text-slip">
                 Tham gia cuộc thi để xem nội dung
               </p>
               <p className="text-xs text-ink-500">
@@ -169,7 +169,7 @@ export default function ContestLandingPage() {
 
       {!notJoined && (
         <div className="mt-6">
-          <div className="mb-4 flex gap-1 border-b border-ink-200 dark:border-ink-700">
+          <div className="mb-4 flex gap-1 border-b border-line dark:border-granite-700">
             {TABS.map((item) => (
               <button
                 key={item.id}
@@ -179,7 +179,7 @@ export default function ContestLandingPage() {
                   "border-b-2 px-4 py-2 text-sm font-medium transition-colors",
                   tab === item.id
                     ? "border-brand-600 text-brand-700 dark:text-brand-400"
-                    : "border-transparent text-ink-500 hover:text-ink-700 dark:hover:text-ink-200",
+                    : "border-transparent text-ink-500 hover:text-ink-700 dark:hover:text-granite-200",
                 )}
                 style={tab === item.id ? { borderColor: accent } : undefined}
               >
@@ -201,20 +201,20 @@ export default function ContestLandingPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead>
-                        <tr className="border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400 dark:border-ink-700">
+                        <tr className="board-label border-b border-line dark:border-granite-700">
                           <th className="px-4 py-3 font-semibold">Symbol</th>
                           <th className="px-4 py-3 font-semibold">Tên</th>
                           <th className="px-4 py-3 font-semibold">Ngành</th>
                           <th className="px-4 py-3 font-semibold">Giá hiện tại</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-ink-100 dark:divide-ink-700/60">
+                      <tbody className="divide-y divide-line dark:divide-granite-800">
                         {companies.data?.items.map((company) => (
                           <tr key={company.id}>
-                            <td className="px-4 py-3 font-semibold text-ink-900">{company.symbol}</td>
-                            <td className="px-4 py-3 text-ink-700 dark:text-ink-200">{company.name}</td>
+                            <td className="board-num px-4 py-3 font-semibold text-ink-900 dark:text-slip">{company.symbol}</td>
+                            <td className="px-4 py-3 text-ink-700 dark:text-slip">{company.name}</td>
                             <td className="px-4 py-3 text-xs text-ink-500">{company.sector}</td>
-                            <td className="px-4 py-3 text-ink-700 dark:text-ink-200">
+                            <td className="board-num px-4 py-3 text-ink-700 dark:text-slip">
                               {formatPrice(parseDecimal(company.current_price))}
                             </td>
                           </tr>
@@ -236,11 +236,11 @@ export default function ContestLandingPage() {
             ) : (
               <Card>
                 <CardBody className="p-0">
-                  <ul className="divide-y divide-ink-100 dark:divide-ink-700/60">
+                  <ul className="divide-y divide-line dark:divide-granite-800">
                     {news.data?.items.map((item) => (
                       <li key={item.id} className="px-4 py-3">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-medium text-ink-900 dark:text-ink-100">
+                          <p className="text-sm font-medium text-ink-900 dark:text-slip">
                             {item.title}
                           </p>
                           <span className="shrink-0 text-xs text-ink-400">
@@ -267,13 +267,13 @@ export default function ContestLandingPage() {
             ) : (
               <Card>
                 <CardBody className="p-0">
-                  <ul className="divide-y divide-ink-100 dark:divide-ink-700/60">
+                  <ul className="divide-y divide-line dark:divide-granite-800">
                     {social.data?.items.map((post) => (
                       <li key={post.id} className="px-4 py-3">
                         <p className="text-xs font-semibold text-ink-500">
                           {post.author_name} · {post.persona_type}
                         </p>
-                        <p className="mt-1 text-sm text-ink-700 dark:text-ink-200">{post.content}</p>
+                        <p className="mt-1 text-sm text-ink-700 dark:text-slip">{post.content}</p>
                       </li>
                     ))}
                   </ul>

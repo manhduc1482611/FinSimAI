@@ -20,6 +20,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from integrations.content_sync import sync_content
 from integrations.gemini import GeminiError, GeminiUnavailableError
 from prompts.loader import PromptStore
 
@@ -117,7 +118,9 @@ async def generate_scenario_batch(
         articles.append(article)
 
     logger.info("generate_scenario_batch: đã sinh %d bài", len(articles))
-    return [article.model_dump(mode="json") for article in articles]
+    result = [article.model_dump(mode="json") for article in articles]
+    await sync_content(articles=result)
+    return result
 
 
 async def _gemini_scenario(
@@ -224,7 +227,9 @@ async def generate_social_posts(
         posts.append(post)
 
     logger.info("generate_social_posts: đã sinh %d bài cho %d persona", len(posts), len(ids))
-    return [post.model_dump(mode="json") for post in posts]
+    result = [post.model_dump(mode="json") for post in posts]
+    await sync_content(social_posts=result)
+    return result
 
 
 async def _gemini_social(

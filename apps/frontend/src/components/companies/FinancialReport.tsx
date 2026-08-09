@@ -17,20 +17,20 @@ export interface FinancialReportProps {
 /** Màu cho metric tỷ suất: giá trị dương → xanh, âm → đỏ. */
 function rateColor(value: number): string {
   if (value >= 0) {
-    return "text-emerald-600 dark:text-emerald-400";
+    return "text-mkt-up dark:text-mkt-up-400";
   }
-  return "text-red-600 dark:text-red-400";
+  return "text-mkt-down dark:text-mkt-down-400";
 }
 
 function MetricBar({ value, max }: { value: number; max: number }) {
   const pct = Math.max(0, Math.min(100, (Math.abs(value) / max) * 100));
   const positive = value >= 0;
   return (
-    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800">
+    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-ink-100 dark:bg-granite-800">
       <div
         className={cn(
           "h-full rounded-full",
-          positive ? "bg-emerald-500" : "bg-red-500",
+          positive ? "bg-mkt-up" : "bg-mkt-down",
         )}
         style={{ width: `${pct}%` }}
       />
@@ -60,24 +60,24 @@ export function FinancialReport({ company }: FinancialReportProps) {
       <CardBody className="space-y-4">
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <div>
-            <p className="text-xs text-ink-500 dark:text-ink-400">P/E ratio</p>
-            <p className="mt-0.5 text-sm font-bold text-ink-900 dark:text-ink-100">
+            <p className="text-xs text-ink-500 dark:text-granite-400">P/E ratio</p>
+            <p className="mt-0.5 text-sm font-bold text-ink-900 dark:text-slip board-num">
               {peRatio !== null ? formatNumber(peRatio, 2) : "—"}
             </p>
             <MetricBar value={peRatio ?? 0} max={50} />
           </div>
 
           <div>
-            <p className="text-xs text-ink-500 dark:text-ink-400">ROE (%)</p>
-            <p className={cn("mt-0.5 text-sm font-bold", rateColor(roe ?? 0))}>
+            <p className="text-xs text-ink-500 dark:text-granite-400">ROE (%)</p>
+            <p className={cn("mt-0.5 text-sm font-bold board-num", rateColor(roe ?? 0))}>
               {roe !== null ? `${roe >= 0 ? "+" : ""}${formatNumber(roe, 1)}%` : "—"}
             </p>
             <MetricBar value={roe ?? 0} max={50} />
           </div>
 
           <div>
-            <p className="text-xs text-ink-500 dark:text-ink-400">Biên lợi nhuận ròng (%)</p>
-            <p className={cn("mt-0.5 text-sm font-bold", rateColor(netMargin ?? 0))}>
+            <p className="text-xs text-ink-500 dark:text-granite-400">Biên lợi nhuận ròng (%)</p>
+            <p className={cn("mt-0.5 text-sm font-bold board-num", rateColor(netMargin ?? 0))}>
               {netMargin !== null
                 ? `${netMargin >= 0 ? "+" : ""}${formatNumber(netMargin, 1)}%`
                 : "—"}
@@ -86,24 +86,24 @@ export function FinancialReport({ company }: FinancialReportProps) {
           </div>
 
           <div>
-            <p className="text-xs text-ink-500 dark:text-ink-400">Độ biến động (%)</p>
-            <p className="mt-0.5 text-sm font-bold text-ink-900 dark:text-ink-100">
+            <p className="text-xs text-ink-500 dark:text-granite-400">Độ biến động (%)</p>
+            <p className="mt-0.5 text-sm font-bold text-ink-900 dark:text-slip board-num">
               {formatNumber(volatility, 1)}%
             </p>
             <MetricBar value={volatility} max={50} />
           </div>
         </div>
 
-        <div className="space-y-2 border-t border-ink-100 pt-3 dark:border-ink-700">
+        <div className="space-y-2 border-t border-line pt-3 dark:border-granite-700">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-ink-500 dark:text-ink-400">Vốn hóa thị trường</span>
-            <span className="font-semibold text-ink-900 dark:text-ink-100">
+            <span className="text-ink-500 dark:text-granite-400">Vốn hóa thị trường</span>
+            <span className="font-semibold text-ink-900 dark:text-slip board-num">
               {marketCap !== null ? formatCompactVND(marketCap) : "—"}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-ink-500 dark:text-ink-400">Cổ phiếu lưu hành</span>
-            <span className="font-semibold text-ink-900 dark:text-ink-100">
+            <span className="text-ink-500 dark:text-granite-400">Cổ phiếu lưu hành</span>
+            <span className="font-semibold text-ink-900 dark:text-slip board-num">
               {formatNumber(sharesOutstanding)} cổ phiếu
             </span>
           </div>

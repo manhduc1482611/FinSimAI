@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from decimal import Decimal
+from uuid import UUID
 
 from core.dependencies import get_current_user, get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -176,3 +177,24 @@ async def list_orders(
     stmt = stmt.order_by(Order.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+@router.post("/orders/{order_id}/cancel", response_model=OrderResponse)
+async def cancel_order(
+    order_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Order:
+    """Huỷ lệnh còn treo — hoàn lại tiền/cổ phiếu đã đóng băng."""
+    from services.trading_service import cancel_order as cancel_order_service
+
+    try:
+        return await cancel_order_service(order_id, current_user.id, db)
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc

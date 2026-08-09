@@ -24,12 +24,12 @@ const PLOT_HEIGHT = HEIGHT - MARGIN.top - MARGIN.bottom;
 
 function healthColor(score: number): string {
   if (score >= 80) {
-    return "#059669";
+    return "#16A34A";
   }
   if (score >= 60) {
-    return "#d97706";
+    return "#1F9E5F";
   }
-  return "#dc2626";
+  return "#DC2626";
 }
 
 function healthBadgeTone(score: number): "success" | "warning" | "danger" {
@@ -83,50 +83,50 @@ export function CompanyMap({ companies }: { companies: CompanyResponse[] }) {
   const hoveredCompany = hovered?.company ?? null;
 
   return (
-    <div className="rounded-xl border border-ink-200 bg-white p-4 dark:border-ink-700 dark:bg-ink-900">
+    <div className="rounded-xl border border-line bg-[#FFFDF8] p-4 dark:border-granite-700 dark:bg-granite-900">
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-ink-500 dark:text-ink-400">
+        <div className="text-sm text-ink-500 dark:text-granite-400">
           {companies.length} doanh nghiệp · Trục X = ngành · Trục Y = sức khỏe tài chính
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-ink-500 dark:text-ink-400">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-ink-500 dark:text-granite-400">
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#059669" }} /> Tốt ≥80
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#16A34A" }} /> Tốt ≥80
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#d97706" }} /> Khá 60–79
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#1F9E5F" }} /> Khá 60–79
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#dc2626" }} /> Yếu &lt;60
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#DC2626" }} /> Yếu &lt;60
           </span>
           <span className="text-ink-400">· Bong bóng to = vốn hóa lớn</span>
         </div>
       </div>
 
       {hoveredCompany !== null && (
-        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5 dark:border-brand-500/30 dark:bg-brand-500/10">
-          <span className="text-sm font-bold text-ink-900 dark:text-ink-100">
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-brand-500/30 bg-brand-500/10 px-4 py-2.5 dark:border-brand-500/30 dark:bg-brand-500/10">
+          <span className="text-sm font-bold text-ink-900 dark:text-slip">
             {hoveredCompany.symbol}
-            <span className="ml-2 font-medium text-ink-500 dark:text-ink-400">{hoveredCompany.name}</span>
+            <span className="ml-2 font-medium text-ink-500 dark:text-granite-400">{hoveredCompany.name}</span>
           </span>
           <Badge variant={healthBadgeTone(hoveredCompany.health_score)}>
             Sức khỏe {hoveredCompany.health_score}
           </Badge>
-          <span className="text-sm text-ink-600 dark:text-ink-300">
+          <span className="text-sm text-ink-600 dark:text-granite-300">
             {sectorLabel(hoveredCompany.sector)}
           </span>
-          <span className="text-sm text-ink-600 dark:text-ink-300">
+          <span className="text-sm text-ink-600 dark:text-granite-300">
             Vốn hóa{" "}
             {parseDecimal(hoveredCompany.market_cap) > 0
               ? formatCompactVND(parseDecimal(hoveredCompany.market_cap))
               : "—"}
           </span>
-          <span className="text-sm text-ink-600 dark:text-ink-300">
+          <span className="text-sm text-ink-600 dark:text-granite-300">
             P/E{" "}
             {hoveredCompany.pe_ratio !== null
               ? formatNumber(parseDecimal(hoveredCompany.pe_ratio))
               : "—"}
           </span>
-          <span className="text-sm text-ink-600 dark:text-ink-300">
+          <span className="text-sm text-ink-600 dark:text-granite-300">
             ROE{" "}
             {hoveredCompany.roe !== null
               ? `${formatNumber(parseDecimal(hoveredCompany.roe))}%`
@@ -209,7 +209,7 @@ export function CompanyMap({ companies }: { companies: CompanyResponse[] }) {
         ))}
       </svg>
 
-      <p className="mt-2 text-xs text-ink-400 dark:text-ink-500">
+      <p className="mt-2 text-xs text-ink-400 dark:text-granite-400">
         Di chuột để xem chi tiết · bấm vào bong bóng để mở hồ sơ doanh nghiệp.
       </p>
     </div>

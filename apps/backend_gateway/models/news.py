@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
@@ -25,7 +25,11 @@ class News(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str] = mapped_column(String(100), default="FinSim AI News", nullable=False)
     category: Mapped[str] = mapped_column(String(100), default="vĩ mô", nullable=False, index=True)
-    sentiment: Mapped[str] = mapped_column(String(20), default="neutral", nullable=False)
+    sentiment: Mapped[str] = mapped_column(
+        ENUM("positive", "negative", "neutral", name="sentiment", create_type=False),
+        default="neutral",
+        nullable=False,
+    )
     impact_score: Mapped[float] = mapped_column(Float, default=5.0, nullable=False)
 
     contest_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from core import metrics
 from core.config import settings
 
 
@@ -39,6 +40,39 @@ class RequestMetadataMiddleware:
         await self.app(scope, receive, send_wrapper)
 
 
+class MetricsMiddleware:
+    """Ghi nhận request HTTP vào metrics registry (route bucket / status / latency)."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        method = scope.get("method", "GET")
+        path = scope.get("path", "")
+        status_code = 500
+        start_time = time.perf_counter()
+
+        async def send_wrapper(message: Message) -> None:
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            metrics.record_request(
+                path,
+                method,
+                status_code,
+                time.perf_counter() - start_time,
+            )
+
+
 def setup_middleware(app: ASGIApp) -> None:
     from fastapi.middleware.cors import CORSMiddleware
 
@@ -52,3 +86,4 @@ def setup_middleware(app: ASGIApp) -> None:
         allow_headers=["*"],
     )
     app_with_middleware.add_middleware(RequestMetadataMiddleware)
+    app_with_middleware.add_middleware(MetricsMiddleware)

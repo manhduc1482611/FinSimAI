@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:console": "node ../../scripts/console-test.mjs",
+    "test:console:stale": "node ../../scripts/console-test.mjs --token=stale.invalid.token"
   },
   "dependencies": {
     "@finsim/shared-types": "*",

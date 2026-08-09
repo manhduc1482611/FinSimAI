@@ -18,8 +18,8 @@ export default function NewsPage() {
   return (
     <div>
       <PageHeader
-        title="Tin tức & Cảm xúc thị trường"
-        description="Nắm bắt các sự kiện vĩ mô, ngành và doanh nghiệp kèm mức tác động tới giá."
+        title="Bản tin thị trường"
+        description="Đọc tin & cảm nhận thị trường — các sự kiện vĩ mô, ngành và doanh nghiệp kèm mức tác động tới giá."
       />
       <NewsFilter />
       <NewsList />

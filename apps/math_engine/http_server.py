@@ -59,7 +59,9 @@ class GenerateNextPricesRequest(BaseModel):
     dt_years: float
     n_steps: int
     seed: int | None = None
-    price_limit_pct: float = 0.0
+    # Biên giá VN (7%) — bằng default của MarketConfig. Không để 0.0: clip với
+    # floor = ceil = start sẽ khoá path về đúng giá hiện tại, thị trường đứng yên.
+    price_limit_pct: float = 0.07
     jump_lambda: float = 0.0
     jump_mu: float = 0.0
     jump_sigma: float = 0.0

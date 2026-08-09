@@ -35,11 +35,11 @@ export function CompanyList({
 
   if (companies.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-ink-300 bg-white px-6 py-16 text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100 text-ink-400">
+      <div className="rounded-xl border border-dashed border-line bg-[#FFFDF8] px-6 py-16 text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-line bg-ink-50 text-ink-400 dark:border-granite-700 dark:bg-granite-800 dark:text-granite-400">
           <IconEmpty className="h-6 w-6" />
         </div>
-        <h3 className="text-sm font-semibold text-ink-900">Không tìm thấy doanh nghiệp</h3>
+        <h3 className="text-sm font-semibold text-ink-900 dark:text-slip">Không tìm thấy doanh nghiệp</h3>
         <p className="mt-1 text-sm text-ink-500">
           Hãy thử thay đổi từ khóa hoặc ngành khác.
         </p>

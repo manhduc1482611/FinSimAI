@@ -46,12 +46,12 @@ export function NewsList() {
 
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-ink-300 bg-white px-6 py-16 text-center dark:border-ink-700 dark:bg-ink-900">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100 text-ink-400 dark:bg-ink-800">
+      <div className="rounded-xl border border-dashed border-line bg-[#FFFDF8] px-6 py-16 text-center dark:border-granite-700 dark:bg-granite-900">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-line bg-ink-50 text-ink-400 dark:border-granite-700 dark:bg-granite-800 dark:text-granite-400">
           <IconEmpty className="h-6 w-6" />
         </div>
-        <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">Chưa có tin tức nào</h3>
-        <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+        <h3 className="text-sm font-semibold text-ink-900 dark:text-slip">Chưa có tin tức nào</h3>
+        <p className="mt-1 text-sm text-ink-500 dark:text-granite-400">
           {status === "success"
             ? "Hãy thử đổi bộ lọc, hoặc chờ kịch bản mới được sinh ra."
             : "Dữ liệu sẽ xuất hiện khi bạn đăng nhập và backend đang chạy."}
@@ -71,7 +71,7 @@ export function NewsList() {
             <NewsCard key={news.id} news={news} />
           ))}
         </div>
-        <p className="text-xs text-ink-400 dark:text-ink-500">
+        <p className="text-xs text-ink-400 dark:text-granite-400">
           Hiển thị {items.length} / {total} bài viết
         </p>
       </div>

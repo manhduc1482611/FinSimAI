@@ -12,7 +12,7 @@ import type {
   UserResponse,
 } from "@finsim/shared-types/generated/api-types";
 
-import { apiClient, readStoredToken, toRequestError } from "@/services/api";
+import { apiClient, readStoredRefreshToken, readStoredToken, toRequestError } from "@/services/api";
 import { fetchCurrentUser, login as apiLogin, register as apiRegister } from "@/services/auth";
 import type { AsyncStatus } from "@/types/api";
 
@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
     const stored = readStoredToken();
     if (stored) {
-      apiClient.setAccessToken(stored);
+      apiClient.setTokens(stored, readStoredRefreshToken());
       set({ token: stored });
       void get().fetchMe();
     }
@@ -50,8 +50,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   login: async (credentials) => {
     set({ status: "loading", error: null });
     try {
-      const { access_token: accessToken } = await apiLogin(credentials);
-      apiClient.setAccessToken(accessToken);
+      const { access_token: accessToken, refresh_token: refreshToken } = await apiLogin(credentials);
+      apiClient.setTokens(accessToken, refreshToken ?? null);
       set({ token: accessToken, status: "success" });
       await get().fetchMe();
     } catch (error) {
@@ -90,7 +90,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       const { status } = toRequestError(error);
       if (status === 401) {
         // Token hết hạn / không hợp lệ → xoá phiên sạch.
-        apiClient.setAccessToken(null);
+        apiClient.clearTokens();
         set({ user: null, token: null, status: "idle", error: null });
       } else {
         set({ status: "error", error: toRequestError(error).detail });
@@ -99,7 +99,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   logout: () => {
-    apiClient.setAccessToken(null);
+    apiClient.clearTokens();
     set({ user: null, token: null, status: "idle", error: null });
   },
 }));

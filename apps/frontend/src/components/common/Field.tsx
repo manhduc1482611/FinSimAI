@@ -24,7 +24,7 @@ export function FieldWrapper({ label, hint, error, children }: FieldWrapperProps
         <label className="label">
           {label}
           {hint !== undefined && (
-            <span className="ml-1 font-normal normal-case tracking-normal text-ink-400 dark:text-ink-500">
+            <span className="ml-1 font-normal normal-case tracking-normal text-ink-400 dark:text-granite-400">
               {hint}
             </span>
           )}
@@ -32,7 +32,7 @@ export function FieldWrapper({ label, hint, error, children }: FieldWrapperProps
       )}
       {children}
       {error !== undefined && (
-        <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>
+        <p className="mt-1 text-xs text-mkt-down dark:text-mkt-down-400">{error}</p>
       )}
     </div>
   );
@@ -70,7 +70,7 @@ export function TextField({
             "input",
             icon !== undefined && "pl-9",
             size === "sm" && "py-1.5 text-xs",
-            error !== undefined && "border-red-400 focus:border-red-500 focus:ring-red-500/20",
+            error !== undefined && "border-mkt-down/60 focus:border-mkt-down focus:ring-mkt-down/20",
             className,
           )}
           aria-invalid={error !== undefined}
@@ -105,7 +105,7 @@ export function SelectField({
         className={cn(
           "input",
           size === "sm" && "py-1.5 text-xs",
-          error !== undefined && "border-red-400 focus:border-red-500 focus:ring-red-500/20",
+          error !== undefined && "border-mkt-down/60 focus:border-mkt-down focus:ring-mkt-down/20",
           className,
         )}
         aria-invalid={error !== undefined}
@@ -136,7 +136,7 @@ export function TextAreaField({
       <textarea
         className={cn(
           "input min-h-[96px] resize-y",
-          error !== undefined && "border-red-400 focus:border-red-500 focus:ring-red-500/20",
+          error !== undefined && "border-mkt-down/60 focus:border-mkt-down focus:ring-mkt-down/20",
           className,
         )}
         aria-invalid={error !== undefined}

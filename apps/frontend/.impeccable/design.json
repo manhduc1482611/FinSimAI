@@ -1,0 +1,236 @@
+{
+  "generatedAt": "2026-08-08",
+  "name": "FinSimAI",
+  "colors": {
+    "brass": "#C9A227",
+    "brass-deep": "#A8861C",
+    "brass-bright": "#DDB84A",
+    "brass-ink": "#8A6E15",
+    "brass-soft": "#FDF6E3",
+    "paper": "#FFFDF8",
+    "slip": "#F8F5EF",
+    "slip-line": "#E3DCCB",
+    "ink-900": "#171610",
+    "ink-700": "#35322B",
+    "ink-600": "#4C473C",
+    "ink-500": "#6B6456",
+    "ink-400": "#787166",
+    "ink-300": "#B7AE9C",
+    "granite-950": "#0D0C0B",
+    "granite-900": "#171615",
+    "granite-800": "#211F1C",
+    "granite-700": "#2D2B27",
+    "granite-600": "#3F3D38",
+    "granite-500": "#58554F",
+    "granite-400": "#8B867C",
+    "granite-300": "#9E9A91",
+    "granite-200": "#D6D3CC",
+    "granite-100": "#E9E7E2",
+    "mkt-up": "#16A34A",
+    "mkt-up-bright": "#2AC364",
+    "mkt-up-soft": "#DCFCE7",
+    "mkt-down": "#DC2626",
+    "mkt-down-bright": "#F04949",
+    "mkt-down-soft": "#FEE2E2"
+  },
+  "tones": {
+    "brass": [
+      { "tone": "100", "hex": "#F9EBC1" },
+      { "tone": "200", "hex": "#F0D98C" },
+      { "tone": "300", "hex": "#E8C96A" },
+      { "tone": "400", "hex": "#DDB84A" },
+      { "tone": "500", "hex": "#C9A227" },
+      { "tone": "600", "hex": "#A8861C" },
+      { "tone": "700", "hex": "#8A6E15" },
+      { "tone": "800", "hex": "#6B5412" }
+    ],
+    "granite": [
+      { "tone": "100", "hex": "#E9E7E2" },
+      { "tone": "200", "hex": "#D6D3CC" },
+      { "tone": "300", "hex": "#9E9A91" },
+      { "tone": "400", "hex": "#8B867C" },
+      { "tone": "500", "hex": "#58554F" },
+      { "tone": "600", "hex": "#3F3D38" },
+      { "tone": "700", "hex": "#2D2B27" },
+      { "tone": "800", "hex": "#211F1C" }
+    ],
+    "mkt-up": [
+      { "tone": "100", "hex": "#DCFCE7" },
+      { "tone": "200", "hex": "#BBF7D0" },
+      { "tone": "300", "hex": "#86EFAC" },
+      { "tone": "400", "hex": "#2AC364" },
+      { "tone": "500", "hex": "#1CAE56" },
+      { "tone": "600", "hex": "#16A34A" },
+      { "tone": "700", "hex": "#15803D" },
+      { "tone": "800", "hex": "#166534" }
+    ],
+    "mkt-down": [
+      { "tone": "100", "hex": "#FEE2E2" },
+      { "tone": "200", "hex": "#FECACA" },
+      { "tone": "300", "hex": "#FCA5A5" },
+      { "tone": "400", "hex": "#F04949" },
+      { "tone": "500", "hex": "#E23636" },
+      { "tone": "600", "hex": "#DC2626" },
+      { "tone": "700", "hex": "#B91C1C" },
+      { "tone": "800", "hex": "#991B1B" }
+    ]
+  },
+  "typography": {
+    "display": {
+      "fontFamily": "ui-sans-serif, system-ui, -apple-system, Segoe UI, Aptos, Roboto, Helvetica Neue, Arial, sans-serif",
+      "fontSize": "clamp(2.5rem, 6vw, 3.5rem)",
+      "fontWeight": 900,
+      "lineHeight": 1.1,
+      "letterSpacing": "-0.02em"
+    },
+    "headline": {
+      "fontFamily": "ui-sans-serif, system-ui, -apple-system, Segoe UI, Aptos, Roboto, Helvetica Neue, Arial, sans-serif",
+      "fontSize": "20px",
+      "fontWeight": 900,
+      "lineHeight": 1.2
+    },
+    "title": {
+      "fontFamily": "ui-sans-serif, system-ui, -apple-system, Segoe UI, Aptos, Roboto, Helvetica Neue, Arial, sans-serif",
+      "fontSize": "14px",
+      "fontWeight": 700,
+      "lineHeight": 1.3
+    },
+    "body": {
+      "fontFamily": "ui-sans-serif, system-ui, -apple-system, Segoe UI, Aptos, Roboto, Helvetica Neue, Arial, sans-serif",
+      "fontSize": "14px",
+      "fontWeight": 400,
+      "lineHeight": 1.5
+    },
+    "label": {
+      "fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, Liberation Mono, monospace",
+      "fontSize": "10px",
+      "fontWeight": 700,
+      "letterSpacing": "0.12em",
+      "textTransform": "uppercase"
+    },
+    "data": {
+      "fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, Liberation Mono, monospace",
+      "fontVariantNumeric": "tabular-nums"
+    }
+  },
+  "rounded": {
+    "slip": "10px",
+    "lg": "12px",
+    "md": "8px",
+    "sm": "2px"
+  },
+  "spacing": {
+    "xs": "4px",
+    "sm": "8px",
+    "md": "16px",
+    "lg": "24px"
+  },
+  "shadows": {
+    "card": "0 1px 2px rgb(13 12 11 / 0.18), 0 8px 24px -12px rgb(13 12 11 / 0.35)",
+    "board": "inset 0 1px 0 0 rgb(255 255 255 / 0.04), 0 1px 0 0 rgb(0 0 0 / 0.6)",
+    "press": "inset 0 2px 4px rgb(13 12 11 / 0.3)"
+  },
+  "motion": {
+    "stamp-in": { "duration": "280ms", "timing": "cubic-bezier(0.34, 1.56, 0.64, 1)", "trigger": "confirmation mounts" },
+    "flicker-on": { "duration": "200ms", "steps": 2, "trigger": "live signal mounts" }
+  },
+  "components": [
+    {
+      "name": "ds-button-primary",
+      "props": {
+        "backgroundColor": "#C9A227",
+        "textColor": "#0D0C0B",
+        "typography": "title",
+        "rounded": "slip",
+        "padding": "12px 24px",
+        "height": "auto"
+      },
+      "code": "<button class=\"ds-button-primary\">Đặt lệnh</button>\n<style>\n  .ds-button-primary{background:#C9A227;color:#0D0C0B;font:700 14px/1.3 ui-sans-serif,system-ui,Aptos,Segoe UI,Roboto,sans-serif;padding:12px 24px;border-radius:10px;border:none;cursor:pointer;box-shadow:0 1px 2px rgb(13 12 11/.18),0 8px 24px -12px rgb(13 12 11/.35)}\n  .ds-button-primary:hover{background:#DDB84A}\n  .ds-button-primary:active{box-shadow:inset 0 2px 4px rgb(13 12 11/.3)}\n  .ds-button-primary:focus-visible{outline:2px solid #8A6E15;outline-offset:2px}\n</style>"
+    },
+    {
+      "name": "ds-button-secondary",
+      "props": {
+        "backgroundColor": "#FFFDF8",
+        "textColor": "#35322B",
+        "typography": "title",
+        "rounded": "slip",
+        "padding": "12px 24px"
+      },
+      "code": "<button class=\"ds-button-secondary\">Hủy phiếu</button>\n<style>\n  .ds-button-secondary{background:#FFFDF8;color:#35322B;font:700 14px/1.3 ui-sans-serif,system-ui,Aptos,Segoe UI,Roboto,sans-serif;padding:12px 24px;border-radius:10px;border:1px solid #E3DCCB;cursor:pointer}\n  .ds-button-secondary:hover{border-color:#C9A227;color:#8A6E15}\n  .ds-button-secondary:active{box-shadow:inset 0 2px 4px rgb(13 12 11/.12)}\n</style>"
+    },
+    {
+      "name": "ds-input",
+      "props": {
+        "backgroundColor": "#FFFDF8",
+        "textColor": "#171610",
+        "rounded": "md",
+        "padding": "8px 12px",
+        "height": "auto"
+      },
+      "code": "<input class=\"ds-input\" placeholder=\"Số cổ phiếu\">\n<style>\n  .ds-input{width:100%;background:#FFFDF8;color:#171610;font:400 14px/1.5 ui-sans-serif,system-ui,Aptos,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:8px;border:1px solid #B7AE9C;box-shadow:0 1px 2px rgb(13 12 11/.08)}\n  .ds-input::placeholder{color:#787166}\n  .ds-input:focus{outline:none;border-color:#8A6E15;box-shadow:0 0 0 3px rgb(201 162 39/.25)}\n  .ds-input:disabled{background:#EDE9E0;color:#6B6456;cursor:not-allowed}\n</style>"
+    },
+    {
+      "name": "ds-chip",
+      "props": {
+        "backgroundColor": "#F8F5EF",
+        "textColor": "#6B6456",
+        "rounded": "slip",
+        "padding": "4px 12px"
+      },
+      "code": "<button class=\"ds-chip\">Cổ phiếu ngân hàng</button>\n<style>\n  .ds-chip{background:#F8F5EF;color:#6B6456;font:700 12px/1.2 ui-sans-serif,system-ui,Aptos,Segoe UI,Roboto,sans-serif;padding:4px 12px;border-radius:10px;border:1px solid #E3DCCB;cursor:pointer}\n  .ds-chip:hover{border-color:#C9A227}\n  .ds-chip.is-selected{background:#C9A227;color:#0D0C0B;border-color:#C9A227}\n</style>"
+    },
+    {
+      "name": "ds-card",
+      "props": {
+        "backgroundColor": "#FFFDF8",
+        "textColor": "#171610",
+        "rounded": "slip",
+        "padding": "24px",
+        "shadow": "card"
+      },
+      "code": "<div class=\"ds-card\"><div class=\"ds-card-h\">BIỂU ĐỒ</div><div>…</div></div>\n<style>\n  .ds-card{background:#FFFDF8;color:#171610;font:400 14px/1.5 ui-sans-serif,system-ui,Aptos,Segoe UI,Roboto,sans-serif;border-radius:10px;padding:24px;border:1px solid #E3DCCB;box-shadow:0 1px 2px rgb(13 12 11/.18),0 8px 24px -12px rgb(13 12 11/.35)}\n  .ds-card-h{font:700 10px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.12em;text-transform:uppercase;color:#6B6456;padding-bottom:12px;border-bottom:1px solid #E3DCCB;margin-bottom:16px}\n</style>"
+    },
+    {
+      "name": "ds-board",
+      "props": {
+        "backgroundColor": "#0D0C0B",
+        "textColor": "#9E9A91",
+        "rounded": "md",
+        "padding": "8px 12px",
+        "shadow": "board"
+      },
+      "code": "<div class=\"ds-board\"><span class=\"ds-board-label\">TIỀN MẶT</span><span class=\"ds-board-num\">12.500.000</span></div>\n<style>\n  .ds-board{display:flex;flex-direction:column;gap:2px;background:#0D0C0B;color:#9E9A91;border-radius:8px;padding:8px 12px;box-shadow:inset 0 1px 0 0 rgb(255 255 255/.04),0 1px 0 0 rgb(0 0 0/.6)}\n  .ds-board-label{font:700 10px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.12em;text-transform:uppercase;color:#8B867C}\n  .ds-board-num{font:700 18px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;color:#F8F5EF}\n</style>"
+    },
+    {
+      "name": "ds-ticket",
+      "props": {
+        "backgroundColor": "#F8F5EF",
+        "textColor": "#171610",
+        "rounded": "sm",
+        "padding": "12px"
+      },
+      "code": "<div class=\"ds-ticket\"><div class=\"ds-ticket-notch\"></div><div class=\"ds-ticket-serial\">SỐ 07</div><span class=\"ds-stamp ds-stamp-success\">ĐÃ ĐIỂM DANH</span></div>\n<style>\n  .ds-ticket{position:relative;background:#F8F5EF;color:#171610;font:400 13px/1.4 ui-sans-serif,system-ui,Aptos,Segoe UI,Roboto,sans-serif;border:1px solid #E3DCCB;border-radius:2px;padding:12px 20px;box-shadow:0 1px 2px rgb(13 12 11/.12)}\n  .ds-ticket-notch{position:absolute;top:-1px;right:24px;width:12px;height:12px;background:#0D0C0B;border-radius:50%}\n  .ds-ticket-serial{font:700 11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.12em;color:#6B6456;margin-bottom:8px}\n</style>"
+    },
+    {
+      "name": "ds-stamp",
+      "props": {
+        "backgroundColor": "transparent",
+        "textColor": "#8A6E15",
+        "rounded": "sm",
+        "padding": "2px 8px",
+        "border": "1.5px solid currentColor"
+      },
+      "code": "<span class=\"ds-stamp ds-stamp-success\">HOÀN THÀNH</span>\n<style>\n  .ds-stamp{display:inline-block;font:700 11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border:1.5px solid currentColor;border-radius:2px;transform:rotate(-8deg);animation:ds-stamp-in .28s cubic-bezier(.34,1.56,.64,1)}\n  .ds-stamp-success{color:#8A6E15}\n  .ds-stamp-danger{color:#DC2626}\n  @keyframes ds-stamp-in{0%{transform:rotate(-8deg) scale(1.6);opacity:0}60%{transform:rotate(-8deg) scale(.95);opacity:1}100%{transform:rotate(-8deg) scale(1)}}\n</style>"
+    },
+    {
+      "name": "ds-nav-item",
+      "props": {
+        "backgroundColor": "transparent",
+        "textColor": "#6B6456",
+        "rounded": "slip",
+        "padding": "8px 12px"
+      },
+      "code": "<nav class=\"ds-nav\"><div class=\"ds-nav-item\">Giao dịch</div><div class=\"ds-nav-item is-active\">Tin tức</div></nav>\n<style>\n  .ds-nav{display:flex;flex-direction:column;gap:4px}\n  .ds-nav-item{color:#6B6456;font:700 14px/1.3 ui-sans-serif,system-ui,Aptos,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:10px;cursor:pointer}\n  .ds-nav-item:hover{color:#8A6E15}\n  .ds-nav-item.is-active{background:#C9A227;color:#0D0C0B;box-shadow:inset 0 2px 4px rgb(13 12 11/.3)}\n</style>"
+    }
+  ]
+}

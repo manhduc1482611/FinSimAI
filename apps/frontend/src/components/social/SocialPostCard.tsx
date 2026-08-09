@@ -11,6 +11,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/common/Badge";
+import { Avatar } from "@/components/common/Avatar";
 import { IconChat, IconHeart } from "@/components/common/Icon";
 import { Spinner } from "@/components/common/Spinner";
 import { toRequestError } from "@/services/api";
@@ -100,16 +101,19 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
   };
 
   return (
-    <article className="rounded-xl border border-ink-200 bg-white transition-shadow hover:shadow-sm dark:border-ink-700 dark:bg-ink-900">
+    <article className="rounded-xl border border-line bg-[#FFFDF8] transition-shadow hover:shadow-sm dark:border-granite-700 dark:bg-granite-900">
       <div className="flex items-center gap-3 p-4 pb-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">
-          {post.author_avatar ?? initial}
-        </div>
+        <Avatar
+          src={post.author_avatar}
+          alt={post.author_name}
+          fallback={initial}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-500/15 text-sm font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300"
+        />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-ink-900 dark:text-ink-100">
+          <p className="truncate text-sm font-semibold text-ink-900 dark:text-slip">
             {post.author_name}
           </p>
-          <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-500 dark:text-granite-400">
             <Badge variant="neutral">{personaLabel(post.persona_type)}</Badge>
             <span>·</span>
             <span>{formatRelativeTime(post.simulated_at)}</span>
@@ -120,11 +124,11 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
         </Badge>
       </div>
 
-      <p className="px-4 pb-3 whitespace-pre-line text-sm leading-relaxed text-ink-800 dark:text-ink-200">
+      <p className="px-4 pb-3 whitespace-pre-line text-sm leading-relaxed text-ink-800 dark:text-slip">
         {post.content}
       </p>
 
-      <div className="border-t border-ink-100 px-2 py-1 dark:border-ink-800">
+      <div className="border-t border-line px-2 py-1 dark:border-granite-800">
         <div className="flex items-center">
           <button
             type="button"
@@ -132,8 +136,8 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
             className={cn(
               "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
               post.liked_by_me
-                ? "text-red-600 dark:text-red-400"
-                : "text-ink-500 hover:bg-ink-50 hover:text-ink-800 dark:text-ink-400 dark:hover:bg-ink-800",
+                ? "text-mkt-down dark:text-mkt-down-400"
+                : "text-ink-500 hover:bg-brand-500/10 hover:text-ink-800 dark:text-granite-400 dark:hover:bg-granite-800",
             )}
             aria-pressed={post.liked_by_me}
           >
@@ -145,13 +149,13 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
           <button
             type="button"
             onClick={() => void loadComments()}
-            className="flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-ink-500 transition-colors hover:bg-ink-50 hover:text-ink-800 dark:text-ink-400 dark:hover:bg-ink-800"
+            className="flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-ink-500 transition-colors hover:bg-brand-500/10 hover:text-ink-800 dark:text-granite-400 dark:hover:bg-granite-800"
             aria-expanded={commentsOpen}
           >
             <IconChat className="h-4 w-4" />
             {commentsTotal > 0 ? `${commentsTotal} bình luận` : "Bình luận"}
           </button>
-          <span className="flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-ink-500 dark:text-ink-400">
+          <span className="flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-ink-500 dark:text-granite-400">
             <IconShare className="h-4 w-4" />
             {post.shares_count > 0 ? `${post.shares_count} chia sẻ` : "Chia sẻ"}
           </span>
@@ -159,13 +163,13 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
       </div>
 
       {commentsOpen && (
-        <div className="border-t border-ink-100 px-4 py-3 dark:border-ink-800">
+        <div className="border-t border-line px-4 py-3 dark:border-granite-800">
           {commentsStatus === "loading" ? (
             <div className="flex justify-center py-4">
               <Spinner size="sm" />
             </div>
           ) : commentsStatus === "error" ? (
-            <p className="py-2 text-center text-xs text-red-600 dark:text-red-400">{error}</p>
+            <p className="py-2 text-center text-xs text-mkt-down dark:text-mkt-down-400">{error}</p>
           ) : (
             <div className="space-y-3">
               {comments.map((comment) => (
@@ -176,7 +180,7 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
               )}
 
               <div className="flex items-start gap-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-500/15 text-xs font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">
                   {(user?.display_name ?? user?.username ?? "?").trim().charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -199,13 +203,13 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
                       type="button"
                       onClick={() => void handleComment()}
                       disabled={!user || commentText.trim().length === 0 || submitting}
-                      className="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-brand-500 dark:hover:bg-brand-600"
+                      className="shrink-0 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-granite-950 transition-colors hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-brand-400 dark:hover:bg-brand-300"
                     >
                       {submitting ? "Đang gửi…" : "Gửi"}
                     </button>
                   </div>
                   {error !== null && (
-                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>
+                    <p className="mt-1 text-xs text-mkt-down dark:text-mkt-down-400">{error}</p>
                   )}
                 </div>
               </div>
@@ -214,12 +218,12 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-ink-100 px-4 py-2.5 text-xs text-ink-500 dark:border-ink-800 dark:text-ink-400">
+      <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-2.5 text-xs text-ink-500 dark:border-granite-800 dark:text-granite-400">
         <Badge variant={sentimentVariant(post.sentiment)}>
           {sentimentLabel(post.sentiment)}
         </Badge>
         {post.company_id !== null && (
-          <span className="rounded-full bg-brand-50 px-2 py-0.5 font-medium text-brand-700 ring-1 ring-inset ring-brand-200 dark:bg-brand-500/10 dark:text-brand-300 dark:ring-brand-500/30">
+          <span className="rounded-full bg-brand-500/10 px-2 py-0.5 font-medium text-brand-700 ring-1 ring-inset ring-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300 dark:ring-brand-500/30">
             Nhắc tới doanh nghiệp
           </span>
         )}
@@ -235,12 +239,15 @@ function CommentRow({ comment }: { comment: SocialCommentResponse }) {
   const initial = comment.author_name.trim().charAt(0).toUpperCase();
   return (
     <div className="flex items-start gap-2">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-100 text-xs font-bold text-ink-600 dark:bg-ink-700 dark:text-ink-300">
-        {comment.author_avatar ?? initial}
-      </div>
-      <div className="min-w-0 rounded-lg bg-ink-50 px-3 py-2 dark:bg-ink-800">
-        <p className="text-xs font-semibold text-ink-900 dark:text-ink-100">{comment.author_name}</p>
-        <p className="mt-0.5 whitespace-pre-line text-sm text-ink-700 dark:text-ink-300">
+      <Avatar
+        src={comment.author_avatar}
+        alt={comment.author_name}
+        fallback={initial}
+        className="flex h-7 w-7 items-center justify-center rounded-full bg-ink-100 text-xs font-bold text-ink-600 dark:bg-granite-700 dark:text-granite-300"
+      />
+      <div className="min-w-0 rounded-lg bg-ink-50 px-3 py-2 dark:bg-granite-800">
+        <p className="text-xs font-semibold text-ink-900 dark:text-slip">{comment.author_name}</p>
+        <p className="mt-0.5 whitespace-pre-line text-sm text-ink-700 dark:text-granite-300">
           {comment.content}
         </p>
         <p className="mt-1 text-[10px] text-ink-400">{formatRelativeTime(comment.created_at)}</p>

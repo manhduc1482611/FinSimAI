@@ -12,7 +12,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
@@ -34,7 +34,25 @@ class SocialPost(Base):
     author_avatar: Mapped[str | None] = mapped_column(String(500))
     persona_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    sentiment: Mapped[str] = mapped_column(String(20), default="neutral", nullable=False)
+    sentiment: Mapped[str] = mapped_column(
+        ENUM("positive", "negative", "neutral", name="sentiment", create_type=False),
+        default="neutral",
+        nullable=False,
+    )
+    trap_type: Mapped[str | None] = mapped_column(
+        ENUM(
+            "fomo",
+            "panic",
+            "pump_dump",
+            "fake_news",
+            "whale_trap",
+            name="trap_type",
+            create_type=False,
+        )
+    )
+    is_trap: Mapped[bool] = mapped_column(
+        default=False, server_default="false", nullable=False
+    )
 
     virality_score: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     likes_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

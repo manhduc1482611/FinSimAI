@@ -54,13 +54,15 @@ async def start_ws_background(app: FastAPI) -> dict[str, Any]:
     broadcaster — từ đây mọi ``broadcast_to_room`` đi qua Redis để phát tán giữa
     các worker/replica, không chỉ trong RAM của process hiện tại.
     """
-    from realtime import backplane, price_ws, trade_ws
+    from realtime import backplane, market_sim, price_ws, trade_ws
 
     connection_manager.attach_backplane(backplane.backplane)
     await backplane.backplane.start()
+    await market_sim.market_sim.start()
     await price_ws.price_broadcaster.start()
     await trade_ws.trade_notifier.start()
     return {
+        "market_sim": market_sim.market_sim,
         "price_broadcaster": price_ws.price_broadcaster,
         "trade_notifier": trade_ws.trade_notifier,
         "backplane": backplane.backplane,

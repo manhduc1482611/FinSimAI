@@ -105,26 +105,24 @@ export function OrderBook({ symbol, price, levels = 10 }: OrderBookProps) {
 
   return (
     <Card className="flex h-full flex-col">
-      <div className="border-b border-ink-200 px-4 py-3 dark:border-ink-700">
+      <div className="border-b border-line px-4 py-3 dark:border-granite-700">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">Sổ lệnh</h3>
-            <p className="text-xs text-ink-500 dark:text-ink-400">{symbol}</p>
+            <h3 className="text-sm font-bold text-ink-900 dark:text-slip">Sổ lệnh</h3>
+            <p className="board-num text-xs text-ink-500 dark:text-granite-300">{symbol}</p>
           </div>
-          <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-500 dark:bg-ink-700 dark:text-ink-300">
-            Mô phỏng
-          </span>
+          <span className="stamp text-[10px]">Mô phỏng</span>
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-lg bg-red-50 px-3 py-1.5 dark:bg-red-500/10">
-            <p className="text-[10px] uppercase tracking-wide text-red-500">Giá mua tốt nhất</p>
-            <p className="font-bold tabular-nums text-red-600 dark:text-red-400">
+          <div className="board">
+            <p className="board-label text-mkt-down-400">Giá mua tốt nhất</p>
+            <p className="board-num text-sm font-bold text-mkt-down dark:text-mkt-down-400">
               {bestBid !== null ? formatNumber(bestBid.price, 2) : "—"}
             </p>
           </div>
-          <div className="rounded-lg bg-emerald-50 px-3 py-1.5 dark:bg-emerald-500/10">
-            <p className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-500">Giá bán tốt nhất</p>
-            <p className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+          <div className="board">
+            <p className="board-label text-mkt-up-400">Giá bán tốt nhất</p>
+            <p className="board-num text-sm font-bold text-mkt-up dark:text-mkt-up-400">
               {bestAsk !== null ? formatNumber(bestAsk.price, 2) : "—"}
             </p>
           </div>
@@ -134,13 +132,13 @@ export function OrderBook({ symbol, price, levels = 10 }: OrderBookProps) {
       <div className="min-h-[16rem] flex-1 px-4 py-3">
         {book === null ? (
           <div className="flex h-full min-h-[14rem] items-center justify-center">
-            <p className="text-sm text-ink-400 dark:text-ink-500">
+            <p className="text-sm text-ink-400 dark:text-granite-400">
               Chờ giá live để dựng sổ lệnh…
             </p>
           </div>
         ) : (
           <>
-            <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-ink-400 dark:text-ink-500">
+            <div className="mb-1 flex items-center justify-between board-label text-ink-400 dark:text-granite-400">
               <span>Giá</span>
               <span>KL (lũy kế)</span>
             </div>
@@ -152,11 +150,11 @@ export function OrderBook({ symbol, price, levels = 10 }: OrderBookProps) {
                   key={`ask-${level.price}`}
                   className="relative flex items-center justify-between rounded px-2 py-1 text-xs"
                 >
-                  <span className="absolute inset-0 rounded bg-emerald-500/10" style={{ width: `${depthPercent(level, book.maxCumulative)}%` }} />
-                  <span className="relative font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  <span className="absolute inset-0 rounded bg-mkt-up/10" style={{ width: `${depthPercent(level, book.maxCumulative)}%` }} />
+                  <span className="board-num relative font-semibold text-mkt-up dark:text-mkt-up-400">
                     {formatNumber(level.price, 2)}
                   </span>
-                  <span className="relative text-ink-600 dark:text-ink-300">
+                  <span className="board-num relative text-ink-600 dark:text-granite-300">
                     {formatQuantity(level.cumulative)}
                   </span>
                 </div>
@@ -164,12 +162,12 @@ export function OrderBook({ symbol, price, levels = 10 }: OrderBookProps) {
             </div>
 
             {/* Mid */}
-            <div className="my-1.5 flex items-center justify-between rounded-lg bg-ink-100 px-2 py-1 text-xs dark:bg-ink-700">
-              <span className="font-semibold text-ink-600 dark:text-ink-300">Mid</span>
-              <span className="font-bold tabular-nums text-ink-900 dark:text-ink-100">
+            <div className="my-1.5 flex items-center justify-between rounded-lg bg-ink-100 px-2 py-1 text-xs dark:bg-granite-800">
+              <span className="font-semibold text-ink-600 dark:text-granite-300">Mid</span>
+              <span className="board-num font-bold text-ink-900 dark:text-slip">
                 {formatNumber(book.mid, 2)}
               </span>
-              <span className="text-ink-400 dark:text-ink-500">
+              <span className="board-label text-ink-400 dark:text-granite-400">
                 {spread !== null ? `Spread ${formatNumber(spread, 2)}` : ""}
               </span>
             </div>
@@ -181,11 +179,11 @@ export function OrderBook({ symbol, price, levels = 10 }: OrderBookProps) {
                   key={`bid-${level.price}`}
                   className="relative flex items-center justify-between rounded px-2 py-1 text-xs"
                 >
-                  <span className="absolute inset-0 rounded bg-red-500/10" style={{ width: `${depthPercent(level, book.maxCumulative)}%` }} />
-                  <span className="relative font-semibold tabular-nums text-red-600 dark:text-red-400">
+                  <span className="absolute inset-0 rounded bg-mkt-down/10" style={{ width: `${depthPercent(level, book.maxCumulative)}%` }} />
+                  <span className="board-num relative font-semibold text-mkt-down dark:text-mkt-down-400">
                     {formatNumber(level.price, 2)}
                   </span>
-                  <span className="relative text-ink-600 dark:text-ink-300">
+                  <span className="board-num relative text-ink-600 dark:text-granite-300">
                     {formatQuantity(level.cumulative)}
                   </span>
                 </div>

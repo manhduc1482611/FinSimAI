@@ -154,14 +154,14 @@ export function TradePanel({
           </SelectField>
         )}
 
-        <div className="flex gap-1 rounded-lg border border-ink-200 bg-ink-100 p-1">
+        <div className="flex gap-1 rounded-lg border border-ink-200 bg-ink-100 p-1 dark:border-granite-700 dark:bg-granite-950">
           <button
             type="button"
             className={cn(
-              "flex-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors",
+              "flex-1 rounded-md px-3 py-1.5 text-sm font-bold transition-colors",
               side === "buy"
-                ? "bg-emerald-600 text-white"
-                : "text-ink-600 hover:bg-white",
+                ? "bg-mkt-up text-white"
+                : "text-ink-600 hover:bg-white dark:text-granite-300 dark:hover:bg-granite-800",
             )}
             onClick={() => setSide("buy")}
           >
@@ -170,10 +170,10 @@ export function TradePanel({
           <button
             type="button"
             className={cn(
-              "flex-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors",
+              "flex-1 rounded-md px-3 py-1.5 text-sm font-bold transition-colors",
               side === "sell"
-                ? "bg-red-600 text-white"
-                : "text-ink-600 hover:bg-white",
+                ? "bg-mkt-down text-white"
+                : "text-ink-600 hover:bg-white dark:text-granite-300 dark:hover:bg-granite-800",
             )}
             onClick={() => setSide("sell")}
           >
@@ -181,12 +181,12 @@ export function TradePanel({
           </button>
         </div>
 
-        <div className="flex gap-1 rounded-lg border border-ink-200 bg-ink-100 p-1">
+        <div className="flex gap-1 rounded-lg border border-ink-200 bg-ink-100 p-1 dark:border-granite-700 dark:bg-granite-950">
           <button
             type="button"
             className={cn(
-              "flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-              type === "market" ? "bg-white shadow-sm" : "text-ink-600",
+              "flex-1 rounded-md px-3 py-1.5 text-xs font-bold transition-colors",
+              type === "market" ? "bg-brand-500 text-granite-950" : "text-ink-600 dark:text-granite-300",
             )}
             onClick={() => setType("market")}
           >
@@ -195,8 +195,8 @@ export function TradePanel({
           <button
             type="button"
             className={cn(
-              "flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-              type === "limit" ? "bg-white shadow-sm" : "text-ink-600",
+              "flex-1 rounded-md px-3 py-1.5 text-xs font-bold transition-colors",
+              type === "limit" ? "bg-brand-500 text-granite-950" : "text-ink-600 dark:text-granite-300",
             )}
             onClick={() => setType("limit")}
           >
@@ -205,9 +205,9 @@ export function TradePanel({
         </div>
 
         {selectedCompany !== null && (
-          <div className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-xs">
-            <span className="text-ink-500">Giá hiện tại</span>
-            <span className="font-bold text-ink-900">
+          <div className="board flex items-center justify-between">
+            <span className="board-label">Giá hiện tại</span>
+            <span className="board-num text-sm font-bold text-slip">
               {formatNumber(parseDecimal(selectedCompany.current_price))} ₫
             </span>
           </div>
@@ -236,33 +236,33 @@ export function TradePanel({
         />
 
         {estimatedCost !== null && (
-          <div className="flex items-center justify-between rounded-lg border border-ink-100 bg-ink-50 px-3 py-2 text-sm">
-            <span className="text-ink-500">
+          <div className="board flex items-center justify-between">
+            <span className="board-label">
               {side === "buy" ? "Ước tính chi phí" : "Ước tính thu về"}
             </span>
-            <span className="font-bold text-ink-900">{formatNumber(estimatedCost)} ₫</span>
+            <span className="board-num text-sm font-bold text-slip">{formatNumber(estimatedCost)} ₫</span>
           </div>
         )}
 
         {side === "buy" && token !== null && (
-          <div className="flex items-center justify-between text-xs text-ink-400">
+          <div className="flex items-center justify-between text-xs text-ink-400 dark:text-granite-400">
             <span>Vốn khả dụng</span>
-            <span>{formatNumber(availableCash)} ₫</span>
+            <span className="board-num">{formatNumber(availableCash)} ₫</span>
           </div>
         )}
 
         {fieldError !== null && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          <div className="rounded-lg border border-mkt-down/40 bg-mkt-down/10 px-3 py-2 text-xs text-mkt-down dark:text-mkt-down-400">
             {fieldError}
           </div>
         )}
         {orderError !== null && fieldError === null && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          <div className="rounded-lg border border-mkt-down/40 bg-mkt-down/10 px-3 py-2 text-xs text-mkt-down dark:text-mkt-down-400">
             {orderError}
           </div>
         )}
         {result !== null && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+          <div className="rounded-lg border border-brand-500/50 bg-brand-500/10 px-3 py-2 text-xs font-medium text-brand-700 dark:text-brand-300">
             {result}
           </div>
         )}

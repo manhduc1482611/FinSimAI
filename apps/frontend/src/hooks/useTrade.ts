@@ -15,17 +15,19 @@ export function useTrade() {
   const orders = useTradeStore((state) => state.orders);
   const status = useTradeStore((state) => state.status);
   const orderStatus = useTradeStore((state) => state.orderStatus);
+  const cancelStatus = useTradeStore((state) => state.cancelStatus);
   const error = useTradeStore((state) => state.error);
   const lastOrder = useTradeStore((state) => state.lastOrder);
   const fetchPortfolio = useTradeStore((state) => state.fetchPortfolio);
   const listOrders = useTradeStore((state) => state.listOrders);
   const submitOrder = useTradeStore((state) => state.submitOrder);
+  const cancelOrder = useTradeStore((state) => state.cancelOrder);
 
-  const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) {
+    if (!user) {
       setTicketUrl(null);
       return;
     }
@@ -43,7 +45,7 @@ export function useTrade() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [user]);
 
   useWebSocket({
     url: ticketUrl,
@@ -57,16 +59,17 @@ export function useTrade() {
   });
 
    useEffect(() => {
-     if (!token) return;
+     if (!user) return;
      void fetchPortfolio();
      void listOrders();
-   }, [token, fetchPortfolio, listOrders]);
+   }, [user, fetchPortfolio, listOrders]);
 
   return {
     portfolio,
     orders,
     status,
     orderStatus,
+    cancelStatus,
     error,
     lastOrder,
     refresh: () => {
@@ -74,5 +77,6 @@ export function useTrade() {
       void listOrders();
     },
     submitOrder,
+    cancelOrder,
   };
 }

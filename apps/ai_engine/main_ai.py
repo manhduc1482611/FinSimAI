@@ -13,6 +13,8 @@ import os
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from routers.mentor import router as mentor_router
+
 logger = logging.getLogger("ai_engine_api")
 
 app = FastAPI(
@@ -23,6 +25,8 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
+
+app.include_router(mentor_router)
 
 
 @app.get("/health/live", tags=["health"])

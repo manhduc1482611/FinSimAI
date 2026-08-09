@@ -20,8 +20,8 @@ function toMessage(error: string | RequestError | null): string {
 
 export function ErrorPanel({ error, onRetry }: ErrorPanelProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 py-8 text-center dark:border-red-500/30 dark:bg-red-500/10">
-      <p className="text-sm font-semibold text-red-700 dark:text-red-400">{toMessage(error)}</p>
+    <div className="flex flex-col items-center justify-center rounded-xl border border-mkt-down/40 bg-mkt-down/10 px-6 py-8 text-center">
+      <p className="text-sm font-semibold text-mkt-down dark:text-mkt-down-400">{toMessage(error)}</p>
       {onRetry !== undefined && (
         <Button variant="secondary" size="sm" className="mt-3" onClick={onRetry}>
           Thử lại

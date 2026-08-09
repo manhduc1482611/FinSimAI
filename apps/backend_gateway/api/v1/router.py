@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from api.v1.admin import router as admin_router
+from api.v1.ai_sync import router as ai_sync_router
 from api.v1.auth import router as auth_router
 from api.v1.companies import router as companies_router
 from api.v1.contests import router as contests_router
@@ -16,6 +17,7 @@ from api.v1.users import router as users_router
 api_router = APIRouter(prefix="/api/v1")
 
 api_router.include_router(auth_router)
+api_router.include_router(ai_sync_router)
 api_router.include_router(users_router)
 api_router.include_router(companies_router)
 api_router.include_router(trades_router)

@@ -16,17 +16,21 @@ body {
 }
 
 body {
-  @apply bg-ink-50 text-ink-900 antialiased;
+  @apply bg-slip text-ink-900 antialiased;
 }
 
 .dark body {
-  @apply bg-ink-900 text-ink-100;
+  @apply bg-granite-950 text-ink-100;
 }
 
-/* Scrollbar nhẹ nhàng, vừa với bảng giá */
+/* Scrollbar khớp chất liệu */
 * {
   scrollbar-width: thin;
   scrollbar-color: theme("colors.ink.300") transparent;
+}
+
+.dark * {
+  scrollbar-color: theme("colors.granite.600") transparent;
 }
 
 *::-webkit-scrollbar {
@@ -38,41 +42,127 @@ body {
   @apply rounded-full bg-ink-300;
 }
 
+.dark *::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-granite-600;
+}
+
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 
 @layer components {
+  /* Phiếu nội dung — mặt giấy ấm, viền tóc, bóng mềm */
   .card {
-    @apply rounded-xl border border-ink-200 bg-white shadow-card;
+    @apply rounded-slip border border-ink-200 bg-[#FFFDF8] shadow-card;
   }
 
   .dark .card {
-    @apply border-ink-700/80 bg-ink-800 shadow-none;
+    @apply border-granite-700 bg-granite-900 shadow-none;
   }
 
+  /* Bảng điều khiển (rate board) — mặt bảng tối, số mono */
+  .board {
+    @apply rounded-lg border border-granite-700 bg-granite-950 px-3 py-2 shadow-board;
+  }
+
+  .dark .board {
+    @apply border-granite-700 bg-granite-900;
+  }
+
+  /* Nhãn kiểu bảng hiệu */
+  .board-label {
+    @apply font-mono text-[10px] uppercase tracking-board text-ink-400;
+  }
+
+  .dark .board-label {
+    @apply text-granite-300;
+  }
+
+  /* Chữ số trên bảng */
+  .board-num {
+    @apply font-mono tabular-nums;
+  }
+
+  /* Vé chờ (queue ticket) — stub có cạnh khía + số thứ tự */
+  .ticket {
+    @apply relative rounded-slip border border-ink-200 bg-[#FFFDF8] shadow-card;
+  }
+
+  .dark .ticket {
+    @apply border-granite-700 bg-granite-900 shadow-none;
+  }
+
+  .ticket-notch {
+    @apply relative;
+  }
+
+  .ticket-notch::before,
+  .ticket-notch::after {
+    content: "";
+    @apply absolute left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-transparent;
+  }
+
+  .ticket-notch::before {
+    @apply -top-1.5 border border-ink-200 border-b-0 bg-transparent;
+  }
+
+  .ticket-notch::after {
+    @apply -bottom-1.5 border border-ink-200 border-t-0 bg-transparent;
+  }
+
+  .dark .ticket-notch::before,
+  .dark .ticket-notch::after {
+    @apply border-granite-600;
+  }
+
+  /* Dấu xác nhận giao dịch */
+  .stamp {
+    @apply inline-flex select-none items-center rounded-sm border-2 border-brand-600 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-board text-brand-700;
+  }
+
+  .dark .stamp {
+    @apply border-brand-400 text-brand-400;
+  }
+
+  .stamp-success {
+    @apply border-mkt-up text-mkt-up;
+  }
+
+  .dark .stamp-success {
+    @apply border-mkt-up-400 text-mkt-up-400;
+  }
+
+  .stamp-danger {
+    @apply border-mkt-down text-mkt-down;
+  }
+
+  .dark .stamp-danger {
+    @apply border-mkt-down-400 text-mkt-down-400;
+  }
+
+  /* Input — dòng trên phiếu */
   .input {
-    @apply w-full rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-ink-100;
+    @apply w-full rounded-lg border border-ink-300 bg-[#FFFDF8] px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/25 disabled:cursor-not-allowed disabled:bg-ink-100;
   }
 
   .dark .input {
-    @apply border-ink-700 bg-ink-800 text-ink-100 placeholder:text-ink-500 focus:border-brand-500 disabled:bg-ink-900;
+    @apply border-granite-600 bg-granite-950 text-ink-100 placeholder:text-granite-400 focus:border-brand-400 disabled:bg-granite-900;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/40 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-granite-950 transition-[background-color,box-shadow] hover:bg-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/40 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .dark .btn-primary {
-    @apply bg-brand-500 hover:bg-brand-600;
+    @apply bg-brand-400 text-granite-950 hover:bg-brand-300;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-ink-300 bg-white px-4 py-2 text-sm font-semibold text-ink-700 transition-colors hover:bg-ink-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-ink-300 bg-[#FFFDF8] px-4 py-2 text-sm font-semibold text-ink-700 transition-colors hover:border-brand-500 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .dark .btn-secondary {
-    @apply border-ink-700 bg-ink-800 text-ink-200 hover:bg-ink-700;
+    @apply border-granite-600 bg-granite-900 text-ink-200 hover:border-brand-400 hover:text-brand-300;
   }
 
   .btn-ghost {
@@ -80,15 +170,15 @@ body {
   }
 
   .dark .btn-ghost {
-    @apply text-ink-300 hover:bg-ink-800 hover:text-ink-100;
+    @apply text-granite-200 hover:bg-granite-800 hover:text-slip;
   }
 
   .label {
-    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-500;
+    @apply mb-1 block font-mono text-[11px] font-semibold uppercase tracking-board text-ink-500;
   }
 
   .dark .label {
-    @apply text-ink-400;
+    @apply text-granite-300;
   }
 }
 

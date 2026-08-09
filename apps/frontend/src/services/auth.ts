@@ -11,9 +11,16 @@ import type {
 
 import { apiClient } from "@/services/api";
 
-/** POST /auth/login → nhận access token. */
+/** POST /auth/login → nhận access + refresh token. */
 export function login(credentials: LoginRequest): Promise<TokenResponse> {
   return apiClient.post<TokenResponse>("/api/v1/auth/login", credentials);
+}
+
+/** POST /auth/refresh → xoay vòng cặp token (access cũ hết hạn). */
+export function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
+  return apiClient.post<TokenResponse>("/api/v1/auth/refresh", {
+    refresh_token: refreshToken,
+  });
 }
 
 /** POST /auth/register → tạo tài khoản mới, trả user đã tạo. */

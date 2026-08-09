@@ -7,9 +7,10 @@ Client gửi câu hỏi, server trả về chuỗi chunk:
     {"type": "mentor_end", "data": {"session_id", "reason"}}        (server)
     {"action": "cancel", "session_id": "..."}                       (client → server)
 
-``MentorStreamProvider`` là interface trừu tượng. Hiện tại dùng
-``StaticMentorStream`` (rule-based, 0 token AI) làm placeholder — Giai đoạn 3 sẽ thay
-bằng luồng streaming từ AI Engine mà không phải sửa giao thức WebSocket.
+``MentorStreamProvider`` là interface trừu tượng. Nguồn mặc định là
+``HybridMentorStream``: deterministic question-bank (0 token Gemini) làm chính,
+gọi ai_engine/Gemini CHỈ khi ``MENTOR_LLM_MODE=on`` + giới hạn lượt — mọi lỗi
+quota/mạng đều tự rơi về deterministic, không sửa giao thức WebSocket.
 
 Chống rò rỉ tài nguyên:
 - Mỗi chunk gửi qua ``manager.send`` đều kiểm tra kết quả: nếu client đã ngắt kết
@@ -27,6 +28,7 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol, cast
 
+from clients.mentor_client import mentor_client
 from core.config import settings
 from fastapi import WebSocket
 
@@ -37,6 +39,7 @@ from realtime.connection_manager import (
     build_message,
     connection_manager,
 )
+from realtime.mentor_engine import reply_to_text, socratic_reply
 
 logger = logging.getLogger(__name__)
 
@@ -55,41 +58,8 @@ class MentorStreamProvider(Protocol):
         ...
 
 
-def _socratic_reply(message: str) -> str:
-    text = (message or "").lower()
-    if any(k in text for k in ("mua", "buy", "nên mua", "xuống tiền")):
-        return (
-            "Bạn đang muốn mua — hãy tự vấn trước khi hành động: bạn có đọc tin tức "
-            "về ngành/doanh nghiệp đó hôm nay không? Giá đang ở vùng nào so với hỗ trợ "
-            "và kháng cự? Nếu không trả lời được 2 câu trên, đó có thể là FOMO. "
-            "Dừng lại, kiểm chứng, rồi hãy đặt lệnh."
-        )
-    if any(k in text for k in ("bán", "sell", "cắt lỗ", "chốt lời")):
-        return (
-            "Bạn định bán — lý do là gì: giá chạm cắt lỗ theo kế hoạch, hay chỉ vì "
-            "thấy người khác bán? Bán theo cảm xúc đám đông thường là bán tháo. "
-            "Hãy đối chiếu giá hiện tại với mức hỗ trợ và tin tức trước khi quyết định."
-        )
-    if any(k in text for k in ("p/e", "pe", "định giá", "lợi nhuận", "roa", "roe")):
-        return (
-            "Câu hỏi về chỉ số định giá rất tốt. Hãy so sánh P/E của doanh nghiệp với "
-            "trung bình ngành, kiểm tra biên lợi nhuận và ROE trong 3 kỳ gần nhất. "
-            "Một con số thấp chưa đủ — cần xem cả tăng trưởng và rủi ro nội tại."
-        )
-    if any(k in text for k in ("chào", "hello", "hi ", "xin chào", "giúp")):
-        return (
-            "Xin chào! Tôi là Mentor — tôi sẽ đặt câu hỏi ngược lại để bạn suy nghĩ "
-            "kỹ trước khi giao dịch. Bạn đang quan tâm cổ phiếu hay chiến lược nào?"
-        )
-    return (
-        "Để tôi phản biện giúp bạn: quyết định bạn đang cân nhắc dựa trên dữ liệu "
-        "(tin tức, báo cáo, giá) hay cảm xúc? Hãy nêu rõ giả định của bạn, và chúng "
-        "ta sẽ kiểm chứng từng giả định một."
-    )
-
-
 def _chunk_text(text: str, size: int = _CHUNK_SIZE) -> AsyncIterator[str]:
-    """Chia nhỏ text thành chunk — placeholder cho AI streaming thật."""
+    """Chia nhỏ text thành chunk để stream (0 token AI)."""
 
     async def _generate() -> AsyncIterator[str]:
         for i in range(0, len(text), size):
@@ -99,8 +69,14 @@ def _chunk_text(text: str, size: int = _CHUNK_SIZE) -> AsyncIterator[str]:
     return _generate()
 
 
-class StaticMentorStream:
-    """Placeholder rule-based — thay bằng AI Engine ở Giai đoạn 3."""
+class DeterministicMentorStream:
+    """Phản hồi Socratic deterministic (question-bank, 0 token Gemini).
+
+    Đây là nguồn mặc định của Mentor — Mentor luôn trả lời mà không tốn lượt AI.
+    """
+
+    def __init__(self, company: str = "") -> None:
+        self._company = company
 
     async def stream(
         self,
@@ -109,11 +85,62 @@ class StaticMentorStream:
         message: str,
         session_id: str,
     ) -> AsyncIterator[str]:
-        async for chunk in _chunk_text(_socratic_reply(message)):
+        reply = socratic_reply(message, company=self._company)
+        async for chunk in _chunk_text(reply_to_text(reply)):
             yield chunk
 
 
-mentor_stream_provider = StaticMentorStream()
+class HybridMentorStream:
+    """Mentor chính: deterministic mặc định, Gemini tuỳ chọn + giới hạn lượt.
+
+    Gemini chỉ được gọi khi ``MENTOR_LLM_MODE=on`` VÀ cấu hình ``AI_ENGINE_URL``
+    — và ngay khi đó vẫn bị ai_engine giới hạn bởi token bucket (RPM/BURST).
+    Mọi lỗi (quota, mạng, timeout, ai_engine down) → tự rơi về deterministic,
+    không bao giờ để người chơi đợi mất phản hồi.
+    """
+
+    def __init__(
+        self,
+        deterministic: DeterministicMentorStream | None = None,
+        client: Any | None = None,
+    ) -> None:
+        self._deterministic = deterministic or DeterministicMentorStream()
+        self._client = client if client is not None else mentor_client
+
+    @property
+    def llm_enabled(self) -> bool:
+        return settings.mentor_llm_mode == "on" and bool(settings.ai_engine_url)
+
+    async def stream(
+        self,
+        *,
+        user_id: str,
+        message: str,
+        session_id: str,
+    ) -> AsyncIterator[str]:
+        text: str | None = None
+        if self.llm_enabled:
+            reply = await self._client.ask(
+                message=message,
+                user_id=user_id,
+                session_id=session_id,
+            )
+            if reply and isinstance(reply.get("questions"), list):
+                questions = [str(q) for q in reply["questions"]]
+                tip = str(reply.get("coaching_tip") or "")
+                disclaimer = str(reply.get("disclaimer") or "")
+                text = "\n".join([*questions, "", f"Bài tập: {tip}", "", disclaimer])
+        if text is None:
+            async for chunk in self._deterministic.stream(
+                user_id=user_id, message=message, session_id=session_id
+            ):
+                yield chunk
+            return
+        async for chunk in _chunk_text(text):
+            yield chunk
+
+
+mentor_stream_provider = HybridMentorStream()
 
 
 @dataclass

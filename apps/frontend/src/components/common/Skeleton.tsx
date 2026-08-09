@@ -11,7 +11,7 @@ export interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
 export function Skeleton({ className, ...rest }: SkeletonProps) {
   return (
     <div
-      className={cn("animate-pulse rounded-md bg-ink-200/70 dark:bg-ink-700/70", className ?? "h-4 w-full")}
+      className={cn("animate-pulse rounded-md bg-ink-200/70 dark:bg-granite-700/70", className ?? "h-4 w-full")}
       aria-hidden="true"
       {...rest}
     />

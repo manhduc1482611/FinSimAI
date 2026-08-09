@@ -25,7 +25,7 @@ export interface SocraticMentor {
 }
 
 export function useSocraticMentor(): SocraticMentor {
-  const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
   const messages = useMentorStore((state) => state.messages);
   const isStreaming = useMentorStore((state) => state.isStreaming);
   const isReady = useMentorStore((state) => state.isReady);
@@ -34,7 +34,7 @@ export function useSocraticMentor(): SocraticMentor {
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) {
+    if (!user) {
       setTicketUrl(null);
       useMentorStore.getState().setReady(false);
       return;
@@ -57,7 +57,7 @@ export function useSocraticMentor(): SocraticMentor {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [user]);
 
   const { status: wsStatus, sendMessage } = useWebSocket({
     url: ticketUrl,

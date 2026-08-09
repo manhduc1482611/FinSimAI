@@ -56,7 +56,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
   return (
     <div className="mx-auto max-w-5xl">
       <nav className="mb-4 text-sm text-ink-500">
-        <Link href="/companies" className="hover:text-brand-600">
+        <Link href="/companies" className="hover:text-brand-700 dark:hover:text-brand-300">
           ← Doanh nghiệp
         </Link>
       </nav>
@@ -65,23 +65,23 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
         <CardBody className="px-6 py-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-ink-900 dark:text-ink-100">{company.symbol}</h1>
-              <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">{company.name}</p>
-              <p className="text-xs text-ink-400 dark:text-ink-500">{sectorLabel(company.sector)}</p>
+              <h1 className="text-2xl font-bold text-ink-900 dark:text-slip">{company.symbol}</h1>
+              <p className="mt-1 text-sm text-ink-500 dark:text-granite-400">{company.name}</p>
+              <p className="text-xs text-ink-400 dark:text-granite-400">{sectorLabel(company.sector)}</p>
             </div>
             <div className="shrink-0 text-right">
-              <p className="text-3xl font-bold text-ink-900 dark:text-ink-100">
+              <p className="text-3xl font-bold text-ink-900 dark:text-slip board-num">
                 {formatNumber(price, 2)}
-                <span className="ml-1 text-sm font-normal text-ink-400 dark:text-ink-500">₫</span>
+                <span className="ml-1 text-sm font-normal text-ink-400 dark:text-granite-400">₫</span>
               </p>
-              <p className="text-xs text-ink-400 dark:text-ink-500">
+              <p className="text-xs text-ink-400 dark:text-granite-400">
                 Vốn hóa {marketCap !== null ? formatCompactVND(marketCap) : "—"}
               </p>
             </div>
           </div>
 
           {company.description !== null && (
-            <p className="mt-4 text-sm leading-relaxed text-ink-700 dark:text-ink-300">
+            <p className="mt-4 text-sm leading-relaxed text-ink-700 dark:text-granite-300">
               {company.description}
             </p>
           )}
@@ -100,8 +100,8 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
       <Card className="mt-6">
         <CardBody className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">Giao dịch nhanh</h3>
-            <p className="text-sm text-ink-500 dark:text-ink-400">
+            <h3 className="text-sm font-semibold text-ink-900 dark:text-slip">Giao dịch nhanh</h3>
+            <p className="text-sm text-ink-500 dark:text-granite-400">
               Đặt lệnh mua/bán {company.symbol} tại mức giá {formatNumber(price, 2)} ₫
             </p>
           </div>

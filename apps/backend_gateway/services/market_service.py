@@ -1,5 +1,8 @@
 import asyncio
 import logging
+import math
+import random
+import time
 import uuid
 from decimal import Decimal
 from typing import Any
@@ -20,12 +23,31 @@ def make_seed(base: int | None, company_id: uuid.UUID) -> int | None:
     return base ^ (company_id.int & 0x7FFFFFFF)
 
 
+def _fallback_price(
+    current_price: float,
+    sigma: float,
+    dt_years: float,
+    seed: int | None,
+) -> float:
+    """GBM nội bộ dùng stdlib — chỉ chạy khi Math Engine không khả dụng."""
+    rng = random.Random(seed) if seed is not None else random.Random()
+    mu = 0.0
+    return current_price * math.exp(
+        (mu - 0.5 * sigma * sigma) * dt_years
+        + sigma * math.sqrt(dt_years) * rng.gauss(0.0, 1.0)
+    )
+
+
+_LAST_FALLBACK_LOG = 0.0
+
+
 async def _fetch_price_values(
     current_price: float,
     volatility: float,
     dt_years: float,
     seed: int | None,
 ) -> Decimal | None:
+    global _LAST_FALLBACK_LOG
     result = await math_client.generate_next_prices(
         current_price=current_price,
         mu=0.0,
@@ -35,8 +57,17 @@ async def _fetch_price_values(
         seed=seed,
     )
     if not result["success"] or not result["prices"]:
-        return None
-    return Decimal(str(round(result["prices"][0], 2)))
+        now = time.monotonic()
+        if now - _LAST_FALLBACK_LOG > 60.0:
+            _LAST_FALLBACK_LOG = now
+            logger.warning(
+                "Math Engine unavailable — dùng GBM fallback nội bộ cho giá thị trường"
+            )
+        return Decimal(str(round(_fallback_price(current_price, volatility, dt_years, seed), 2)))
+    # Math Engine trả path `[start, step1, ...]` (n_steps phần tử mới + 1 phần tử
+    # đầu = giá hiện tại). Phải lấy phần tử CUỐI (giá mới) — lấy `[0]` khiến giá
+    # ghi về đúng giá cũ, thị trường đứng yên.
+    return Decimal(str(round(result["prices"][-1], 2)))
 
 
 async def _fetch_price(

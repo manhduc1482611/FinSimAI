@@ -103,7 +103,7 @@ export default function SocialPage() {
         <div className="min-w-0 space-y-4">
           <SocialComposer onPosted={handlePosted} />
 
-          <div className="flex flex-col gap-3 rounded-xl border border-ink-200 bg-white p-3 sm:flex-row sm:items-end dark:border-ink-700 dark:bg-ink-900">
+          <div className="flex flex-col gap-3 rounded-xl border border-line bg-[#FFFDF8] p-3 sm:flex-row sm:items-end dark:border-granite-700 dark:bg-granite-900">
             <SelectField
               label="Nhóm persona"
               value={personaType}
@@ -128,7 +128,7 @@ export default function SocialPage() {
                 </option>
               ))}
             </SelectField>
-            <div className="text-sm text-ink-500 sm:ml-auto sm:pb-2 dark:text-ink-400">
+            <div className="text-sm text-ink-500 sm:ml-auto sm:pb-2 dark:text-granite-400">
               {total} bài đăng
             </div>
           </div>
@@ -142,14 +142,14 @@ export default function SocialPage() {
           ) : status === "error" ? (
             <ErrorPanel error={error} onRetry={() => void load()} />
           ) : posts.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-ink-300 bg-white px-6 py-16 text-center dark:border-ink-700 dark:bg-ink-900">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100 text-ink-400 dark:bg-ink-800">
+            <div className="rounded-xl border border-dashed border-line bg-[#FFFDF8] px-6 py-16 text-center dark:border-granite-600 dark:bg-granite-900">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-line bg-ink-50 text-ink-400 dark:border-granite-700 dark:bg-granite-800 dark:text-granite-400">
                 <IconEmpty className="h-6 w-6" />
               </div>
-              <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">
+              <h3 className="text-sm font-black text-ink-900 dark:text-slip">
                 Không có bài đăng phù hợp
               </h3>
-              <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+              <p className="mt-1 text-sm text-ink-500 dark:text-granite-400">
                 Hãy thay đổi bộ lọc persona hoặc tâm lý.
               </p>
             </div>
@@ -172,7 +172,7 @@ export default function SocialPage() {
         </aside>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-ink-500 dark:text-ink-400">
+      <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-ink-500 dark:text-granite-400">
         <span>Tâm lý:</span>
         {SENTIMENT_OPTIONS.map((option) => (
           <Badge key={option.value} variant={sentimentVariant(option.value)}>

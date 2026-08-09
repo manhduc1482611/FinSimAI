@@ -14,6 +14,7 @@ import type {
 
 import { toRequestError } from "@/services/api";
 import {
+  cancelOrder as apiCancelOrder,
   createOrder as apiCreateOrder,
   fetchPortfolio as apiFetchPortfolio,
   listOrders as apiListOrders,
@@ -27,11 +28,14 @@ interface TradeState {
   status: AsyncStatus;
   /** Trạng thái đặt lệnh (riêng để UI hiển thị nút chờ). */
   orderStatus: AsyncStatus;
+  /** Trạng thái huỷ lệnh (nút Huỷ chờ khi đang gọi API). */
+  cancelStatus: AsyncStatus;
   error: string | null;
   lastOrder: OrderResponse | null;
   fetchPortfolio: () => Promise<void>;
   listOrders: () => Promise<void>;
   submitOrder: (body: OrderRequest) => Promise<OrderResponse>;
+  cancelOrder: (orderId: string) => Promise<void>;
   reset: () => void;
 }
 
@@ -40,6 +44,7 @@ export const useTradeStore = create<TradeState>()((set, get) => ({
   orders: [],
   status: "idle",
   orderStatus: "idle",
+  cancelStatus: "idle",
   error: null,
   lastOrder: null,
 
@@ -77,12 +82,25 @@ export const useTradeStore = create<TradeState>()((set, get) => ({
     }
   },
 
+  cancelOrder: async (orderId) => {
+    set({ cancelStatus: "loading", error: null });
+    try {
+      await apiCancelOrder(orderId);
+      set({ cancelStatus: "success" });
+      await Promise.all([get().fetchPortfolio(), get().listOrders()]);
+    } catch (error) {
+      set({ cancelStatus: "error", error: toRequestError(error).detail });
+      throw error;
+    }
+  },
+
   reset: () => {
     set({
       portfolio: null,
       orders: [],
       status: "idle",
       orderStatus: "idle",
+      cancelStatus: "idle",
       error: null,
       lastOrder: null,
     });

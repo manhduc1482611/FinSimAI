@@ -30,7 +30,7 @@ export function CompanyCard({ company }: { company: CompanyResponse }) {
     >
       <div className="mb-2 flex items-start justify-between gap-2">
         <div>
-          <p className="text-base font-bold text-ink-900">{company.symbol}</p>
+          <p className="text-base font-bold text-ink-900 dark:text-slip">{company.symbol}</p>
           <p className="truncate text-xs text-ink-500">{company.name}</p>
         </div>
         <Badge variant={healthTone(company.health_score)}>
@@ -38,10 +38,10 @@ export function CompanyCard({ company }: { company: CompanyResponse }) {
         </Badge>
       </div>
 
-      <div className="mt-3 flex items-end justify-between border-t border-ink-100 pt-3">
+      <div className="mt-3 flex items-end justify-between border-t border-line pt-3">
         <div>
           <p className="text-[10px] uppercase tracking-wide text-ink-400">Giá</p>
-          <p className="text-lg font-bold text-ink-900">
+          <p className="text-lg font-bold text-ink-900 dark:text-slip board-num">
             {formatNumber(price, 2)}
             <span className="ml-1 text-xs font-normal text-ink-400">₫</span>
           </p>

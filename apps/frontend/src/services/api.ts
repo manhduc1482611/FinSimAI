@@ -36,6 +36,7 @@ export function getApiBaseUrl(): string {
 }
 
 const TOKEN_STORAGE_KEY = "finsim.access_token";
+const REFRESH_TOKEN_STORAGE_KEY = "finsim.refresh_token";
 
 export function readStoredToken(): string | null {
   if (typeof window === "undefined") {
@@ -57,6 +58,32 @@ export function writeStoredToken(token: string | null): void {
       window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
     } else {
       window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // localStorage không khả dụng (private mode) — phiên chỉ sống trong RAM.
+  }
+}
+
+export function readStoredRefreshToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    return window.localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoredRefreshToken(token: string | null): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    if (token) {
+      window.localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, token);
+    } else {
+      window.localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
     }
   } catch {
     // localStorage không khả dụng (private mode) — phiên chỉ sống trong RAM.
@@ -147,15 +174,36 @@ export function buildQueryString<T extends object>(params: T | undefined): strin
 class ApiClient {
   private resolveBaseUrl: () => string;
   private accessToken: string | null;
+  private refreshToken: string | null;
+  /** Promise refresh đang chạy dở — nhiều request 401 cùng lúc chỉ gọi 1 lần. */
+  private refreshing: Promise<string | null> | null = null;
 
   constructor(resolveBaseUrl: () => string) {
     this.resolveBaseUrl = resolveBaseUrl;
     this.accessToken = null;
+    this.refreshToken = null;
   }
 
   setAccessToken(token: string | null): void {
     this.accessToken = token;
     writeStoredToken(token);
+  }
+
+  setRefreshToken(token: string | null): void {
+    this.refreshToken = token;
+    writeStoredRefreshToken(token);
+  }
+
+  setTokens(accessToken: string | null, refreshToken: string | null): void {
+    this.setAccessToken(accessToken);
+    this.setRefreshToken(refreshToken);
+  }
+
+  clearTokens(): void {
+    this.accessToken = null;
+    this.refreshToken = null;
+    writeStoredToken(null);
+    writeStoredRefreshToken(null);
   }
 
   private get token(): string | null {
@@ -166,7 +214,54 @@ class ApiClient {
     return this.accessToken;
   }
 
-  async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  private get storedRefreshToken(): string | null {
+    if (this.refreshToken !== null) {
+      return this.refreshToken;
+    }
+    this.refreshToken = readStoredRefreshToken();
+    return this.refreshToken;
+  }
+
+  /** Gọi /auth/refresh một lần (dùng chung cho mọi request 401 đang chờ). */
+  private async tryRefresh(): Promise<string | null> {
+    const refreshToken = this.storedRefreshToken;
+    if (!refreshToken) {
+      return null;
+    }
+    if (!this.refreshing) {
+      this.refreshing = (async () => {
+        try {
+          const response = await fetch(
+            `${this.resolveBaseUrl().replace(/\/+$/, "")}/api/v1/auth/refresh`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ refresh_token: refreshToken }),
+            },
+          );
+          if (!response.ok) {
+            return null;
+          }
+          const data = (await response.json()) as {
+            access_token?: string;
+            refresh_token?: string;
+          };
+          if (!data.access_token) {
+            return null;
+          }
+          this.setTokens(data.access_token, data.refresh_token ?? refreshToken);
+          return data.access_token;
+        } catch {
+          return null;
+        } finally {
+          this.refreshing = null;
+        }
+      })();
+    }
+    return this.refreshing;
+  }
+
+  async request<T>(path: string, init: RequestInit = {}, allowRetry = true): Promise<T> {
     const headers = new Headers(init.headers);
     const token = this.token;
     if (token) {
@@ -182,6 +277,24 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      // Token hết hạn → thử refresh một lần rồi chạy lại request. Chỉ thất bại
+      // (refresh cũng 401 / refresh token hết hạn) mới đăng xuất.
+      // Loại trừ /auth/login để không phá luồng đăng nhập khi nhập sai mật khẩu.
+      if (
+        response.status === 401 &&
+        token !== null &&
+        !path.includes("/auth/login")
+      ) {
+        if (path.includes("/auth/refresh")) {
+          this.clearTokens();
+          this.emitUnauthorized();
+        } else if (allowRetry && (await this.tryRefresh())) {
+          return this.request<T>(path, init, false);
+        } else {
+          this.clearTokens();
+          this.emitUnauthorized();
+        }
+      }
       let apiError: ApiError | null = null;
       try {
         const body = (await response.json()) as ApiError;
@@ -205,6 +318,12 @@ class ApiClient {
       return undefined as T;
     }
     return (await response.json()) as T;
+  }
+
+  private emitUnauthorized(): void {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("finsim:unauthorized"));
+    }
   }
 
   get<T>(path: string, params?: ListQuery): Promise<T> {

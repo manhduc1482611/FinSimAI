@@ -54,15 +54,15 @@ export default function CompaniesPage() {
         title="Doanh nghiệp"
         description="Khám phá và so sánh sức khỏe tài chính của các công ty trong mô phỏng."
         actions={
-          <div className="flex items-center gap-1 rounded-lg border border-ink-200 bg-white p-1 dark:border-ink-700 dark:bg-ink-900">
+          <div className="flex items-center gap-1 rounded-lg border border-line bg-[#FFFDF8] p-1 dark:border-granite-700 dark:bg-granite-900">
             <button
               type="button"
               onClick={() => setView("grid")}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-colors",
                 view === "grid"
-                  ? "bg-brand-600 text-white"
-                  : "text-ink-500 hover:bg-ink-100 dark:text-ink-400 dark:hover:bg-ink-800",
+                  ? "bg-brand-500 text-granite-950 shadow-board"
+                  : "text-ink-500 hover:bg-brand-500/10 dark:text-granite-400 dark:hover:bg-granite-800",
               )}
             >
               <IconGrid className="h-4 w-4" />
@@ -72,10 +72,10 @@ export default function CompaniesPage() {
               type="button"
               onClick={() => setView("map")}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-colors",
                 view === "map"
-                  ? "bg-brand-600 text-white"
-                  : "text-ink-500 hover:bg-ink-100 dark:text-ink-400 dark:hover:bg-ink-800",
+                  ? "bg-brand-500 text-granite-950 shadow-board"
+                  : "text-ink-500 hover:bg-brand-500/10 dark:text-granite-400 dark:hover:bg-granite-800",
               )}
             >
               <IconMap className="h-4 w-4" />

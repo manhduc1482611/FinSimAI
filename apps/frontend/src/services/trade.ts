@@ -28,3 +28,8 @@ export function listOrders(query: OrderQuery = {}): Promise<OrderResponse[]> {
 export function createOrder(body: OrderRequest): Promise<OrderResponse> {
   return apiClient.post<OrderResponse>("/api/v1/trades/orders", body);
 }
+
+/** POST /trades/orders/{id}/cancel → huỷ lệnh đang chờ khớp, hoàn tiền/CP đóng băng. */
+export function cancelOrder(orderId: string): Promise<OrderResponse> {
+  return apiClient.post<OrderResponse>(`/api/v1/trades/orders/${orderId}/cancel`);
+}

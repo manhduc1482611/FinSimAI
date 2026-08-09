@@ -71,8 +71,8 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Trade Terminal"
-        description="Biểu đồ nến real-time, sổ lệnh, đặt lệnh và danh mục — một màn hình duy nhất."
+        title="Bàn giao dịch"
+        description="Biểu đồ nến real-time, sổ lệnh, đặt lệnh và danh mục — một quầy duy nhất."
         actions={
           <Button
             variant="secondary"
@@ -88,7 +88,7 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
       {/* Thanh chọn mã */}
       <div className="flex flex-wrap items-center gap-2">
         {companiesStatus === "loading" && companies.length === 0 ? (
-          <span className="text-sm text-ink-500 dark:text-ink-400">Đang tải danh sách công ty…</span>
+          <span className="text-sm text-ink-500 dark:text-granite-400">Đang tải danh sách công ty…</span>
         ) : companiesStatus === "error" ? (
           <span className="text-sm text-red-600 dark:text-red-400">
             {companiesError} —{" "}
@@ -109,15 +109,15 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
                     className={cn(
                       "shrink-0 rounded-lg border px-3 py-1.5 text-left transition-colors",
                       active
-                        ? "border-brand-600 bg-brand-600 text-white shadow-sm"
-                        : "border-ink-200 bg-white text-ink-700 hover:border-brand-400 hover:text-brand-700 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300 dark:hover:border-brand-500 dark:hover:text-brand-300",
+                        ? "border-brand-500 bg-brand-500 text-granite-950 shadow-board"
+                        : "border-ink-200 bg-[#FFFDF8] text-ink-700 hover:border-brand-500 hover:text-brand-700 dark:border-granite-700 dark:bg-granite-900 dark:text-granite-200 dark:hover:border-brand-400 dark:hover:text-brand-300",
                     )}
                   >
-                    <span className="text-sm font-bold">{company.symbol}</span>
+                    <span className="board-num text-sm font-black">{company.symbol}</span>
                     <span
                       className={cn(
-                        "ml-2 text-xs tabular-nums",
-                        active ? "text-brand-100" : "text-ink-400 dark:text-ink-500",
+                        "board-num ml-2 text-xs",
+                        active ? "text-granite-900/80" : "text-ink-400 dark:text-granite-400",
                       )}
                     >
                       {formatCompactPrice(company.current_price)}
@@ -127,8 +127,8 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
               })}
             </div>
             {priceStream.snapshot !== null && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/30">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+              <span className="stamp stamp-success animate-flicker-on">
+                <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-mkt-up" />
                 Live
               </span>
             )}
@@ -183,6 +183,7 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
         status={trade.status}
         error={trade.error}
         onRetry={trade.refresh}
+        onCancel={(orderId) => void trade.cancelOrder(orderId)}
       />
 
       <MentorChat />

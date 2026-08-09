@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { Badge } from "@/components/common/Badge";
+import { Avatar } from "@/components/common/Avatar";
 import { Button } from "@/components/common/Button";
 import { IconUser } from "@/components/common/Icon";
 import { listCompanies } from "@/services/companies";
@@ -74,13 +75,13 @@ export function SocialComposer({ onPosted }: SocialComposerProps) {
 
   if (!user) {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-dashed border-ink-300 bg-white px-5 py-4 dark:border-ink-700 dark:bg-ink-900">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink-100 text-ink-400 dark:bg-ink-800">
+      <div className="flex items-center gap-3 rounded-xl border border-dashed border-line bg-[#FFFDF8] px-5 py-4 dark:border-granite-700 dark:bg-granite-900">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-ink-50 text-ink-400 dark:border-granite-700 dark:bg-granite-800 dark:text-granite-400">
           <IconUser className="h-5 w-5" />
         </div>
-        <p className="text-sm text-ink-600 dark:text-ink-300">
+        <p className="text-sm text-ink-600 dark:text-granite-300">
           Đăng nhập để chia sẻ góc nhìn của bạn và tương tác like/bình luận.{" "}
-          <Link href="/login" className="font-semibold text-brand-600 hover:underline dark:text-brand-400">
+          <Link href="/login" className="font-semibold text-brand-700 hover:underline dark:text-brand-300">
             Đăng nhập →
           </Link>
         </p>
@@ -91,11 +92,14 @@ export function SocialComposer({ onPosted }: SocialComposerProps) {
   const canPost = content.trim().length > 0 && !submitting;
 
   return (
-    <div className="rounded-xl border border-ink-200 bg-white p-4 dark:border-ink-700 dark:bg-ink-900">
+    <div className="rounded-xl border border-line bg-[#FFFDF8] p-4 dark:border-granite-700 dark:bg-granite-900">
       <div className="flex gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">
-          {user.avatar_url ?? initial}
-        </div>
+        <Avatar
+          src={user.avatar_url}
+          alt={user.display_name ?? user.username}
+          fallback={initial}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-500/15 text-sm font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300"
+        />
         <div className="min-w-0 flex-1">
           <textarea
             ref={textareaRef}
@@ -130,7 +134,7 @@ export function SocialComposer({ onPosted }: SocialComposerProps) {
               Đăng bài
             </Button>
           </div>
-          {error !== null && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
+          {error !== null && <p className="mt-2 text-xs text-mkt-down dark:text-mkt-down-400">{error}</p>}
         </div>
       </div>
     </div>

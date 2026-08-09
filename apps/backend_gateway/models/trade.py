@@ -14,7 +14,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
@@ -117,9 +117,28 @@ class Order(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False
     )
-    side: Mapped[str] = mapped_column(String(10), nullable=False)
-    type: Mapped[str] = mapped_column(String(10), default="limit", nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    side: Mapped[str] = mapped_column(
+        ENUM("buy", "sell", name="order_side", create_type=False),
+        nullable=False,
+    )
+    type: Mapped[str] = mapped_column(
+        ENUM("market", "limit", name="order_type", create_type=False),
+        default="limit",
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        ENUM(
+            "pending",
+            "filled",
+            "partially_filled",
+            "cancelled",
+            "rejected",
+            name="order_status",
+            create_type=False,
+        ),
+        default="pending",
+        nullable=False,
+    )
     price: Mapped[Decimal | None] = mapped_column(Numeric(20, 2))
     quantity: Mapped[Decimal] = mapped_column(Numeric(20, 4), nullable=False)
     filled_quantity: Mapped[Decimal] = mapped_column(
@@ -175,7 +194,10 @@ class Transaction(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False
     )
-    side: Mapped[str] = mapped_column(String(10), nullable=False)
+    side: Mapped[str] = mapped_column(
+        ENUM("buy", "sell", name="order_side", create_type=False),
+        nullable=False,
+    )
     quantity: Mapped[Decimal] = mapped_column(Numeric(20, 4), nullable=False)
     price: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
     fee: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=Decimal("0.00"), nullable=False)

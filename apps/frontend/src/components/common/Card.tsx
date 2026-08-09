@@ -33,15 +33,15 @@ export function CardHeader({
 }: CardHeaderProps) {
   return (
     <div
-      className={cn("flex items-start justify-between gap-4 border-b border-ink-200 px-4 py-3 dark:border-ink-700", className)}
+      className={cn("flex items-start justify-between gap-4 border-b border-line px-4 py-3 dark:border-granite-700", className)}
       {...rest}
     >
       <div className="min-w-0">
         {title !== undefined && (
-          <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">{title}</h3>
+          <h3 className="text-sm font-semibold text-ink-900 dark:text-slip">{title}</h3>
         )}
         {description !== undefined && (
-          <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">{description}</p>
+          <p className="mt-0.5 text-xs text-ink-500 dark:text-granite-400">{description}</p>
         )}
       </div>
       {action !== undefined && <div className="shrink-0">{action}</div>}

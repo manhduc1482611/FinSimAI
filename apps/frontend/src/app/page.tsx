@@ -62,15 +62,15 @@ export default function LandingPage() {
   }, [token, user, router]);
 
   return (
-    <div className="min-h-screen bg-ink-50">
-      <header className="border-b border-ink-200 bg-white">
+    <div className="min-h-screen bg-slip dark:bg-granite-950">
+      <header className="border-b border-line bg-[#FFFDF8] dark:border-granite-700 dark:bg-granite-900">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-black text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-500 text-sm font-black text-granite-950 shadow-board">
               F
             </span>
-            <span className="text-base font-bold text-ink-900">
-              FinSim<span className="text-brand-600">AI</span>
+            <span className="text-base font-black text-ink-900 dark:text-slip">
+              FinSim<span className="text-brand-700 dark:text-brand-300">AI</span>
             </span>
           </div>
           <nav className="flex items-center gap-3">
@@ -86,17 +86,14 @@ export default function LandingPage() {
 
       <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
         <section className="text-center">
-          <p className="mx-auto inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-200">
-            Môi trường mô phỏng · Thời gian nén 1 phút = N ngày
-          </p>
-          <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold tracking-tight text-ink-900 sm:text-5xl">
+          <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-black tracking-tight text-ink-900 dark:text-slip sm:text-5xl">
             Luyện giao dịch không cần{" "}
-            <span className="text-brand-600">mất tiền thật</span>
+            <span className="text-brand-700 dark:text-brand-300">mất tiền thật</span>
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-base text-ink-600">
+          <p className="mx-auto mt-4 max-w-2xl text-base text-ink-600 dark:text-granite-300">
+            Môi trường mô phỏng với thời gian nén: 1 phút trôi qua là nhiều ngày.
             Đọc tin tức, phân tích doanh nghiệp, đặt lệnh và học hỏi từ AI Mentor
-            phản biện theo phương pháp Socratic — tất cả trong một môi trường
-            mô phỏng an toàn.
+            phản biện theo phương pháp Socratic — tất cả an toàn.
           </p>
           <div className="mt-8 flex items-center justify-center gap-3">
             <Link href="/register" className="btn-primary px-6 py-3 text-base">
@@ -115,22 +112,22 @@ export default function LandingPage() {
               <Link
                 key={feature.title}
                 href={feature.href}
-                className="card group p-6 transition-shadow hover:shadow-md"
+                className="card group p-6 transition-shadow hover:shadow-card"
               >
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md border border-brand-500/30 bg-brand-500/10 text-brand-700 dark:text-brand-300">
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="text-sm font-semibold text-ink-900 group-hover:text-brand-700">
+                <h3 className="text-sm font-black text-ink-900 group-hover:text-brand-700 dark:text-slip dark:group-hover:text-brand-300">
                   {feature.title}
                 </h3>
-                <p className="mt-1 text-sm text-ink-500">{feature.description}</p>
+                <p className="mt-1 text-sm text-ink-500 dark:text-granite-400">{feature.description}</p>
               </Link>
             );
           })}
         </section>
       </main>
 
-      <footer className="border-t border-ink-200 bg-white py-6 text-center text-xs text-ink-400">
+      <footer className="border-t border-line bg-[#FFFDF8] py-6 text-center text-xs text-ink-400 dark:border-granite-700 dark:bg-granite-900 dark:text-granite-400">
         FinSimAI © 2026 — Môi trường mô phỏng, không phải lời khuyên đầu tư thật.
       </footer>
     </div>

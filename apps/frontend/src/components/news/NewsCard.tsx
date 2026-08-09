@@ -26,21 +26,21 @@ export function NewsCard({ news }: { news: NewsResponse }) {
         <span className="text-xs text-ink-400">{formatRelativeTime(news.simulated_at)}</span>
       </div>
 
-      <h3 className="line-clamp-2 text-sm font-semibold text-ink-900 group-hover:text-brand-700">
+      <h3 className="line-clamp-2 text-sm font-semibold text-ink-900 group-hover:text-brand-700 dark:text-slip">
         {news.title}
       </h3>
       {news.summary !== null && (
         <p className="mt-1 line-clamp-2 text-xs text-ink-500">{news.summary}</p>
       )}
 
-      <div className="mt-3 flex items-center justify-between border-t border-ink-100 pt-3">
+      <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
         <span className="truncate text-xs text-ink-400">
           {newsCategoryLabel(news.category)} · {news.source}
         </span>
         <span
           className={cn(
             "flex shrink-0 items-center gap-1 text-xs font-semibold",
-            positive ? "text-emerald-600" : "text-red-600",
+            positive ? "text-mkt-up" : "text-mkt-down",
           )}
           title={`Mức tác động ${news.impact_score}/10`}
         >

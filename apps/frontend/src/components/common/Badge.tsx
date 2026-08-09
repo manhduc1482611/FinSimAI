@@ -15,15 +15,15 @@ export interface BadgeProps {
 
 const VARIANT_CLASSES: Record<BadgeVariant, string> = {
   neutral:
-    "bg-ink-100 text-ink-700 ring-ink-200 dark:bg-ink-700 dark:text-ink-200 dark:ring-ink-600",
+    "bg-ink-100 text-ink-700 ring-ink-200 dark:bg-granite-700 dark:text-granite-200 dark:ring-granite-600",
   success:
-    "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/30",
+    "bg-mkt-up/10 text-mkt-up ring-mkt-up/30 dark:bg-mkt-up-400/10 dark:text-mkt-up-400 dark:ring-mkt-up-400/30",
   warning:
-    "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/30",
+    "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/30",
   danger:
-    "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/30",
+    "bg-mkt-down/10 text-mkt-down ring-mkt-down/30 dark:bg-mkt-down-400/10 dark:text-mkt-down-400 dark:ring-mkt-down-400/30",
   info:
-    "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-400 dark:ring-sky-500/30",
+    "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-400/10 dark:text-sky-300 dark:ring-sky-400/30",
 };
 
 export function Badge({ variant = "neutral", className, children }: BadgeProps) {

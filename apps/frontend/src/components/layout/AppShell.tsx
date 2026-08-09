@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-ink-50 dark:bg-ink-900">
+    <div className="min-h-screen bg-slip dark:bg-granite-950">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="lg:pl-64">
         <Header onOpenSidebar={() => setSidebarOpen(true)} />

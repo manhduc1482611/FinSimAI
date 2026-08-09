@@ -116,7 +116,7 @@ export default function AdminUsersPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400 dark:border-ink-700">
+                  <tr className="board-label border-b border-line dark:border-granite-700">
                     <th className="px-4 py-3 font-semibold">Người dùng</th>
                     <th className="px-4 py-3 font-semibold">Role</th>
                     <th className="px-4 py-3 font-semibold">Trạng thái</th>
@@ -124,14 +124,14 @@ export default function AdminUsersPage() {
                     <th className="px-4 py-3 font-semibold">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-ink-100 dark:divide-ink-700/60">
+                <tbody className="divide-y divide-line dark:divide-granite-800">
                   {data?.items.map((user) => {
                     const isSelf = user.id === currentUser?.id;
                     const busy = busyId === user.id;
                     return (
                       <tr key={user.id}>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-ink-900 dark:text-ink-100">
+                          <p className="font-medium text-ink-900 dark:text-slip">
                             {user.display_name ?? user.username}
                           </p>
                           <p className="text-xs text-ink-400">{user.email}</p>

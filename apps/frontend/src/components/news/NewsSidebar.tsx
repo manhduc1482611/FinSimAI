@@ -22,8 +22,8 @@ export function NewsSidebar({ items }: { items: NewsResponse[] }) {
 
   return (
     <div className="space-y-5 lg:sticky lg:top-24">
-      <section className="rounded-xl border border-ink-200 bg-white p-4 dark:border-ink-700 dark:bg-ink-900">
-        <h2 className="mb-3 border-b border-ink-100 pb-2 text-sm font-bold uppercase tracking-wide text-ink-900 dark:border-ink-800 dark:text-ink-100">
+      <section className="rounded-xl border border-line bg-[#FFFDF8] p-4 dark:border-granite-700 dark:bg-granite-900">
+        <h2 className="mb-3 border-b border-line pb-2 text-sm font-bold uppercase tracking-wide text-ink-900 dark:text-slip dark:border-granite-800">
           Tin đáng chú ý
         </h2>
         <ol className="space-y-3">
@@ -31,7 +31,7 @@ export function NewsSidebar({ items }: { items: NewsResponse[] }) {
             <li key={news.id}>
               <Link
                 href={`/news/${news.id}`}
-                className="group block text-sm text-ink-800 transition-colors hover:text-brand-700 dark:text-ink-200 dark:hover:text-brand-400"
+                className="group block text-sm text-ink-800 transition-colors hover:text-brand-700 dark:text-slip dark:hover:text-brand-400"
               >
                 <span className="line-clamp-2 font-medium group-hover:underline">{news.title}</span>
                 <span className="mt-1 flex items-center gap-1.5 text-xs text-ink-400">
@@ -40,7 +40,7 @@ export function NewsSidebar({ items }: { items: NewsResponse[] }) {
                   <span
                     className={cn(
                       "font-semibold",
-                      news.impact_score >= 5 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400",
+                      news.impact_score >= 5 ? "text-mkt-up dark:text-mkt-up-400" : "text-mkt-down dark:text-mkt-down-400",
                     )}
                   >
                     {news.impact_score.toFixed(1)}
@@ -53,8 +53,8 @@ export function NewsSidebar({ items }: { items: NewsResponse[] }) {
         </ol>
       </section>
 
-      <section className="rounded-xl border border-ink-200 bg-white p-4 dark:border-ink-700 dark:bg-ink-900">
-        <h2 className="mb-3 border-b border-ink-100 pb-2 text-sm font-bold uppercase tracking-wide text-ink-900 dark:border-ink-800 dark:text-ink-100">
+      <section className="rounded-xl border border-line bg-[#FFFDF8] p-4 dark:border-granite-700 dark:bg-granite-900">
+        <h2 className="mb-3 border-b border-line pb-2 text-sm font-bold uppercase tracking-wide text-ink-900 dark:text-slip dark:border-granite-800">
           Chuyên mục
         </h2>
         <ul className="space-y-1">
@@ -63,10 +63,10 @@ export function NewsSidebar({ items }: { items: NewsResponse[] }) {
               type="button"
               onClick={() => setFilters({ category: undefined })}
               className={cn(
-                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-ink-50 dark:hover:bg-ink-800",
+                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-brand-500/10 dark:hover:bg-granite-800",
                 filters.category === undefined
                   ? "font-semibold text-brand-700 dark:text-brand-400"
-                  : "text-ink-600 dark:text-ink-300",
+                  : "text-ink-600 dark:text-granite-300",
               )}
             >
               <span>Tất cả</span>
@@ -79,10 +79,10 @@ export function NewsSidebar({ items }: { items: NewsResponse[] }) {
                 type="button"
                 onClick={() => setFilters({ category: entry.value })}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-ink-50 dark:hover:bg-ink-800",
+                  "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-brand-500/10 dark:hover:bg-granite-800",
                   filters.category === entry.value
                     ? "font-semibold text-brand-700 dark:text-brand-400"
-                    : "text-ink-600 dark:text-ink-300",
+                    : "text-ink-600 dark:text-granite-300",
                 )}
               >
                 <span>{entry.label}</span>

@@ -17,7 +17,7 @@ const SIZE_CLASSES: Record<SpinnerSize, string> = {
 export function Spinner({ size = "md", className }: SpinnerProps) {
   return (
     <svg
-      className={cn("animate-spin text-brand-600", SIZE_CLASSES[size], className)}
+      className={cn("animate-spin text-brand-600 dark:text-brand-400", SIZE_CLASSES[size], className)}
       viewBox="0 0 24 24"
       fill="none"
       role="status"

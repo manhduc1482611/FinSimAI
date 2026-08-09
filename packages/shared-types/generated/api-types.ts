@@ -30,7 +30,9 @@ export interface RegisterRequest {
 // ─── USER · TOKEN_RESPONSE ───
 export interface TokenResponse {
   access_token: string
+  refresh_token?: string | null
   token_type?: string
+  expires_in?: number | null
 }
 
 // ─── USER · USER_RESPONSE ───

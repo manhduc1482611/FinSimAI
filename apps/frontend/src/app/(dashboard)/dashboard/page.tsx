@@ -1,5 +1,6 @@
 /**
  * Bảng điều khiển người dùng — tổng quan + lối vào các khu vực chính.
+ * Chất liệu: mặt quầy — dải board NAV/streak + các quầy (slip) của từng khu vực.
  */
 "use client";
 
@@ -29,6 +30,7 @@ const SECTIONS = [
     icon: IconNews,
     title: "Tin tức",
     description: "Cảm xúc thị trường & mức tác động.",
+    stamp: "Bắt đầu hành trình",
   },
   {
     href: "/companies",
@@ -66,6 +68,7 @@ const SECTIONS = [
     title: "Nhiệm vụ & Thưởng",
     description: "Điểm danh, hoàn thành nhiệm vụ nhận thưởng.",
     highlight: true,
+    stamp: "Ưu tiên",
   },
 ];
 
@@ -74,6 +77,9 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<TaskListResponse | null>(null);
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
     let active = true;
     void listTasks()
       .then((data) => {
@@ -87,7 +93,7 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user]);
 
   const todayCompleted =
     tasks?.tasks.filter((t) => t.task.reset_frequency === "daily" && t.completed).length ?? 0;
@@ -99,10 +105,10 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title={user ? `Xin chào, ${user.display_name ?? user.username}!` : "Bảng điều khiển"}
-        description="Chọn khu vực để bắt đầu — dữ liệu được mô phỏng trong môi trường an toàn."
+        description="Chọn quầy để bắt đầu — dữ liệu được mô phỏng trong môi trường an toàn."
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
         <QuickStat
           icon={IconCalendar}
           label="Nhiệm vụ hôm nay"
@@ -123,7 +129,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {SECTIONS.map((section) => {
           const Icon = section.icon;
           return (
@@ -131,19 +137,27 @@ export default function DashboardPage() {
               key={section.href}
               href={section.href}
               className={
-                "card group p-6 transition-shadow hover:shadow-md " +
-                (section.highlight
-                  ? "border-brand-300 bg-brand-50/50 dark:border-brand-700 dark:bg-brand-500/10"
-                  : "")
+                "card group relative p-5 transition-all hover:-translate-y-0.5 hover:shadow-card " +
+                (section.highlight ? "border-brand-500/60 dark:border-brand-400/50" : "")
               }
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+              {section.stamp !== undefined && (
+                <span
+                  className={
+                    "stamp absolute -right-2 -top-2 rotate-[-8deg] " +
+                    (section.highlight ? "" : "stamp-success")
+                  }
+                >
+                  {section.stamp}
+                </span>
+              )}
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-brand-500/12 text-brand-700 dark:bg-brand-400/10 dark:text-brand-300">
                 <Icon className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-semibold text-ink-900 group-hover:text-brand-700 dark:text-ink-100">
+              <h3 className="text-sm font-bold text-ink-900 group-hover:text-brand-700 dark:text-slip">
                 {section.title}
               </h3>
-              <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">{section.description}</p>
+              <p className="mt-1 text-sm text-ink-500 dark:text-granite-300">{section.description}</p>
             </Link>
           );
         })}
@@ -164,15 +178,16 @@ function QuickStat({
   href: string;
 }) {
   return (
-    <Link href={href} className="card flex items-center gap-3 p-4 transition-shadow hover:shadow-md">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+    <Link
+      href={href}
+      className="board group flex items-center gap-3 p-4 transition-colors hover:border-brand-500/70"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-500/15 text-brand-400">
         <Icon className="h-5 w-5" />
       </span>
       <span className="min-w-0">
-        <span className="block text-xs text-ink-500 dark:text-ink-400">{label}</span>
-        <span className="block truncate text-base font-bold text-ink-900 dark:text-ink-100">
-          {value}
-        </span>
+        <span className="board-label block">{label}</span>
+        <span className="board-num block truncate text-lg font-bold text-slip">{value}</span>
       </span>
     </Link>
   );

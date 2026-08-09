@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-secret-change-me"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+    # Refresh token: số ngày hiệu lực. Access token ngắn (60m) + refresh dài ngày
+    # giúp user khỏi phải đăng nhập lại thường xuyên mà vẫn thu hồi được phiên.
+    refresh_token_expire_days: int = 30
+    # Chống brute-force đăng nhập: tối đa số lần thất bại trong cửa sổ (giây)
+    # tính theo identifier (email/username) VÀ theo IP — cái nào vượt trước là chặn.
+    login_rate_limit_max: int = 10
+    login_rate_limit_window_seconds: int = 60
     cors_origins: Annotated[list[str], NoDecode] = [
         "http://localhost:3000",
         "http://localhost:3001",
@@ -46,6 +53,18 @@ class Settings(BaseSettings):
 
     math_engine_url: str = "http://localhost:8000"
 
+    # ─── Mentor ────────────────────────────────────────────────────────────
+    # AI Engine (ai-engine-api). Mentor mặc định chạy deterministic question-bank
+    # (0 token Gemini); chỉ khi MENTOR_LLM_MODE=on VÀ AI_ENGINE_URL có giá trị mới
+    # gọi Gemini — vẫn bị giới hạn lượt bởi token bucket phía ai_engine.
+    ai_engine_url: str = ""
+    mentor_llm_mode: str = "off"
+    ai_engine_timeout_seconds: float = 25.0
+
+    # Khoá nội bộ để service khác (AI Engine) ghi nội dung vào DB qua
+    # ``/api/v1/ai/content``. Khi để trống endpoint bị khoá (403) — fail-closed.
+    internal_api_key: str = ""
+
     health_check_timeout: float = 2.0
 
     # Admin toàn hệ thống — danh sách email được phép mang role "admin"
@@ -59,6 +78,9 @@ class Settings(BaseSettings):
 
     # ─── WebSocket Real-time ────────────────────────────────────────
     ws_price_tick_seconds: float = 2.0
+    # Chu kỳ ticker thị trường mô phỏng (giây): mỗi nhịp dịch chuyển giá qua
+    # Math Engine rồi khớp lệnh pending/partially_filled. Chỉ leader chạy.
+    ws_market_tick_seconds: float = 3.0
     ws_trade_poll_seconds: float = 1.0
     ws_heartbeat_seconds: float = 30.0
     ws_max_queue_size: int = 256

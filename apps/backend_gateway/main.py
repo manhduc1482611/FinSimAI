@@ -10,9 +10,10 @@ from api.v1.router import api_router
 from clients.math_client import math_client
 from core.config import settings
 from core.database import dispose_engine, engine
+from core.metrics import collect as collect_metrics
 from core.middleware import setup_middleware
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, PlainTextResponse
 from realtime.router import (
     register_websocket_routes,
     start_ws_background,
@@ -66,6 +67,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await stop_ws_background(ws_handles)
     await asyncio.sleep(3.0)
     await math_client.close()
+    from clients.mentor_client import mentor_client
+
+    await mentor_client.close()
     await dispose_engine()
     logger.info("Shutdown complete: math engine client and database engine disposed")
 
@@ -118,6 +122,32 @@ def create_app() -> FastAPI:
     setup_middleware(app)
     app.include_router(api_router)
     register_websocket_routes(app)
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        """Lỗi ngoài ý muốn → log đầy đủ (path, request_id, traceback) + 500 sạch.
+
+        Chạy trong ServerErrorMiddleware nên bắt được MỌI exception văng ra từ
+        route — tránh để stack trace rò rỉ ra response, đồng thời error tracking
+        có đủ ngữ cảnh (đường dẫn + X-Request-ID) để truy vết trong log.
+        """
+        request_id = request.headers.get("X-Request-ID", "-")
+        logger.error(
+            "Unhandled error on %s %s (request_id=%s)",
+            request.method,
+            request.url.path,
+            request_id,
+            exc_info=exc,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
+
+    @app.get("/metrics", tags=["observability"], response_class=PlainTextResponse)
+    async def metrics() -> PlainTextResponse:
+        """Metrics Prometheus text format — dùng cho scrape/alert (không nhạy cảm)."""
+        return PlainTextResponse(collect_metrics())
 
     @app.get("/health/live", tags=["health"])
     async def health_live() -> dict[str, str]:

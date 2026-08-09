@@ -40,12 +40,12 @@ export interface PriceChartProps {
 
 function priceTone(value: number): string {
   if (value > 0) {
-    return "text-emerald-600 dark:text-emerald-400";
+    return "text-mkt-up dark:text-mkt-up-400";
   }
   if (value < 0) {
-    return "text-red-600 dark:text-red-400";
+    return "text-mkt-down dark:text-mkt-down-400";
   }
-  return "text-ink-600 dark:text-ink-300";
+  return "text-ink-600 dark:text-granite-300";
 }
 
 export function PriceChart({
@@ -80,22 +80,22 @@ export function PriceChart({
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: theme === "dark" ? "#94a3b8" : "#64748b",
+        textColor: theme === "dark" ? "#B7AE9C" : "#787166",
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: "rgba(148, 163, 184, 0.12)" },
-        horzLines: { color: "rgba(148, 163, 184, 0.12)" },
+        vertLines: { color: "rgba(120, 113, 102, 0.14)" },
+        horzLines: { color: "rgba(120, 113, 102, 0.14)" },
       },
-      rightPriceScale: { borderColor: "rgba(148, 163, 184, 0.2)" },
+      rightPriceScale: { borderColor: "rgba(120, 113, 102, 0.24)" },
       timeScale: {
-        borderColor: "rgba(148, 163, 184, 0.2)",
+        borderColor: "rgba(120, 113, 102, 0.24)",
         timeVisible: true,
         secondsVisible: false,
       },
       crosshair: {
-        vertLine: { color: "rgba(148, 163, 184, 0.4)", labelBackgroundColor: "#334155" },
-        horzLine: { color: "rgba(148, 163, 184, 0.4)", labelBackgroundColor: "#334155" },
+        vertLine: { color: "rgba(201, 162, 39, 0.55)", labelBackgroundColor: "#2D2B27" },
+        horzLine: { color: "rgba(201, 162, 39, 0.55)", labelBackgroundColor: "#2D2B27" },
       },
       localization: {
         locale: "vi-VN",
@@ -104,11 +104,11 @@ export function PriceChart({
     });
 
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: "#10b981",
-      downColor: "#ef4444",
+      upColor: "#1CAE56",
+      downColor: "#E23636",
       borderVisible: false,
-      wickUpColor: "#10b981",
-      wickDownColor: "#ef4444",
+      wickUpColor: "#1CAE56",
+      wickDownColor: "#E23636",
     });
 
     chartRef.current = chart;
@@ -131,7 +131,7 @@ export function PriceChart({
     }
     chart.applyOptions({
       layout: {
-        textColor: theme === "dark" ? "#94a3b8" : "#64748b",
+        textColor: theme === "dark" ? "#B7AE9C" : "#787166",
       },
     });
   }, [theme]);
@@ -158,10 +158,10 @@ export function PriceChart({
 
   return (
     <Card className={cn("flex h-full flex-col", className)}>
-      <div className="flex items-start justify-between gap-4 border-b border-ink-200 px-4 py-3 dark:border-ink-700">
+      <div className="flex items-start justify-between gap-4 border-b border-line px-4 py-3 dark:border-granite-700">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold text-ink-900 dark:text-ink-100">{symbol}</h3>
+            <h3 className="board-num text-base font-black text-ink-900 dark:text-slip">{symbol}</h3>
             {snapshot !== null && (
               <Badge variant={positive ? "success" : "danger"}>
                 {positive ? "+" : ""}
@@ -170,18 +170,18 @@ export function PriceChart({
               </Badge>
             )}
           </div>
-          <p className="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">{companyName}</p>
+          <p className="mt-0.5 truncate text-xs text-ink-500 dark:text-granite-300">{companyName}</p>
         </div>
         <div className="shrink-0 text-right">
           <p
             className={cn(
-              "text-xl font-bold tabular-nums",
+              "board-num text-2xl font-black",
               snapshot !== null ? priceTone(change ?? 0) : "text-ink-400",
             )}
           >
             {snapshot !== null ? formatNumber(snapshot.price, 2) : "—"}
           </p>
-          <p className="text-[10px] uppercase tracking-wide text-ink-400 dark:text-ink-500">
+          <p className="board-label mt-0.5">
             {snapshot !== null ? `Ngày mô phỏng ${snapshot.sim_day}` : "Đang kết nối"}
           </p>
         </div>
@@ -191,7 +191,7 @@ export function PriceChart({
         <div ref={containerRef} className="h-[20rem] w-full lg:h-[24rem]" />
         {snapshot === null && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <p className="rounded-lg bg-ink-50/80 px-4 py-2 text-sm text-ink-500 dark:bg-ink-900/80 dark:text-ink-400">
+            <p className="rounded-lg bg-ink-50/80 px-4 py-2 text-sm text-ink-500 dark:bg-granite-900/80 dark:text-granite-300">
               Chờ dữ liệu giá real-time…
             </p>
           </div>

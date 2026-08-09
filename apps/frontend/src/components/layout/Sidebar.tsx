@@ -1,6 +1,7 @@
 /**
  * Sidebar — thanh điều hướng chính (bám theo hành trình người dùng).
  * Desktop: cố định trái. Mobile: trượt off-canvas + backdrop.
+ * Chất liệu: thanh đồng thau (brass rail) — nhóm điều hướng là biển báo, mục active là vé đồng.
  */
 "use client";
 
@@ -122,7 +123,7 @@ export function Sidebar({ open, onClose, groups, homeHref }: SidebarProps) {
       {/* Backdrop mobile */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-ink-950/50 lg:hidden dark:bg-ink-950/70"
+          className="fixed inset-0 z-40 bg-granite-950/60 backdrop-blur-sm lg:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -130,18 +131,21 @@ export function Sidebar({ open, onClose, groups, homeHref }: SidebarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-200 bg-white transition-transform duration-200 dark:border-ink-700 dark:bg-ink-900",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-200 bg-[#FFFDF8] transition-transform duration-200 dark:border-granite-800 dark:bg-granite-950",
           "lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center justify-between border-b border-ink-200 px-5 dark:border-ink-700">
-          <Link href={logoHref} className="flex items-center gap-2" onClick={onClose}>
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-black text-white">
+        <div className="flex h-16 items-center justify-between border-b border-line px-5 dark:border-granite-800">
+          <Link href={logoHref} className="group flex items-center gap-2.5" onClick={onClose}>
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-500 text-sm font-black text-granite-950 shadow-board transition-colors group-hover:bg-brand-400">
               F
             </span>
-            <span className="text-base font-bold text-ink-900 dark:text-ink-100">
-              FinSim<span className="text-brand-600">AI</span>
+            <span className="leading-tight">
+              <span className="block text-base font-black tracking-tight text-ink-900 dark:text-slip">
+                FinSim<span className="text-brand-600 dark:text-brand-400">AI</span>
+              </span>
+              <span className="board-label block">Quầy giao dịch</span>
             </span>
           </Link>
           <button
@@ -157,9 +161,7 @@ export function Sidebar({ open, onClose, groups, homeHref }: SidebarProps) {
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           {navGroups.map((group) => (
             <div key={group.section} className="mb-5">
-              <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-500">
-                {group.section}
-              </p>
+              <p className="board-label px-2 pb-2">{group.section}</p>
               <ul className="space-y-1">
                 {group.items.map((item) => {
                   const active = isActive(item.href);
@@ -171,23 +173,30 @@ export function Sidebar({ open, onClose, groups, homeHref }: SidebarProps) {
                         onClick={onClose}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "group flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors",
+                          "group flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-colors",
                           active
-                            ? "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400"
-                            : "text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-ink-100",
+                            ? "bg-brand-500 text-granite-950 shadow-board"
+                            : "text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-granite-200 dark:hover:bg-granite-800 dark:hover:text-slip",
                         )}
                       >
                         <Icon
                           className={cn(
                             "h-5 w-5 shrink-0",
                             active
-                              ? "text-brand-600 dark:text-brand-400"
-                              : "text-ink-400 group-hover:text-ink-600 dark:text-ink-500 dark:group-hover:text-ink-300",
+                              ? "text-granite-950"
+                              : "text-ink-400 group-hover:text-ink-600 dark:text-granite-400 dark:group-hover:text-granite-200",
                           )}
                         />
                         <span className="min-w-0">
-                          <span className="block truncate font-medium">{item.label}</span>
-                          <span className="block truncate text-xs text-ink-400 dark:text-ink-500">
+                          <span className="block truncate font-semibold">{item.label}</span>
+                          <span
+                            className={cn(
+                              "block truncate text-xs",
+                              active
+                                ? "text-granite-900/80"
+                                : "text-ink-400 dark:text-granite-400",
+                            )}
+                          >
                             {item.description}
                           </span>
                         </span>
@@ -200,10 +209,8 @@ export function Sidebar({ open, onClose, groups, homeHref }: SidebarProps) {
           ))}
         </nav>
 
-        <div className="border-t border-ink-200 px-5 py-4 dark:border-ink-700">
-          <p className="text-xs text-ink-400 dark:text-ink-500">
-            Môi trường mô phỏng · <span className="font-medium text-ink-600 dark:text-ink-300">v0.1.0</span>
-          </p>
+        <div className="border-t border-ink-200 px-5 py-4 dark:border-granite-800">
+          <p className="board-label">Môi trường mô phỏng · v0.1.0</p>
         </div>
       </aside>
     </>

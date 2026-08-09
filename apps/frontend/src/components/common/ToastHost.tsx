@@ -14,9 +14,9 @@ const ICONS: Record<ToastType, React.ComponentType<{ className?: string }>> = {
 };
 
 const STYLES: Record<ToastType, { ring: string; icon: string }> = {
-  success: { ring: "border-brand-300 dark:border-brand-600", icon: "text-brand-600" },
-  error: { ring: "border-red-300 dark:border-red-600", icon: "text-red-600" },
-  info: { ring: "border-ink-300 dark:border-ink-600", icon: "text-ink-500" },
+  success: { ring: "border-brand-400/60 dark:border-brand-400", icon: "text-brand-600 dark:text-brand-400" },
+  error: { ring: "border-mkt-down/40 dark:border-mkt-down-400", icon: "text-mkt-down dark:text-mkt-down-400" },
+  info: { ring: "border-ink-300 dark:border-granite-600", icon: "text-ink-500 dark:text-granite-300" },
 };
 
 export function ToastHost() {
@@ -36,15 +36,15 @@ export function ToastHost() {
           <div
             key={toast.id}
             className={cn(
-              "pointer-events-auto flex items-start gap-2.5 rounded-lg border bg-white p-3 shadow-lg dark:bg-ink-800",
+              "pointer-events-auto flex items-start gap-2.5 rounded-lg border bg-[#FFFDF8] p-3 shadow-lg dark:bg-granite-900",
               style.ring,
             )}
           >
             <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", style.icon)} aria-hidden="true" />
-            <p className="flex-1 text-sm text-ink-800 dark:text-ink-100">{toast.message}</p>
+            <p className="flex-1 text-sm text-ink-800 dark:text-slip">{toast.message}</p>
             <button
               type="button"
-              className="btn-ghost p-1 text-ink-400 hover:text-ink-600 dark:hover:text-ink-200"
+              className="btn-ghost p-1 text-ink-400 hover:text-ink-600 dark:hover:text-granite-200"
               onClick={() => dismiss(toast.id)}
               aria-label="Đóng thông báo"
             >
