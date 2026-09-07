@@ -1,11 +1,11 @@
 import uuid
-from datetime import datetime, timezone
 
 from core.dependencies import get_current_user, get_current_user_optional, get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from models.company import Company
 from models.social import SocialComment, SocialLike, SocialPost
 from models.user import User
+from realtime.simtime import sim_now
 from schemas.social import (
     SocialCommentCreate,
     SocialCommentListResponse,
@@ -75,7 +75,7 @@ async def list_social_posts(
     user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ) -> SocialPostListResponse:
-    stmt = select(SocialPost)
+    stmt = select(SocialPost).where(SocialPost.simulated_at <= sim_now())
     if persona_type:
         stmt = stmt.where(SocialPost.persona_type == persona_type)
     if sentiment:
@@ -98,7 +98,7 @@ async def get_social_post(
     db: AsyncSession = Depends(get_db),
 ) -> SocialPostResponse:
     entry = await db.get(SocialPost, post_id)
-    if not entry:
+    if not entry or entry.simulated_at > sim_now():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Social post not found")
     liked_ids = await _liked_post_ids(db, user, [post_id])
     return _post_to_response(entry, liked_ids)
@@ -130,7 +130,7 @@ async def create_social_post(
         comments_count=0,
         company_id=company_id,
         news_id=None,
-        simulated_at=datetime.now(timezone.utc),
+        simulated_at=sim_now(),
     )
     db.add(post)
     await db.commit()

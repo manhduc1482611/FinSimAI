@@ -24,10 +24,16 @@ interface MentorState {
   /** Kết nối WS sẵn sàng nhận câu hỏi. */
   isReady: boolean;
   lastError: string | null;
+  /** Đã nạp lịch sử từ DB cho phiên hiện tại (chống nạp lặp). */
+  historyLoaded: boolean;
   /** Bắt đầu phiên mới, xoá tin nhắn cũ. */
   startSession: () => void;
   resetSession: () => void;
   pushUserMessage: (content: string) => void;
+  /** Nạp lịch sử từ DB khi mở panel lần đầu (A3.2). */
+  seedHistory: (
+    items: { id: string; role: "user" | "mentor"; content: string; ts: string }[],
+  ) => void;
   onServerMessage: (message: WsServerMessage) => void;
   setReady: (ready: boolean) => void;
   setError: (error: string | null) => void;
@@ -46,6 +52,7 @@ export const useMentorStore = create<MentorState>()((set, get) => ({
   isStreaming: false,
   isReady: false,
   lastError: null,
+  historyLoaded: false,
 
   startSession: () => {
     set({
@@ -63,6 +70,19 @@ export const useMentorStore = create<MentorState>()((set, get) => ({
       isStreaming: false,
       isReady: false,
       lastError: null,
+      historyLoaded: false,
+    });
+  },
+
+  seedHistory: (items) => {
+    if (get().historyLoaded || items.length === 0) {
+      set({ historyLoaded: true });
+      return;
+    }
+    set({
+      historyLoaded: true,
+      // Giữ session id hiện tại; lịch sử cũ chỉ để xem, câu mới thuộc phiên này.
+      messages: [...items, ...get().messages],
     });
   },
 

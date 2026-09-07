@@ -88,6 +88,28 @@ async def default_match_orders() -> None:
                 logger.exception("match_orders failed for company %s", company_id)
 
 
+async def default_release_settlements() -> None:
+    """Giải phóng tiền bán T+2 đã đủ hạn về tài khoản khả dụng (leader only)."""
+    from services.settlement_service import release_due
+
+    async with async_session_factory() as session:
+        try:
+            await release_due(session)
+        except Exception:
+            logger.exception("settlement release due failed")
+
+
+async def default_apply_corporate_events() -> None:
+    """Áp dụng sự kiện doanh nghiệp đã đủ hạn (leader only, chống look-ahead)."""
+    from services.corporate_events import apply_due_events
+
+    async with async_session_factory() as session:
+        try:
+            await apply_due_events(session)
+        except Exception:
+            logger.exception("corporate events apply failed")
+
+
 class MarketSim:
     """Ticker thị trường mô phỏng: dịch chuyển giá rồi khớp lệnh theo chu kỳ."""
 
@@ -99,6 +121,8 @@ class MarketSim:
         local_mode: bool | None = None,
         update_prices: Callable[[float], Awaitable[None]] | None = None,
         match_orders: Callable[[], Awaitable[None]] | None = None,
+        release_settlements: Callable[[], Awaitable[None]] | None = None,
+        apply_corporate_events: Callable[[], Awaitable[None]] | None = None,
         now: Callable[[], float] | None = None,
     ) -> None:
         self.tick_seconds = (
@@ -116,6 +140,10 @@ class MarketSim:
         )
         self._update_prices = update_prices or default_update_prices
         self._match_orders = match_orders or default_match_orders
+        self._release_settlements = release_settlements or default_release_settlements
+        self._apply_corporate_events = (
+            apply_corporate_events or default_apply_corporate_events
+        )
         self._now = now or time.monotonic
         self._task: asyncio.Task[None] | None = None
         self._last_tick_ts: float | None = None
@@ -168,6 +196,8 @@ class MarketSim:
         self._last_tick_ts = now_ts
         await self._update_prices(sim_dt_years(elapsed))
         await self._match_orders()
+        await self._release_settlements()
+        await self._apply_corporate_events()
 
 
 market_sim = MarketSim()

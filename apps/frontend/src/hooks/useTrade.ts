@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { getWsBaseUrl } from "@/services/api";
+import { getWsBaseUrl, isDemoMode } from "@/services/api";
 import { fetchWsTicket } from "@/services/auth";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTradeStore } from "@/store/useTradeStore";
@@ -27,7 +27,7 @@ export function useTrade() {
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (isDemoMode() || !user) {
       setTicketUrl(null);
       return;
     }

@@ -32,7 +32,7 @@ from engine.pricing.price_generator import MarketConfig, PriceGenerator
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="FinSimAI Math Engine", version="0.1.0")
+app = FastAPI(title="Capia Math Engine", version="0.1.0")
 
 
 class HoldingIn(BaseModel):

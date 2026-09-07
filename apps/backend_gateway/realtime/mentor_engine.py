@@ -15,6 +15,7 @@ cần quét chính sách runtime.
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -218,7 +219,7 @@ _QUESTION_BANK: dict[str, dict[str, Any]] = {
 }
 
 _DISCLAIMER = (
-    "FinSimAI là môi trường mô phỏng. Tôi không đưa ra lời khuyên mua bán — "
+    "Capia là môi trường mô phỏng. Tôi không đưa ra lời khuyên mua bán — "
     "tôi chỉ giúp bạn phản biện quyết định của chính mình."
 )
 
@@ -246,11 +247,22 @@ class SocraticReply:
     disclaimer: str = _DISCLAIMER
 
 
+def _normalize(text: str) -> str:
+    """Bỏ dấu tiếng Việt + đ→d để bắt tin nhắn viết không dấu (đồng bộ A2.1)."""
+    stripped = "".join(
+        ch for ch in unicodedata.normalize("NFD", text.lower()) if not unicodedata.combining(ch)
+    )
+    return stripped.replace("đ", "d")
+
+
 def detect_focus(text: str) -> SocraticFocus:
-    """Phát hiện thiên kiến tâm lý theo keyword scoring + priority order."""
-    haystack = text.lower()
+    """Phát hiện thiên kiến tâm lý theo keyword scoring + priority order.
+
+    Chuẩn hoá bỏ dấu cả haystack lẫn keyword — nhất quán với agent ai_engine.
+    """
+    haystack = _normalize(text)
     scores = {
-        focus: sum(1 for keyword in keywords if keyword in haystack)
+        focus: sum(1 for keyword in keywords if _normalize(keyword) in haystack)
         for focus, keywords in _DETECTION.items()
     }
     best_key = max(

@@ -104,20 +104,9 @@ async def mentor(payload: MentorRequest) -> MentorResponse:
     if agent.gemini.available:
         try:
             await _get_limiter().acquire()
-            prompt = agent.store.render_template(
-                agent.prompt_file,
-                "user_prompt",
-                context=ctx.to_text(),
-                history=agent._format_history(payload.history),
-                user_message=payload.message,
-            )
-            reply = agent.gemini.generate_structured(
-                SocraticReply,
-                system_instruction=agent._require_prompt("system_prompt"),
-                user_content=prompt,
-            )
+            reply = agent.llm_reply(payload.message, ctx, payload.history)
             return MentorResponse(**reply.model_dump(), source="llm")
-        except Exception as exc:  # noqa: BLE001 - quota/mạng → deterministic
+        except Exception as exc:  # noqa: BLE001 - quota/mạng/judge → deterministic
             logger.warning("Mentor LLM thất bại, dùng deterministic: %s", exc)
 
     reply = agent._fallback(payload.message, ctx)

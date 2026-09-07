@@ -10,18 +10,17 @@
 
 import logging
 import uuid as uuid_lib
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from core.dependencies import get_db, require_internal_api_key
 from fastapi import APIRouter, Depends, status
 from models.company import Company
 from models.news import News
 from models.social import SocialPost
+from realtime.simtime import sim_now
 from schemas.ai_sync import (
     AiContentBatch,
     AiContentSyncResponse,
-    AiNewsItem,
-    AiSocialPostItem,
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,7 +62,7 @@ async def _company_by_symbol(db: AsyncSession, symbol: str | None) -> uuid_lib.U
 
 
 async def _news_title_exists(db: AsyncSession, title: str) -> bool:
-    since = datetime.now(timezone.utc) - timedelta(days=_DEDUPE_LOOKBACK_DAYS)
+    since = sim_now() - timedelta(days=_DEDUPE_LOOKBACK_DAYS)
     row = await db.execute(
         select(News.id)
         .where(News.title == title, News.simulated_at >= since)
@@ -73,7 +72,7 @@ async def _news_title_exists(db: AsyncSession, title: str) -> bool:
 
 
 async def _social_post_exists(db: AsyncSession, content: str) -> bool:
-    since = datetime.now(timezone.utc) - timedelta(days=_DEDUPE_LOOKBACK_DAYS)
+    since = sim_now() - timedelta(days=_DEDUPE_LOOKBACK_DAYS)
     row = await db.execute(
         select(SocialPost.id)
         .where(SocialPost.content == content, SocialPost.simulated_at >= since)
@@ -91,7 +90,7 @@ async def ingest_ai_content(
     body: AiContentBatch,
     db: AsyncSession = Depends(get_db),
 ) -> AiContentSyncResponse:
-    now = datetime.now(timezone.utc)
+    now = sim_now()
 
     inserted_news = 0
     skipped_news = 0

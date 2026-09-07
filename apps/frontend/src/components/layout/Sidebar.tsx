@@ -139,11 +139,11 @@ export function Sidebar({ open, onClose, groups, homeHref }: SidebarProps) {
         <div className="flex h-16 items-center justify-between border-b border-line px-5 dark:border-granite-800">
           <Link href={logoHref} className="group flex items-center gap-2.5" onClick={onClose}>
             <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-500 text-sm font-black text-granite-950 shadow-board transition-colors group-hover:bg-brand-400">
-              F
+              C
             </span>
             <span className="leading-tight">
               <span className="block text-base font-black tracking-tight text-ink-900 dark:text-slip">
-                FinSim<span className="text-brand-600 dark:text-brand-400">AI</span>
+                Capia
               </span>
               <span className="board-label block">Quầy giao dịch</span>
             </span>

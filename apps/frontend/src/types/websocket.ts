@@ -49,6 +49,10 @@ export interface TradeFill {
   quantity: number;
   price: number;
   total: number;
+  /** Phí môi giới 0.15% giá trị khớp (cả hai chiều) — realism engine B1. */
+  fee?: number;
+  /** Thuế bán 0.1% giá trị khớp (chỉ chiều sell). */
+  tax?: number;
   simulated_at?: string | null;
 }
 

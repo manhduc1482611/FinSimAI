@@ -14,6 +14,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useTradeStore } from "@/store/useTradeStore";
 import type { CompanyResponse } from "@finsim/shared-types/generated/api-types";
 import { formatNumber, parseDecimal } from "@/utils/format";
+import { estimateFee, estimateSellTax, TRADING_FEE_RATE } from "@/utils/trading";
 import { cn } from "@/utils/cn";
 
 type Side = "buy" | "sell";
@@ -81,9 +82,19 @@ export function TradePanel({
   const priceNum = Number(price.replace(/,/g, "."));
   const hasValidQuantity = Number.isFinite(quantityNum) && quantityNum > 0;
   const hasValidPrice = type === "market" || (Number.isFinite(priceNum) && priceNum > 0);
-  const estimatedCost = hasValidQuantity && (type === "market" || hasValidPrice)
+  const estimatedGross = hasValidQuantity && (type === "market" || hasValidPrice)
     ? quantityNum * (type === "market" ? parseDecimal(selectedCompany?.current_price) : priceNum)
     : null;
+  // Phí 0.15% cả hai chiều; thuế bán 0.1% chỉ chiều bán (đồng bộ backend).
+  const estimatedFee = estimatedGross !== null ? estimateFee(estimatedGross) : null;
+  const estimatedTax =
+    side === "sell" && estimatedGross !== null ? estimateSellTax(estimatedGross) : null;
+  const estimatedNet =
+    estimatedGross === null || estimatedFee === null
+      ? null
+      : side === "buy"
+        ? estimatedGross + estimatedFee
+        : estimatedGross - estimatedFee - (estimatedTax ?? 0);
   const availableCash = parseDecimal(user?.cash_balance);
 
   const handleSubmit = async () => {
@@ -101,8 +112,14 @@ export function TradePanel({
       setFieldError("Giá giới hạn phải lớn hơn 0.");
       return;
     }
-    if (side === "buy" && estimatedCost !== null && estimatedCost > availableCash) {
-      setFieldError(`Vốn khả dụng không đủ (cần ${formatNumber(estimatedCost)} ₫).`);
+    // Backend đóng băng giá trị lệnh + buffer phí mua (1 + 0.15%) — kiểm tra
+    // phía client phải dùng cùng chuẩn để không báo "đủ tiền" oan.
+    if (
+      side === "buy" &&
+      estimatedGross !== null &&
+      estimatedGross * (1 + TRADING_FEE_RATE) > availableCash
+    ) {
+      setFieldError(`Vốn khả dụng không đủ (cần ${formatNumber(estimatedNet ?? estimatedGross)} ₫).`);
       return;
     }
     try {
@@ -235,12 +252,31 @@ export function TradePanel({
           placeholder="0"
         />
 
-        {estimatedCost !== null && (
-          <div className="board flex items-center justify-between">
-            <span className="board-label">
-              {side === "buy" ? "Ước tính chi phí" : "Ước tính thu về"}
-            </span>
-            <span className="board-num text-sm font-bold text-slip">{formatNumber(estimatedCost)} ₫</span>
+        {estimatedGross !== null && estimatedNet !== null && (
+          <div className="space-y-1 rounded-lg border border-line px-3 py-2 dark:border-granite-700">
+            <div className="flex items-center justify-between text-xs text-ink-500 dark:text-granite-400">
+              <span>{side === "buy" ? "Giá trị lệnh" : "Giá trị khớp"}</span>
+              <span className="board-num">{formatNumber(estimatedGross)} ₫</span>
+            </div>
+            {estimatedFee !== null && (
+              <div className="flex items-center justify-between text-xs text-ink-500 dark:text-granite-400">
+                <span>Phí giao dịch (0.15%)</span>
+                <span className="board-num">
+                  {side === "buy" ? "+" : "−"}
+                  {formatNumber(estimatedFee)} ₫
+                </span>
+              </div>
+            )}
+            {estimatedTax !== null && (
+              <div className="flex items-center justify-between text-xs text-ink-500 dark:text-granite-400">
+                <span>Thuế bán (0.1%)</span>
+                <span className="board-num">−{formatNumber(estimatedTax)} ₫</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-line pt-1 text-sm font-bold text-slip dark:border-granite-700">
+              <span className="board-label">{side === "buy" ? "Tổng chi" : "Thực nhận"}</span>
+              <span className="board-num">{formatNumber(estimatedNet)} ₫</span>
+            </div>
           </div>
         )}
 

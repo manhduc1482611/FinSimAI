@@ -28,7 +28,15 @@ class User(Base):
             "risk_score >= 0 AND risk_score <= 100", name="chk_user_risk_score"
         ),
         CheckConstraint(
+            "discipline_score >= 0 AND discipline_score <= 100",
+            name="chk_user_discipline_score",
+        ),
+        CheckConstraint(
             "cash_balance >= frozen_cash", name="chk_user_cash_solvency",
+        ),
+        CheckConstraint(
+            "cash_balance + settling_cash >= frozen_cash",
+            name="chk_user_settling_solvency",
         ),
         Index(
             "uq_user_email_active",
@@ -66,7 +74,15 @@ class User(Base):
     frozen_cash: Mapped[Decimal] = mapped_column(
         Numeric(20, 2), default=Decimal("0.00"), nullable=False
     )
+    # Tiền của lượt bán đã khớp nhưng chưa về tài khoản khả dụng (T+2 ngày ảo).
+    # Không dùng được để đặt lệnh; chuyển sang cash_balance khi solves hạn.
+    settling_cash: Mapped[Decimal] = mapped_column(
+        Numeric(20, 2), default=Decimal("0.00"), nullable=False
+    )
     risk_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Điểm kỷ luật (0–100, khởi điểm 90) — thưởng hành vi quản trị rủi ro,
+    # KHÔNG thưởng lợi nhuận ảo. Tách biệt với risk_score (chỉ số rủi ro).
+    discipline_score: Mapped[int] = mapped_column(Integer, default=90, nullable=False)
     cooldown_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -95,4 +111,13 @@ class User(Base):
     )
     streak = relationship(
         "UserStreak", back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
+    discipline_history = relationship(
+        "DisciplineScoreHistory",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    reports = relationship("Report", back_populates="user", cascade="all, delete-orphan")
+    daily_challenges = relationship(
+        "UserDailyChallenge", back_populates="user", cascade="all, delete-orphan"
     )

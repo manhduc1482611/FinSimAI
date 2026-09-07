@@ -11,13 +11,16 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useWebSocket, type WsConnectionStatus } from "@/hooks/useWebSocket";
-import { getWsBaseUrl } from "@/services/api";
+import { getWsBaseUrl, isDemoMode } from "@/services/api";
 import { fetchWsTicket } from "@/services/auth";
+import { listCompanies } from "@/services/companies";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { PriceTick } from "@/types/websocket";
 import type { TimedPriceTick } from "@/utils/candles";
 
 const MAX_TICKS = 400;
+// Demo mode: không có WebSocket → tự mô phỏng giá bằng polling REST.
+const DEMO_POLL_MS = 2000; // cũng là chu kỳ stable trong Apps Script
 
 export interface UsePriceStreamResult {
   /** Tick giá mới nhất (null khi chưa có dữ liệu / chưa đăng nhập). */
@@ -30,6 +33,7 @@ export interface UsePriceStreamResult {
 
 export function usePriceStream(symbol: string): UsePriceStreamResult {
   const user = useAuthStore((state) => state.user);
+  const isDemo = isDemoMode();
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<PriceTick | null>(null);
   const [ticks, setTicks] = useState<TimedPriceTick[]>([]);
@@ -41,7 +45,7 @@ export function usePriceStream(symbol: string): UsePriceStreamResult {
   );
 
   useEffect(() => {
-    if (!user) {
+    if (isDemoMode() || !user) {
       setTicketUrl(null);
       return;
     }
@@ -63,12 +67,63 @@ export function usePriceStream(symbol: string): UsePriceStreamResult {
     return () => {
       cancelled = true;
     };
-  }, [user, symbol]);
+  }, [isDemo, user, symbol]);
 
   useEffect(() => {
     setSnapshot(null);
     setTicks([]);
   }, [symbol]);
+
+  // Demo mode: không backend WS → poll REST, dựng PriceTick từ company hiện tại.
+  useEffect(() => {
+    if (!isDemo) {
+      return;
+    }
+    let cancelled = false;
+    async function poll() {
+      try {
+        const res = await listCompanies({ tick: 1, limit: 500, search: symbol });
+        const company = res.items.find((c) => c.symbol === symbol);
+        if (!company) {
+          return;
+        }
+        const price = parseFloat(company.current_price);
+        const tick: PriceTick = {
+          symbol: company.symbol,
+          company_id: company.id,
+          name: company.name,
+          sector: company.sector,
+          price,
+          open: price,
+          high: price,
+          low: price,
+          prev_close: price,
+          change: 0,
+          change_pct: 0,
+          market_cap: company.market_cap ? parseFloat(company.market_cap) : null,
+          sim_day: 1,
+          simulated_at: new Date().toISOString(),
+        };
+        if (cancelled) {
+          return;
+        }
+        setSnapshot(tick);
+        setTicks((prev) => {
+          const next =
+            prev.length >= MAX_TICKS ? prev.slice(prev.length - MAX_TICKS + 1) : prev;
+          return [...next, { tick, receivedAt: Date.now() }];
+        });
+      } catch {
+        // bỏ qua lỗi tạm thời, đợi poll lần sau
+      }
+    }
+    void poll();
+    const timer = window.setInterval(poll, DEMO_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [isDemo, symbol]);
 
   const { status, lastError, sendMessage } = useWebSocket({
     url: ticketUrl,

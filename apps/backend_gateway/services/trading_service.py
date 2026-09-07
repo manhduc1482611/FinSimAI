@@ -1,16 +1,37 @@
 import logging
 import uuid
 from datetime import datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
+from core.config import settings
 from models.company import Company
+from services.settlement_service import settlement_deadline
+from services.slippage import compute_fill_price
 from models.trade import Order, Portfolio, Transaction
 from models.user import User
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
+_CENT = Decimal("0.01")
+
+
+def _trade_costs(side: str, quantity: Decimal, price: Decimal) -> tuple[Decimal, Decimal]:
+    """Phí giao dịch + thuế của một lượt khớp.
+
+    - Phí 0.15% giá trị khớp, áp cả MUA và BÁN.
+    - Thuế chuyển nhượng 0.1% chỉ áp chiều BÁN.
+    Trả về ``(fee, tax)`` đã làm tròn tới cent.
+    """
+    gross = quantity * price
+    fee = (gross * Decimal(str(settings.trading_fee_rate))).quantize(_CENT, ROUND_HALF_UP)
+    if side == "sell":
+        tax = (gross * Decimal(str(settings.sell_tax_rate))).quantize(_CENT, ROUND_HALF_UP)
+    else:
+        tax = Decimal("0.00")
+    return fee, tax
 
 
 def _price_crosses(
@@ -134,9 +155,15 @@ async def _apply_buy_fill(
     current_price: Decimal,
     user: User,
     db: AsyncSession,
-) -> None:
+) -> tuple[Decimal, Decimal]:
+    """Ghi nhận lượt khớp MUA: trừ tiền (giá + phí), cập nhật portfolio.
+
+    Trả về ``(fee, tax)`` để caller đóng dấu lên Transaction.
+    """
     freeze_price = _buy_freeze_price(buy)
     actual_cost = fill_qty * fill_price
+    fee, tax = _trade_costs("buy", fill_qty, fill_price)
+    total_debit = actual_cost + fee
 
     remaining_before = buy.quantity - buy.filled_quantity
     if fill_qty >= remaining_before:
@@ -144,7 +171,7 @@ async def _apply_buy_fill(
     else:
         unfreeze_amount = min(fill_qty * freeze_price, buy.frozen_cash)
 
-    user.cash_balance += unfreeze_amount - actual_cost
+    user.cash_balance += unfreeze_amount - total_debit
     user.frozen_cash -= unfreeze_amount
     buy.frozen_cash -= unfreeze_amount
 
@@ -157,7 +184,8 @@ async def _apply_buy_fill(
 
     if pf:
         total_qty = pf.quantity + fill_qty
-        total_cost = pf.quantity * pf.average_buy_price + actual_cost
+        # Giá vốn gồm cả phí mua — phản ánh đúng tổng chi phí sở hữu.
+        total_cost = pf.quantity * pf.average_buy_price + total_debit
         pf.average_buy_price = total_cost / total_qty if total_qty > 0 else Decimal("0")
         pf.quantity = total_qty
     else:
@@ -165,9 +193,11 @@ async def _apply_buy_fill(
             user_id=buy.user_id,
             company_id=buy.company_id,
             quantity=fill_qty,
-            average_buy_price=fill_price,
+            average_buy_price=total_debit / fill_qty,
         )
         db.add(pf)
+
+    return fee, tax
 
 
 async def _apply_sell_fill(
@@ -176,9 +206,19 @@ async def _apply_sell_fill(
     fill_price: Decimal,
     user: User,
     db: AsyncSession,
-) -> None:
+) -> tuple[Decimal, Decimal]:
+    """Ghi nhận lượt khớp BÁN: hoãn tiền ròng theo T+2, cập nhật portfolio.
+
+    Tiền ròng (revenue − phí − thuế) được ghi vào ``settling_cash`` (chưa dùng
+    được) thay vì ``cash_balance`` — mô phỏng thanh toán bù trừ T+2. Caller phải
+    đóng dấu ``settles_at`` lên Transaction để worker giải phóng tiền sau này.
+
+    Trả về ``(fee, tax)`` để caller đóng dấu lên Transaction.
+    """
     revenue = fill_qty * fill_price
-    user.cash_balance += revenue
+    fee, tax = _trade_costs("sell", fill_qty, fill_price)
+    net_proceeds = revenue - fee - tax
+    user.settling_cash += net_proceeds
 
     pf_stmt = (
         select(Portfolio)
@@ -187,11 +227,13 @@ async def _apply_sell_fill(
     )
     pf = (await db.execute(pf_stmt)).scalar_one_or_none()
     if not pf:
-        return
+        return fee, tax
 
     pf.frozen_quantity -= fill_qty
     pf.quantity -= fill_qty
-    pf.realized_pnl += revenue - fill_qty * pf.average_buy_price
+    # Lãi/lỗ thực hiện tính trên dòng tiền ròng đã trừ chi phí giao dịch.
+    pf.realized_pnl += net_proceeds - fill_qty * pf.average_buy_price
+    return fee, tax
 
 
 async def _fill_against_market(
@@ -200,14 +242,20 @@ async def _fill_against_market(
     market_price: Decimal,
     simulated_at: datetime,
     db: AsyncSession,
+    liquidity_depth: Decimal,
+    remaining_liquidity: Decimal,
 ) -> dict[str, Any] | None:
     """Fill một lệnh "marketable" với giá thị trường mô phỏng (market maker).
 
     Thị trường đóng vai đối ứng: lệnh market, hoặc lệnh limit đã lệch giá
-    (mua: limit >= giá thị trường; bán: limit <= giá thị trường), được fill
-    TOÀN BỘ ngay tại ``market_price`` — một người dùng đơn lẻ vẫn giao dịch
-    được mà không cần chờ đối ứng thật. Lock theo thứ tự order → user để không
-    deadlock với route ``create_order`` / ``cancel_order``.
+    (mua: limit >= giá thị trường; bán: limit <= giá thị trường), được fill tại
+    ``market_price`` trừ đi làn trượt giá (slippage) theo độ sâu thanh khoản —
+    một người dùng đơn lẻ vẫn giao dịch được mà không cần chờ đối ứng thật.
+
+    Khối lượng khớp KHÔNG vượt quá ``remaining_liquidity`` (giới hạn thanh khoản
+    còn lại của công ty trong nhịp này); phần dư để ``partially_filled`` và khớp
+    tiếp ở nhịp sau. Lock theo thứ tự order → user để không deadlock với route
+    ``create_order`` / ``cancel_order``.
     """
     locked = (
         await db.execute(select(Order).where(Order.id == order.id).with_for_update())
@@ -216,6 +264,7 @@ async def _fill_against_market(
         locked is None
         or locked.status not in ("pending", "partially_filled")
         or locked.quantity <= locked.filled_quantity
+        or remaining_liquidity <= 0
     ):
         return None
 
@@ -223,8 +272,35 @@ async def _fill_against_market(
         await db.execute(select(User).where(User.id == locked.user_id).with_for_update())
     ).scalar_one()
 
-    fill_qty = locked.quantity - locked.filled_quantity
-    fill_price = market_price
+    fill_qty = min(locked.quantity - locked.filled_quantity, remaining_liquidity)
+
+    if locked.side == "buy":
+        fill_price = compute_fill_price(
+            side="buy",
+            quantity=fill_qty,
+            market_price=market_price,
+            liquidity_depth=liquidity_depth,
+            impact_factor=Decimal(str(settings.slippage_impact_factor)),
+        )
+        # Mua trượt lên — không vượt quá limit của chính lệnh (chống fill với giá
+        # "ăn qua" mức limit khiến lệnh bị xoá bất hợp lý).
+        if locked.type == "limit" and locked.price is not None:
+            fill_price = min(fill_price, locked.price)
+    else:
+        fill_price = compute_fill_price(
+            side="sell",
+            quantity=fill_qty,
+            market_price=market_price,
+            liquidity_depth=liquidity_depth,
+            impact_factor=Decimal(str(settings.slippage_impact_factor)),
+        )
+        if locked.type == "limit" and locked.price is not None:
+            fill_price = max(fill_price, locked.price)
+
+    if locked.side == "buy":
+        fee, tax = await _apply_buy_fill(locked, fill_qty, fill_price, market_price, user, db)
+    else:
+        fee, tax = await _apply_sell_fill(locked, fill_qty, fill_price, user, db)
 
     tx = Transaction(
         order_id=locked.id,
@@ -233,17 +309,20 @@ async def _fill_against_market(
         side=locked.side,
         quantity=fill_qty,
         price=fill_price,
+        fee=fee,
+        tax=tax,
         simulated_at=simulated_at,
+        settles_at=(
+            settlement_deadline(simulated_at) if locked.side == "sell" else None
+        ),
     )
     db.add(tx)
 
-    if locked.side == "buy":
-        await _apply_buy_fill(locked, fill_qty, fill_price, market_price, user, db)
-    else:
-        await _apply_sell_fill(locked, fill_qty, fill_price, user, db)
-
     locked.filled_quantity += fill_qty
-    locked.status = "filled"
+    if locked.filled_quantity >= locked.quantity:
+        locked.status = "filled"
+    else:
+        locked.status = "partially_filled"
 
     await db.commit()
     await db.refresh(tx)
@@ -255,6 +334,8 @@ async def _fill_against_market(
         "side": locked.side,
         "quantity": fill_qty,
         "price": fill_price,
+        "fee": tx.fee,
+        "tax": tx.tax,
         "simulated_at": simulated_at,
     }
     fill["transaction_id"] = tx.id
@@ -272,6 +353,11 @@ async def match_orders(
 
     simulated_at = company.updated_at
     market_price = company.current_price
+    # Giới hạn thanh khoản: tổng khối lượng khớp của 1 công ty trong 1 nhịp
+    # không vượt quá liquidity_depth (ngưỡng tác động thị trường). Giảm dần
+    # qua từng lượt khớp (user↔user + market maker) trong cùng một tick.
+    liquidity_depth = company.liquidity_depth
+    remaining_liquidity = liquidity_depth
 
     transactions: list[dict[str, Any]] = []
     skip_buy_ids: set[uuid.UUID] = set()
@@ -353,7 +439,7 @@ async def match_orders(
 
         buy_remain = locked_buy.quantity - locked_buy.filled_quantity
         sell_remain = locked_sell.quantity - locked_sell.filled_quantity
-        fill_qty = min(buy_remain, sell_remain)
+        fill_qty = min(buy_remain, sell_remain, remaining_liquidity)
 
         if locked_buy.type == "limit" and locked_sell.type == "limit":
             fill_price = buy_price if locked_buy.created_at < locked_sell.created_at else sell_price
@@ -365,6 +451,11 @@ async def match_orders(
         if fill_price is None:
             fill_price = market_price
 
+        buy_fee, buy_tax = await _apply_buy_fill(
+            locked_buy, fill_qty, fill_price, market_price, buyer, db
+        )
+        sell_fee, sell_tax = await _apply_sell_fill(locked_sell, fill_qty, fill_price, seller, db)
+
         tx = Transaction(
             order_id=locked_buy.id,
             user_id=locked_buy.user_id,
@@ -372,6 +463,8 @@ async def match_orders(
             side="buy",
             quantity=fill_qty,
             price=fill_price,
+            fee=buy_fee,
+            tax=buy_tax,
             simulated_at=simulated_at,
         )
         db.add(tx)
@@ -383,12 +476,12 @@ async def match_orders(
             side="sell",
             quantity=fill_qty,
             price=fill_price,
+            fee=sell_fee,
+            tax=sell_tax,
             simulated_at=simulated_at,
+            settles_at=settlement_deadline(simulated_at),
         )
         db.add(sell_tx)
-
-        await _apply_buy_fill(locked_buy, fill_qty, fill_price, market_price, buyer, db)
-        await _apply_sell_fill(locked_sell, fill_qty, fill_price, seller, db)
 
         locked_buy.filled_quantity += fill_qty
         locked_sell.filled_quantity += fill_qty
@@ -412,6 +505,8 @@ async def match_orders(
             "side": "buy",
             "quantity": fill_qty,
             "price": fill_price,
+            "fee": tx.fee,
+            "tax": tx.tax,
             "simulated_at": simulated_at,
         }
         sell_fill = {
@@ -421,6 +516,8 @@ async def match_orders(
             "side": "sell",
             "quantity": fill_qty,
             "price": fill_price,
+            "fee": sell_tx.fee,
+            "tax": sell_tx.tax,
             "simulated_at": simulated_at,
         }
         await db.commit()
@@ -436,33 +533,56 @@ async def match_orders(
         sell_fill["created_at"] = sell_tx.created_at
         transactions.append(fill)
         transactions.append(sell_fill)
+        remaining_liquidity = max(remaining_liquidity - fill_qty, Decimal("0"))
+
+        if remaining_liquidity <= 0:
+            # Hết thanh khoản nhịp này — dừng khớp tiếp.
+            break
 
     # ── Market-maker pass ──────────────────────────────────────────────
     # Sau khi khớp user ↔ user, các lệnh "marketable" còn sót (market / limit đã
-    # lệch giá so với current_price) được fill ngay với giá thị trường. Đây là
-    # mảnh ghép khiến 1 người dùng đơn lẻ đặt lệnh vẫn khớp được — trước đây
-    # lệnh treo pending mãi vì thiếu đối ứng trong sổ lệnh.
-    while True:
+    # lệch giá so với current_price) được fill ngay với giá thị trường (kèm
+    # slippage). Đây là mảnh ghép khiến 1 người dùng đơn lẻ đặt lệnh vẫn khớp
+    # được — trước đây lệnh treo pending mãi vì thiếu đối ứng trong sổ lệnh.
+    while remaining_liquidity > 0:
         buy = await _peek_best_buy(company_id, db, skip_buy_ids)
         sell = await _peek_best_sell(company_id, db, skip_sell_ids)
 
         if buy is not None and _is_marketable(buy, market_price):
             mm_fill = await _fill_against_market(
-                buy, market_price=market_price, simulated_at=simulated_at, db=db
+                buy,
+                market_price=market_price,
+                simulated_at=simulated_at,
+                db=db,
+                liquidity_depth=liquidity_depth,
+                remaining_liquidity=remaining_liquidity,
             )
             skip_buy_ids.add(buy.id)
             if mm_fill is not None:
                 transactions.append(mm_fill)
+                remaining_liquidity = max(
+                    remaining_liquidity - Decimal(str(mm_fill["quantity"])),
+                    Decimal("0"),
+                )
                 continue
             continue
 
         if sell is not None and _is_marketable(sell, market_price):
             mm_fill = await _fill_against_market(
-                sell, market_price=market_price, simulated_at=simulated_at, db=db
+                sell,
+                market_price=market_price,
+                simulated_at=simulated_at,
+                db=db,
+                liquidity_depth=liquidity_depth,
+                remaining_liquidity=remaining_liquidity,
             )
             skip_sell_ids.add(sell.id)
             if mm_fill is not None:
                 transactions.append(mm_fill)
+                remaining_liquidity = max(
+                    remaining_liquidity - Decimal(str(mm_fill["quantity"])),
+                    Decimal("0"),
+                )
                 continue
             continue
 

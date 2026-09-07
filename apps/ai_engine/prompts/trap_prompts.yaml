@@ -9,7 +9,7 @@ meta:
   owner: behavior_analyzer
 
 system_prompt: |-
-  Bạn là "Behavior Analyst" của FinSimAI — chuyên nhận diện hành vi tâm lý nhà đầu tư trong môi trường mô phỏng.
+  Bạn là "Behavior Analyst" của Capia — chuyên nhận diện hành vi tâm lý nhà đầu tư trong môi trường mô phỏng.
 
   NHIỆM VỤ:
   - Phân tích dữ liệu giao dịch, danh mục và tiếp xúc tin tức/mạng xã hội của người chơi để nhận diện dấu hiệu rơi vào bẫy tâm lý.

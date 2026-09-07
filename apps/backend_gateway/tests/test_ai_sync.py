@@ -9,18 +9,14 @@ from typing import Any
 
 import httpx
 import pytest
+from api.v1.ai_sync import (
+    router,
+)
 from core.config import settings
 from core.dependencies import get_db
 from fastapi import FastAPI
 from models.news import News
 from models.social import SocialPost
-
-from api.v1.ai_sync import (
-    _company_by_symbol,
-    _news_title_exists,
-    _social_post_exists,
-    router,
-)
 
 INTERNAL_KEY = "test-internal-key-123"
 
@@ -140,7 +136,12 @@ async def test_ingest_maps_content_and_counts(monkeypatch: pytest.MonkeyPatch) -
         )
     assert resp.status_code == 201
     body = resp.json()
-    assert body == {"inserted_news": 2, "inserted_social_posts": 1, "skipped_news": 0, "skipped_social_posts": 0}
+    assert body == {
+        "inserted_news": 2,
+        "inserted_social_posts": 1,
+        "skipped_news": 0,
+        "skipped_social_posts": 0,
+    }
 
     news_items = [obj for obj in db.added if isinstance(obj, News)]
     assert len(news_items) == 2
@@ -177,5 +178,10 @@ async def test_ingest_skips_duplicates(monkeypatch: pytest.MonkeyPatch) -> None:
             "/ai/content", json=_batch(), headers={"X-Internal-Api-Key": INTERNAL_KEY}
         )
     assert resp.status_code == 201
-    assert resp.json() == {"inserted_news": 0, "inserted_social_posts": 0, "skipped_news": 2, "skipped_social_posts": 1}
+    assert resp.json() == {
+        "inserted_news": 0,
+        "inserted_social_posts": 0,
+        "skipped_news": 2,
+        "skipped_social_posts": 1,
+    }
     assert db.added == []

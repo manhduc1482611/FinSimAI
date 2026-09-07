@@ -19,6 +19,8 @@ TEMPLATE_SAMPLES = {
             "context": "ct",
             "history": "h",
             "user_message": "m",
+            # extra_rule: quy tắc bổ sung từ judge (A2.2), rỗng ở đường thường.
+            "extra_rule": "",
         },
     },
     "scenario_prompts.yaml": {

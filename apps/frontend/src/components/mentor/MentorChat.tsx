@@ -11,6 +11,7 @@ import { Card } from "@/components/common/Card";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useMentorStore } from "@/store/useMentorStore";
 import { useSocraticMentor } from "@/hooks/useSocraticMentor";
+import { fetchMentorHistory } from "@/services/mentor";
 import { cn } from "@/utils/cn";
 
 const SUGGESTIONS = [
@@ -25,6 +26,8 @@ export function MentorChat() {
   const mentor = useSocraticMentor();
   const sessionId = useMentorStore((state) => state.sessionId);
   const startSession = useMentorStore((state) => state.startSession);
+  const historyLoaded = useMentorStore((state) => state.historyLoaded);
+  const seedHistory = useMentorStore((state) => state.seedHistory);
 
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -36,6 +39,33 @@ export function MentorChat() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Phục hồi hội thoại từ DB sau reload (A3.2) — chỉ chạy 1 lần mỗi phiên đăng nhập.
+  useEffect(() => {
+    if (token === null || historyLoaded) {
+      return;
+    }
+    let cancelled = false;
+    fetchMentorHistory(50)
+      .then((response) => {
+        if (cancelled) return;
+        seedHistory(
+          response.items.map((item) => ({
+            id: item.id,
+            role: item.role,
+            content: item.content,
+            ts: item.created_at,
+          })),
+        );
+      })
+      .catch(() => {
+        // Lịch sử là tiện ích — lỗi không chặn chat; đánh dấu để không retry loop.
+        if (!cancelled) seedHistory([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, historyLoaded, seedHistory]);
 
   useEffect(() => {
     if (mentor.messages.length > 0) {
@@ -81,6 +111,13 @@ export function MentorChat() {
             </span>
           )}
         </div>
+        <p
+          role="note"
+          aria-label="Miễn trừ trách nhiệm"
+          className="mt-2 rounded-lg border border-dashed border-line bg-[#FFFDF8] px-3 py-1.5 text-[11px] font-medium leading-snug text-ink-500 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-400"
+        >
+          Mentor không khuyến nghị mua/bán — chỉ giúp bạn phản biện quyết định của mình.
+        </p>
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">

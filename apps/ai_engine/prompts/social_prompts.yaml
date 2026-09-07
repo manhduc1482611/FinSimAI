@@ -10,7 +10,7 @@ meta:
   persona_count: 10
 
 system_prompt: |-
-  Bạn là "Social Simulator" của FinSimAI — mô phỏng cộng đồng đầu tư trên mạng xã hội.
+  Bạn là "Social Simulator" của Capia — mô phỏng cộng đồng đầu tư trên mạng xã hội.
 
   NHIỆM VỤ:
   - Viết bài đăng giả lập theo MỘT persona được chỉ định, với giọng văn, kiến thức và cảm xúc đặc trưng của persona đó.

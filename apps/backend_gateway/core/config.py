@@ -53,6 +53,27 @@ class Settings(BaseSettings):
 
     math_engine_url: str = "http://localhost:8000"
 
+    # ─── Chi phí giao dịch mô phỏng (realism engine) ─────────────────────
+    # Phí môi trường 0.15% mỗi lượt khớp (cả mua lẫn bán) và thuế thu nhập
+    # từ chuyển nhượng vốn 0.1% chỉ áp cho chiều BÁN — đúng luật giao dịch
+    # chứng khoán Việt Nam. Tỷ lệ nhân vào giá trị khớp (qty × price).
+    trading_fee_rate: float = 0.0015
+    sell_tax_rate: float = 0.001
+
+    # ─── Thanh toán T+2 ──────────────────────────────────────────────────
+    # Số ngày (thực, vì simulated_at dùng đồng hồ thực) chờ tiền bán hàng
+    # về tài khoản khả dụng — mô phỏng chu kỳ thanh toán bù trừ T+2.
+    settlement_days: int = 2
+
+    # ─── Slippage & thanh khoản ─────────────────────────────────────────
+    # Hằng số k trong mô hình tác động thị trường: impact = tham_gia × k.
+    # Lệnh nhỏ (tham_gia → 0) gần như không trượt; lệnh chiếm phần lớn độ sâu
+    # thị trường trượt rõ rệt. Mặc định 0.5 (vừa phải, không tạo fill phi lý).
+    slippage_impact_factor: float = 0.5
+    # Tỷ lệ khối lượng cổ phiếu được coi là "độ sâu" khớp được trong 1 nhịp —
+    # liquidity_depth = liquidity_ratio × shares_outstanding.
+    liquidity_ratio: float = 0.05
+
     # ─── Mentor ────────────────────────────────────────────────────────────
     # AI Engine (ai-engine-api). Mentor mặc định chạy deterministic question-bank
     # (0 token Gemini); chỉ khi MENTOR_LLM_MODE=on VÀ AI_ENGINE_URL có giá trị mới

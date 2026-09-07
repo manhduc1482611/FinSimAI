@@ -143,4 +143,4 @@ class TestFallback:
 
     def test_fallback_sets_disclaimer(self, agent):
         reply = agent.generate("test")
-        assert reply.disclaimer.startswith("FinSimAI là môi trường mô phỏng")
+        assert reply.disclaimer.startswith("Capia là môi trường mô phỏng")

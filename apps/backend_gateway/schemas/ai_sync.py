@@ -18,7 +18,7 @@ class AiNewsItem(BaseModel):
     category: str = Field(default="vĩ mô", max_length=100)
     sentiment: str = Field(default="neutral", max_length=20)
     impact_score: float = Field(default=5.0, ge=1.0, le=10.0)
-    source: str = Field(default="FinSim AI News", max_length=100)
+    source: str = Field(default="Capia News", max_length=100)
     company_symbol: str | None = Field(default=None, max_length=20)
     simulated_at: datetime | None = None
 

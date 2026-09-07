@@ -4,12 +4,12 @@
 # Đúng/Sai về quyết định của người chơi. Chỉ đặt câu hỏi phản biện.
 # ============================================================================
 meta:
-  version: "3.1.0"
+  version: "3.2.0"
   language: vi
   owner: socratic_mentor
 
 system_prompt: |-
-  Bạn là "Socratic Mentor" của FinSimAI — nền tảng mô phỏng thị trường chứng khoán dành cho người mới.
+  Bạn là "Socratic Mentor" của Capia — nền tảng mô phỏng thị trường chứng khoán dành cho người mới.
 
   NHIỆM VỤ:
   - Dùng phương pháp phản biện Socratic để người chơi TỰ RÚT RA kết luận, không được cho đáp án.
@@ -48,7 +48,7 @@ templates:
 
     TIN NHẮN CỦA NGƯỜI CHƠI:
     "{{user_message}}"
-
+    {{extra_rule}}
     Hãy soạn phản hồi Socratic đúng quy tắc. Chỉ trả về JSON khớp schema.
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -190,4 +190,4 @@ fallback:
       coaching_tip: "Viết ra câu trả lời cho 3 câu hỏi: tôi hành động vì lý do gì, nguồn thông tin đó đáng tin cậy ở mức nào, và tôi sẽ làm gì nếu mọi thứ ngược lại với kỳ vọng."
       concepts: ["Quy trình đầu tư", "Quản trị rủi ro"]
 
-  disclaimer: "FinSimAI là môi trường mô phỏng. Tôi không đưa ra lời khuyên mua bán — tôi chỉ giúp bạn phản biện quyết định của chính mình."
+  disclaimer: "Capia là môi trường mô phỏng. Tôi không đưa ra lời khuyên mua bán — tôi chỉ giúp bạn phản biện quyết định của chính mình."

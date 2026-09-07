@@ -197,7 +197,7 @@ knowledge_base:
   - keyword: cooldown
     concept: Cooldown Penalty
     definition: >-
-      A disciplinary mechanism in FinSimAI where reckless trading behavior
+      A disciplinary mechanism in Capia where reckless trading behavior
       triggers a temporary trading suspension. During cooldown, users can
       still access the Socratic Mentor for learning but cannot execute trades.
     category: finsimai_mechanics
@@ -208,7 +208,7 @@ knowledge_base:
     concept: Social Media Virality
     definition: >-
       A measure of how rapidly and widely a social media post spreads. In
-      FinSimAI, high-virality posts can temporarily impact stock prices.
+      Capia, high-virality posts can temporarily impact stock prices.
       Some viral posts may be traps designed to mislead traders.
     category: finsimai_mechanics
     difficulty: 2
@@ -218,7 +218,7 @@ knowledge_base:
     concept: Time Compression
     definition: >-
       The core simulation mechanic where 1 real minute equals N virtual days.
-      FinSimAI uses time compression to simulate weeks and months of market
+      Capia uses time compression to simulate weeks and months of market
       activity in a single gaming session.
     category: finsimai_mechanics
     difficulty: 2

@@ -428,6 +428,8 @@ class TradeNotifier:
             "quantity": quantity,
             "price": price,
             "total": round(quantity * price, 2),
+            "fee": round(float(tx.get("fee", 0) or 0), 2),
+            "tax": round(float(tx.get("tax", 0) or 0), 2),
             "simulated_at": tx.get("simulated_at"),
         }
 
@@ -469,6 +471,8 @@ class TradeNotifier:
                     Transaction.side,
                     Transaction.quantity,
                     Transaction.price,
+                    Transaction.fee,
+                    Transaction.tax,
                     Transaction.simulated_at,
                     Transaction.created_at,
                     Company.symbol,
@@ -500,10 +504,12 @@ class TradeNotifier:
                 "side": r[4],
                 "quantity": float(r[5]),
                 "price": float(r[6]),
-                "simulated_at": r[7],
-                "created_at": r[8],
-                "symbol": r[9],
-                "company_name": r[10],
+                "fee": float(r[7] or 0),
+                "tax": float(r[8] or 0),
+                "simulated_at": r[9],
+                "created_at": r[10],
+                "symbol": r[11],
+                "company_name": r[12],
             }
             for r in rows
         ]

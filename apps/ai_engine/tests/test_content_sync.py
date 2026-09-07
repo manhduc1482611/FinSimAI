@@ -1,5 +1,7 @@
 """Test content_sync: no-op khi chưa cấu hình, POST đúng endpoint khi đã cấu hình."""
 
+from typing import Self
+
 import pytest
 
 from integrations import content_sync
@@ -25,7 +27,7 @@ async def test_sync_posts_batch_to_gateway(monkeypatch: pytest.MonkeyPatch) -> N
             pass
 
     class FakeClient:
-        async def __aenter__(self) -> "FakeClient":
+        async def __aenter__(self) -> Self:
             return self
 
         async def __aexit__(self, *exc: object) -> None:

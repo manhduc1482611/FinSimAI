@@ -109,7 +109,7 @@ def create_app() -> FastAPI:
     is_production = settings.environment.lower() == "production"
 
     app = FastAPI(
-        title="FinSimAI API Gateway",
+        title="Capia API Gateway",
         description="Financial Simulation & AI Mentor Platform",
         version="0.1.0",
         docs_url=None if is_production else "/docs",

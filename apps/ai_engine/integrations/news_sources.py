@@ -1,4 +1,4 @@
-"""Nguồn tin tức RSS của FinSimAI AI Engine.
+"""Nguồn tin tức RSS của Capia AI Engine.
 
 Trách nhiệm:
 - Định nghĩa các nguồn RSS ĐÃ KIỂM CHỨNG hoạt động cho thị trường VN
@@ -28,7 +28,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = httpx.Timeout(connect=5.0, read=10.0, write=5.0, pool=5.0)
-DEFAULT_USER_AGENT = "FinSimAI-Bot/0.1 (market simulation; local demo)"
+DEFAULT_USER_AGENT = "Capia-Bot/0.1 (market simulation; local demo)"
 
 # Nhận diện feed XML hợp lệ ngay cả khi thiếu content-type.
 _XML_PREFIXES = (b"<?xml", b"<rss", b"<feed")

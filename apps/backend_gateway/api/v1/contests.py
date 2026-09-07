@@ -9,6 +9,7 @@ from models.contest import Contest
 from models.news import News
 from models.social import SocialPost
 from models.user import User
+from realtime.simtime import sim_now
 from schemas.company import CompanyListResponse, CompanyResponse
 from schemas.contest import (
     ContestCreateRequest,
@@ -198,7 +199,7 @@ async def list_contest_news(
     contest = await _require_scope(db, current_user, slug)
     stmt = (
         select(News)
-        .where(News.contest_id == contest.id)
+        .where(News.contest_id == contest.id, News.simulated_at <= sim_now())
         .order_by(News.simulated_at.desc())
     )
     items, total = await paginate(db, stmt, skip, limit)
@@ -219,7 +220,7 @@ async def list_contest_social_posts(
     contest = await _require_scope(db, current_user, slug)
     stmt = (
         select(SocialPost)
-        .where(SocialPost.contest_id == contest.id)
+        .where(SocialPost.contest_id == contest.id, SocialPost.simulated_at <= sim_now())
         .order_by(SocialPost.simulated_at.desc())
     )
     items, total = await paginate(db, stmt, skip, limit)

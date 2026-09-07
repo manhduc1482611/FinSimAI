@@ -22,8 +22,16 @@ class FakeGemini:
         self.reply = reply
 
     def generate_structured(
-        self, model_type: Any, *, system_instruction: str, user_content: str
+        self,
+        model_type: Any,
+        *,
+        system_instruction: str,
+        user_content: str,
+        validator: Any = None,
+        **kwargs: Any,
     ) -> SocraticReply:
+        if validator is not None:
+            validator(self.reply)
         return self.reply
 
 

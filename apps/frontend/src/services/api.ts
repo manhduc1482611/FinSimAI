@@ -16,12 +16,32 @@ import type { RequestError } from "@/types/api";
 const DEFAULT_API_URL = "http://localhost:8000";
 
 /**
+ * Demo mode (KHÔNG cần backend):
+ * - NEXT_PUBLIC_DEMO_MODE=true : bật chế độ dùng Google Apps Script làm backend.
+ * - NEXT_PUBLIC_SS_API_URL      : URL web app của Apps Script (doApp/doPost).
+ */
+export function isDemoMode(): boolean {
+  return process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+}
+
+export function getSsApiBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_SS_API_URL ||
+    "https://script.google.com/macros/s/AKfycbwRm4U5ybyS56hZWX3MMlXH_5eYCSe2pQ_Y22uV9ajy2TDLXE_n7MHoLkxGr-mr8Q7rjg/exec"
+  );
+}
+
+/**
  * Base URL của API — ưu tiên `NEXT_PUBLIC_API_URL` (cấu hình trên Vercel/Render
  * cho production). Nếu không set (dev): tự suy từ host của trang đang mở —
  * hỗ trợ test trên điện thoại cùng mạng LAN mà không cần sửa IP thủ công
  * (điện thoại mở `http://<IP-máy>:3000` thì API tự trỏ `http://<IP-máy>:8000`).
  */
 export function getApiBaseUrl(): string {
+  // Demo mode: trả về URL Google Apps Script, không phải backend thật.
+  if (isDemoMode()) {
+    return getSsApiBaseUrl();
+  }
   const apiUrlFromEnv = process.env.NEXT_PUBLIC_API_URL;
   if (apiUrlFromEnv) {
     return apiUrlFromEnv;
@@ -262,6 +282,42 @@ class ApiClient {
   }
 
   async request<T>(path: string, init: RequestInit = {}, allowRetry = true): Promise<T> {
+    // Demo mode (Apps Script backend): bỏ Authorization + custom headers để tránh
+    // CORS preflight; pack toàn bộ path (kèm query) vào param `path` trên webapp.
+    if (isDemoMode()) {
+      const base = this.resolveBaseUrl().replace(/\/+$/, "");
+      const body = init.body;
+      const headers: Record<string, string> = {};
+      if (init.method !== "GET" && body !== undefined) {
+        // text/plain là "CORS-safelisted" → trình duyệt không gửi preflight.
+        headers["Content-Type"] = "text/plain;charset=UTF-8";
+      }
+      const response = await fetch(
+        `${base}?path=${encodeURIComponent(path)}`,
+        {
+          ...init,
+          headers,
+          body: init.method !== "GET" ? body : undefined,
+        },
+      );
+      if (!response.ok) {
+        let apiError: ApiError | null = null;
+        try {
+          apiError = (await response.json()) as ApiError;
+        } catch {
+          // ignore
+        }
+        throw new ApiClientError(
+          response.status,
+          (apiError?.detail ?? response.statusText) || `HTTP ${response.status}`,
+        );
+      }
+      if (response.status === 204) {
+        return undefined as T;
+      }
+      return (await response.json()) as T;
+    }
+
     const headers = new Headers(init.headers);
     const token = this.token;
     if (token) {

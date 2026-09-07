@@ -1,11 +1,16 @@
 """Socratic Mentor Agent — cố vấn phản biện theo phương pháp Socratic.
 
-NGUYÊN TẮC TUYỆT ĐỐI (được bảo vệ bởi 3 lớp):
+NGUYÊN TẮC TUYỆT ĐỐI (được bảo vệ bởi 5 lớp — improvement_plan A2):
 1. Prompt hệ thống cấm tuyệt đối lời khuyên mua/bán và nhận xét đúng/sai.
 2. Pydantic schema + :class:`SocraticReply` có ``model_validator`` quét chính sách
    (xem :mod:`agents.policy`) — bất kỳ output nào vi phạm đều bị loại ngay lập tức.
-3. Vòng retry của Gemini có feedback; nếu vẫn thất bại → fallback DETERMINISTIC
-   (0 token) luôn an toàn.
+3. Scanner keyword tiếng Việt mở rộng, chịu được văn bản không dấu (A2.1).
+4. **LLM-as-judge** độc lập chấm reply trước khi phát; vi phạm → retry 1 lần
+   → vẫn lỗi thì fallback (A2.2).
+5. Fallback DETERMINISTIC (0 token) luôn an toàn.
+
+Bổ sung lớp chống hallucination số liệu (A2.3): mọi con số "dữ liệu" trong reply
+phải tồn tại trong ngữ cảnh — xem :mod:`agents.grounding`.
 
 Đầu ra: một object :class:`SocraticReply` hợp lệ — chỉ có câu hỏi phản biện.
 """
@@ -20,7 +25,9 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from agents.base import BaseAgent
-from agents.policy import PolicyViolationError, scan_policy
+from agents.grounding import assert_grounded
+from agents.judge import JudgeVerdict, judge_enabled, judge_feedback_message, run_judge
+from agents.policy import PolicyViolationError, normalize_text, scan_policy
 from integrations.gemini import GeminiError
 
 logger = logging.getLogger(__name__)
@@ -129,26 +136,91 @@ class SocraticMentorAgent(BaseAgent):
     ) -> SocraticReply:
         """Phản hồi Socratic cho tin nhắn của người chơi (luôn trả về hợp lệ)."""
         ctx = context or MentorContext()
-        prompt = self.store.render_template(
+        try:
+            return self._finalize(self.llm_reply(message, ctx, history))
+        except GeminiError as exc:
+            logger.warning("Socratic mentor dùng fallback deterministic: %s", exc)
+            return self._finalize(self._fallback(message, ctx))
+
+    def llm_reply(
+        self,
+        message: str,
+        ctx: MentorContext | None = None,
+        history: list[dict[str, Any]] | None = None,
+        extra_rule: str = "",
+    ) -> SocraticReply:
+        """Sinh reply qua LLM với đầy đủ lớp bảo vệ; ném ``GeminiError`` nếu thất bại.
+
+        Đường ống: render prompt → generate (validator grounding A2.3) → judge
+        độc lập (A2.2) → vi phạm thì retry ĐÚNG MỘT LẦN với feedback → vẫn lỗi
+        thì ném lỗi để caller rơi về fallback deterministic.
+        ``extra_rule``: quy tắc bổ sung do caller/judge chèn vào prompt.
+        """
+        ctx = ctx or MentorContext()
+        prompt = self._render_prompt(message, ctx, history, extra_rule)
+        system_prompt = self._require_prompt("system_prompt")
+        grounding_validator = self._grounding_validator(prompt)
+
+        reply = self.gemini.generate_structured(
+            SocraticReply,
+            system_instruction=system_prompt,
+            user_content=prompt,
+            validator=grounding_validator,
+        )
+
+        verdict = self._judge(reply, prompt)
+        if verdict is not None and verdict.violation:
+            logger.warning("Mentor judge chặn reply (%s) — retry một lần", verdict.reason)
+            feedback = judge_feedback_message(verdict)
+            retried = self.gemini.generate_structured(
+                SocraticReply,
+                system_instruction=system_prompt,
+                user_content=self._render_prompt(message, ctx, history, feedback),
+                validator=grounding_validator,
+            )
+            second_verdict = self._judge(retried, prompt)
+            if second_verdict is not None and second_verdict.violation:
+                raise PolicyViolationError(
+                    [f"JUDGE chặn lần 2: {second_verdict.reason or 'vi phạm chính sách'}"]
+                )
+            reply = retried
+        return reply
+
+    # ── Triển khai nội bộ ──────────────────────────────────────────────────
+    def _render_prompt(
+        self,
+        message: str,
+        ctx: MentorContext,
+        history: list[dict[str, Any]] | None,
+        extra_rule: str,
+    ) -> str:
+        return self.store.render_template(
             self.prompt_file,
             "user_prompt",
             context=ctx.to_text(),
             history=self._format_history(history),
             user_message=message,
+            extra_rule=extra_rule,
+        )
+    @staticmethod
+    def _grounding_validator(context_text: str):
+        """Validator cho generate_structured: mọi số dữ liệu phải có trong ngữ cảnh."""
+
+        def _validate(reply: SocraticReply) -> None:
+            assert_grounded([*reply.questions, reply.coaching_tip], context_text)
+
+        return _validate
+
+    def _judge(self, reply: SocraticReply, prompt: str) -> JudgeVerdict | None:
+        """Chạy LLM-as-judge; trả None khi tắt hoặc judge không chạy được."""
+        if not judge_enabled():
+            return None
+        return run_judge(
+            self.gemini,
+            reply_texts=[*reply.questions, reply.coaching_tip],
+            source_content=prompt,
         )
 
-        try:
-            reply = self.gemini.generate_structured(
-                SocraticReply,
-                system_instruction=self._require_prompt("system_prompt"),
-                user_content=prompt,
-            )
-            return self._finalize(reply)
-        except GeminiError as exc:
-            logger.warning("Socratic mentor dùng fallback deterministic: %s", exc)
-            return self._finalize(self._fallback(message, ctx))
-
-    # ── Triển khai nội bộ ──────────────────────────────────────────────────
     def _finalize(self, reply: SocraticReply) -> SocraticReply:
         return reply.model_copy(update={"disclaimer": self._disclaimer})
 
@@ -169,10 +241,12 @@ class SocraticMentorAgent(BaseAgent):
         )
 
     def _detect_focus(self, text: str) -> SocraticFocus:
-        haystack = text.lower()
+        # Chuẩn hoá BỎ DẤU cả haystack lẫn keyword để bắt tin nhắn viết
+        # không dấu ("tang vun vut") — nhất quán với scanner chính sách A2.1.
+        haystack = normalize_text(text)
         detection = self._require_prompt("fallback", "detection")
         scores: dict[str, int] = {
-            focus_key: sum(1 for keyword in keywords if keyword in haystack)
+            focus_key: sum(1 for keyword in keywords if normalize_text(keyword) in haystack)
             for focus_key, keywords in detection.items()
         }
         priority = self._require_prompt("fallback", "priority_order")

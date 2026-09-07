@@ -1,4 +1,4 @@
-"""Boot-time idempotent seeding cho FinSimAI database.
+"""Boot-time idempotent seeding cho Capia database.
 
 Chạy trong lifespan của backend (bên trong mạng Render, cùng network với
 Postgres) sau khi ``alembic upgrade head`` hoàn tất. Vì Render free-tier
@@ -197,7 +197,7 @@ def _news_rows(companies: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "content": body,
                 "sentiment": sentiment,
                 "impact_score": impact,
-                "source": "FinSimAI News",
+                "source": "Capia News",
                 "category": _CATEGORIES[idx % len(_CATEGORIES)],
                 "company_id": company["id"],
                 "is_ai_generated": True,
@@ -236,7 +236,7 @@ def _news_rows(companies: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "content": body,
                 "sentiment": sentiment,
                 "impact_score": impact,
-                "source": "FinSimAI News",
+                "source": "Capia News",
                 "category": "vĩ mô",
                 "company_id": None,
                 "is_ai_generated": True,
@@ -444,7 +444,7 @@ _TASKS = [
      "Đặt thành công lệnh mua hoặc bán đầu tiên của bạn.",
      "onboarding", "20000", 1, "none", True, 110),
     ("first_knowledge_read", "Đọc bài kiến thức đầu tiên",
-     "Khám phá kho kiến thức chứng khoán của FinSimAI.",
+     "Khám phá kho kiến thức chứng khoán của Capia.",
      "onboarding", "10000", 1, "none", True, 120),
     ("first_news_read", "Đọc tin tức đầu tiên",
      "Cập nhật tin tức thị trường mới nhất trong ngày.",

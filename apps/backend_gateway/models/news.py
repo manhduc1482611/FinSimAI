@@ -23,7 +23,7 @@ class News(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     summary: Mapped[str | None] = mapped_column(Text)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    source: Mapped[str] = mapped_column(String(100), default="FinSim AI News", nullable=False)
+    source: Mapped[str] = mapped_column(String(100), default="Capia News", nullable=False)
     category: Mapped[str] = mapped_column(String(100), default="vĩ mô", nullable=False, index=True)
     sentiment: Mapped[str] = mapped_column(
         ENUM("positive", "negative", "neutral", name="sentiment", create_type=False),

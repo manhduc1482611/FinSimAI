@@ -307,6 +307,15 @@ async def checkin(db: AsyncSession, user: User) -> dict[str, object]:
             reward += task.reward_amount
             await _maybe_complete_daily(db, user)
 
+    # Check-in đều đặn là hành vi kỷ luật → +1 điểm kỷ luật mỗi ngày (không spam).
+    if not already:
+        try:
+            from services.discipline_service import apply_discipline
+
+            await apply_discipline(db, user, "daily_checkin")
+        except Exception:
+            logger.exception("Cộng điểm kỷ luật check-in thất bại (không chặn)")
+
     reward += await _maybe_complete_streaks(db, user, streak_row.current_streak)
     await db.commit()
     return {

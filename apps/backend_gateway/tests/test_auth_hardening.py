@@ -11,14 +11,12 @@ from typing import Any
 
 import httpx
 import pytest
+from api.v1.auth import router
+from core import ratelimit
 from core.config import settings
 from core.dependencies import get_db
 from core.security import create_access_token, create_refresh_token, hash_password
 from fastapi import FastAPI
-from models.user import User
-
-from api.v1.auth import router
-from core import ratelimit
 
 INTERNAL_KEY = "test-internal-key-123"
 

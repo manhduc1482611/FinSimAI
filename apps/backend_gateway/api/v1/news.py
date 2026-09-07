@@ -4,6 +4,7 @@ from core.dependencies import get_current_user_optional, get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from models.news import News
 from models.user import User
+from realtime.simtime import sim_now
 from schemas.news import NewsListResponse, NewsResponse
 from services import task_service
 from sqlalchemy import select
@@ -22,7 +23,9 @@ async def list_news(
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ) -> NewsListResponse:
-    stmt = select(News)
+    # As-of filter (chống look-ahead): nội dung sinh trước/lên lịch phát hành sau
+    # chỉ xuất hiện khi simulated_at <= mốc hiện tại của thế giới mô phỏng.
+    stmt = select(News).where(News.simulated_at <= sim_now())
     if category:
         stmt = stmt.where(News.category == category)
     if sentiment:
@@ -44,7 +47,7 @@ async def get_news(
     current_user: User | None = Depends(get_current_user_optional),
 ) -> News:
     entry = await db.get(News, news_id)
-    if not entry:
+    if not entry or entry.simulated_at > sim_now():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="News not found")
     if current_user is not None:
         await task_service.record_event(db, current_user, "news_read")

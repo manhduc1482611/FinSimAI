@@ -21,6 +21,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_UP, Decimal
 from typing import Any
+import logging
 
 from clients.math_client import math_client
 from models.trade import Order
@@ -28,6 +29,8 @@ from models.trap import TrapEvent
 from models.user import User
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 def _utcnow() -> datetime:
@@ -218,6 +221,23 @@ async def apply_penalty(
     if deduction > 0:
         user.cash_balance -= deduction
 
+    # Vi phạm kỷ luật cũng trừ Điểm kỷ luật (không phụ thuộc lãi/lỗ).
+    try:
+        from services.discipline_service import apply_discipline
+
+        await apply_discipline(
+            db,
+            user,
+            "penalty_violation",
+            context={
+                "trap_type": trap_type,
+                "severity": trap_severity,
+                "risk_deduction": int(deduction),
+            },
+        )
+    except Exception:
+        logger.exception("Ghi điểm kỷ luật thất bại sau penalty (không chặn phạt)")
+
     db.add(
         TrapEvent(
             user_id=user_id,
@@ -273,6 +293,14 @@ async def clear_cooldown(user_id: uuid.UUID, db: AsyncSession) -> dict[str, Any]
         }
 
     user.cooldown_until = None
+
+    # Hoàn thành phản tư với Mentor để gỡ khóa = hành vi kỷ luật → +5 điểm.
+    try:
+        from services.discipline_service import apply_discipline
+
+        await apply_discipline(db, user, "mentor_reflection")
+    except Exception:
+        logger.exception("Cộng điểm kỷ luật sau phản tư thất bại (không chặn)")
 
     events = (
         await db.execute(

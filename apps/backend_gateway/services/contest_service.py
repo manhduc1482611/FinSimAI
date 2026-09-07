@@ -482,7 +482,7 @@ async def generate_content(db: AsyncSession, contest: Contest) -> Contest:
                     title=row["title"],
                     summary=row["summary"],
                     content=row["content"],
-                    source="FinSimAI Contest",
+                    source="Capia Contest",
                     category=row["category"],
                     sentiment=row["sentiment"],
                     impact_score=row["impact_score"],

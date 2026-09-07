@@ -12,6 +12,8 @@ import { apiClient } from "@/services/api";
 export interface CompanyQuery extends ListQuery {
   sector?: string;
   search?: string;
+  /** Demo mode: báo Apps Script chạy mô phỏng giá (random walk) trước khi trả list. */
+  tick?: 1;
 }
 
 /** GET /companies → danh sách doanh nghiệp (lọc theo sector/search). */

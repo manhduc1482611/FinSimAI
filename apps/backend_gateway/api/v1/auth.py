@@ -12,7 +12,7 @@ from core.security import (
     hash_password,
     verify_password,
 )
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jwt.exceptions import PyJWTError
 from models.user import User
 from realtime.auth import create_ws_ticket

@@ -1,0 +1,63 @@
+# FinSimAI Backend Gateway (FastAPI + WebSocket realtime)
+# Deploy:  flyctl deploy --config apps/backend_gateway/fly.toml
+#
+# Lưu ý: backend có background task realtime (market_sim, price/trade notifier)
+# nên instance phải LUÔN chạy -> KHÔNG scale-to-zero (min_machines_running >= 1).
+
+app = "finsim-backend"
+
+primary_region = "sin"
+
+[build]
+  # Dockerfile nằm dưới apps/backend_gateway nhưng cần context = root (monorepo)
+  # vì nó COPY pyproject.toml, uv.lock, apps/, packages/, scripts/ từ root.
+  dockerfile = "apps/backend_gateway/Dockerfile"
+
+[env]
+  PORT = "8000"
+  ENVIRONMENT = "production"
+  DEBUG = "false"
+  PYTHONPATH = "/app/apps/backend_gateway"
+  APP_TIMEZONE = "Asia/Ho_Chi_Minh"
+  JWT_ALGORITHM = "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES = "60"
+  # 1 replica duy nh���t (free tier) -> WS_LOCAL_MODE=true giA'p WebSocket ch���y
+  # mA� khA'ng c���n Redis leader election (backplane/ticket store trong RAM).
+  WS_LOCAL_MODE = "true"
+  MENTOR_LLM_MODE = "off"
+  SEED_ON_STARTUP = "true"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "60s"
+    method = "GET"
+    path = "/health/live"
+
+  [[http_service.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[http_service.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+# WebSocket endpoints cần choảng lớn hơn (price/trade/mentor stream)
+# NOTE: Free tier Fly.io = 3 VM shared-cpu-1x @ 256MB. Dùng 256mb để nằm trong
+# free allowance. Nếu backend over RAM (FastAPI + WS + market_sim) -> tăng lên
+# 512mb+ sẽ tính phí (khoảng $2-5/tháng).
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

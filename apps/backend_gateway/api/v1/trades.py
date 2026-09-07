@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from decimal import Decimal
 from uuid import UUID
 
+from core.config import settings
 from core.dependencies import get_current_user, get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from models.company import Company
@@ -32,7 +33,11 @@ async def get_portfolio(
     rows = result.all()
 
     items: list[PortfolioResponse] = []
-    total_nav = current_user.cash_balance + current_user.frozen_cash
+    total_nav = (
+        current_user.cash_balance
+        + current_user.frozen_cash
+        + current_user.settling_cash
+    )
 
     for portfolio, company in rows:
         market_value = portfolio.quantity * company.current_price
@@ -106,7 +111,10 @@ async def create_order(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Price is required for limit orders",
             )
-        total_cost = body.quantity * effective_price
+        # Đóng băng gồm cả buffer phí mua (0.15%) để lệnh khớp không đẩy
+        # cash_balance xuống âm khi user dùng chính xác toàn bộ số dư khả dụng.
+        fee_multiplier = Decimal("1") + Decimal(str(settings.trading_fee_rate))
+        total_cost = body.quantity * effective_price * fee_multiplier
         available_cash = locked_user.cash_balance - locked_user.frozen_cash
 
         if total_cost > available_cash:

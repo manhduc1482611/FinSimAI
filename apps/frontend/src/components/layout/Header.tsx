@@ -32,7 +32,7 @@ function getPageTitle(pathname: string): string {
   const match = PAGE_TITLES.find(
     (entry) => pathname === entry.pattern || pathname.startsWith(`${entry.pattern}/`),
   );
-  return match?.title ?? "FinSimAI";
+  return match?.title ?? "Capia";
 }
 
 function RiskBadge({ score }: { score: number }) {

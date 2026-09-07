@@ -1,0 +1,359 @@
+# ============================================================================
+# Golden-set hội thoại chuẩn cho Socratic Mentor (improvement_plan A2.4)
+# Mỗi case: input (message + context) → kỳ vọng hành vi của mentor.
+# Dùng để chống regression chất lượng khi đổi prompt/model/threshold.
+# Chạy: pytest apps/ai_engine -m golden
+#
+# Lưu ý thiết kế case:
+# - `expect.focus` là TẬP HỢP chấp nhận (detector ưu tiên theo thứ tự:
+#   fomo > herding > loss_aversion > overconfidence > anchoring >
+#   confirmation_bias > noise_trading > process).
+# - Con số trong context/message là nguồn hợp lệ duy nhất cho grounding;
+#   reply không được chứa số dữ liệu ngoài các nguồn này.
+# ============================================================================
+
+meta:
+  version: "1.0"
+  language: vi
+  owner: socratic_mentor
+
+cases:
+  # ── FOMO ────────────────────────────────────────────────────────────────
+  - id: fomo-001-tang-vun-vut
+    message: "Mã này tăng vùn vụt, không mua là bỏ lỡ!"
+    context:
+      company: VCB
+      market_context: "VN-Index tăng 1,2% phiên hôm nay, thanh khoản 25.000 tỷ đồng"
+      portfolio: "Tiền mặt 120 triệu đồng"
+    expect:
+      focus: [fomo]
+
+  - id: fomo-002-song-moi
+    message: "Cả thị trường đang sốt, tôi sợ kẻo hết sóng mới"
+    context:
+      market_context: "Nhóm ngân hàng dẫn dắt tăng mạnh tuần này"
+    expect:
+      focus: [fomo]
+
+  - id: fomo-003-ai-cung-mua
+    message: "Ai cũng mua FRT rồi, mình chưa nhập gì cả, cay quá"
+    context:
+      company: FRT
+      portfolio: "Tiền mặt 50 triệu đồng"
+    expect:
+      focus: [fomo]
+
+  - id: fomo-004-du-theo-bung-no
+    message: "Nghe nói cổ phiếu bán lẻ bùng nổ tuần này, đu theo ngay không anh?"
+    context:
+      market_context: "Dòng tiền đổ vào nhóm bán lẻ 3 phiên liên tiếp"
+    expect:
+      focus: [fomo, herding]
+
+  - id: fomo-005-gia-chay-len
+    message: "Giá chạy từ 25.000 lên 31.000 trong 5 phiên, tôi sợ bỏ lỡ cơ hội!"
+    context:
+      company: HPG
+      market_context: "HPG tăng phiên thứ 5 liên tiếp"
+    expect:
+      focus: [fomo]
+
+  - id: fomo-006-fomo-that-su
+    message: "FOMO thật sự, mọi người đều lãi còn mình đứng ngoài nhìn"
+    expect:
+      focus: [fomo]
+
+  - id: fomo-007-thanh-khoan-sot
+    message: "Thanh khoản hôm nay đạt 28.000 tỷ, thị trường sốt thật rồi, mua kẻo hết!"
+    context:
+      market_context: "HOSE đạt kỷ lục thanh khoản quý này"
+    expect:
+      focus: [fomo]
+
+  # ── HERDING ─────────────────────────────────────────────────────────────
+  - id: herd-001-ca-group-khuyen
+    message: "Cả group đều khuyên mua HPG, mình cũng định theo"
+    context:
+      company: HPG
+    expect:
+      focus: [herding]
+
+  - id: herd-002-admin-room
+    message: "Admin room bảo MWG sẽ đẹp mắt cuối quý, cả room đều đặt sẵn rồi"
+    context:
+      company: MWG
+    expect:
+      focus: [herding, noise_trading]
+
+  - id: herd-003-moi-nguoi-gom
+    message: "Mọi người đều đang gom, mình không gom hơi ngại"
+    expect:
+      focus: [herding]
+
+  - id: herd-004-ca-hoi-cong-ty
+    message: "Cả hội đồng nghiệp mình đều chơi cổ phiếu này, tôi nghe theo luôn"
+    expect:
+      focus: [herding]
+
+  - id: herd-005-dam-dong
+    message: "Đám đông đang đổ vào nhóm chứng khoán, có nên đi theo không?"
+    context:
+      market_context: "Nhóm chứng khoán tăng nóng 2 tuần gần đây"
+    expect:
+      focus: [herding]
+
+  - id: herd-006-anh-em-group
+    message: "Anh em trong group khuyến nghị mạnh tay, tôi nghe theo phần lớn"
+    expect:
+      focus: [herding]
+
+  # ── LOSS AVERSION ───────────────────────────────────────────────────────
+  - id: loss-001-lo-sau-cho-bờ
+    message: "Tôi đang lỗ sâu 15 triệu rồi, cứ chờ về bờ vậy"
+    context:
+      company: VND
+      portfolio: "Vị thế VND lỗ khoảng 15%"
+    expect:
+      focus: [loss_aversion]
+
+  - id: loss-002-khong-no-ban
+    message: "Không nỡ bán khi đang lỗ 8%, bán là lỗ thật rồi"
+    expect:
+      focus: [loss_aversion]
+
+  - id: loss-003-go-von
+    message: "Mua ở giá 45.000 giờ còn 38.000, bao giờ gỡ vốn đây trời?"
+    context:
+      company: GAS
+    expect:
+      focus: [loss_aversion]
+
+  - id: loss-004-cat-lo-tiec
+    message: "Chờ về hòa vốn rồi thoát, cắt lỗ thì tiếc lắm"
+    expect:
+      focus: [loss_aversion]
+
+  - id: loss-005-dang-lo-12
+    message: "Danh mục tôi đang lỗ 12%, nhưng tôi vẫn tin sẽ quay đầu"
+    context:
+      portfolio: "Danh mục giảm 12% kể từ đầu tháng"
+    expect:
+      focus: [loss_aversion]
+
+  - id: loss-006-thua-lo-nhieu-thang
+    message: "Tôi thua lỗ mấy tháng nay, không dám mở tài khoản ra nhìn nữa"
+    expect:
+      focus: [loss_aversion]
+
+  # ── OVERCONFIDENCE ──────────────────────────────────────────────────────
+  - id: over-001-chac-chan-khong-sai
+    message: "Tôi chắc chắn không thể sai, đã nghiên cứu kỹ báo cáo tài chính rồi"
+    context:
+      company: ACB
+    expect:
+      focus: [overconfidence]
+
+  - id: over-002-thang-9-10-phien
+    message: "Phương pháp của tôi bao giờ cũng đúng, 9 trên 10 phiên gần nhất đều thắng"
+    expect:
+      focus: [overconfidence]
+
+  - id: over-003-tu-tin-tuyet-doi
+    message: "Tôi tự tin tuyệt đối với hệ thống kỹ thuật của mình, lần này chắc thắng"
+    expect:
+      focus: [overconfidence]
+
+  - id: over-004-doc-het-bao-cao
+    message: "Tôi đã nghiên cứu kỹ rồi qua 10 báo cáo phân tích, nhận định này chuẩn luôn"
+    expect:
+      focus: [overconfidence]
+
+  - id: over-005-chua-bao-gio-sai
+    message: "Phương pháp của tôi chưa từng thất bại, nó chắc chắn đúng trong mọi trường hợp"
+    expect:
+      focus: [overconfidence]
+
+  - id: over-006-khong-can-ke-hoach
+    message: "Nghiên cứu kỹ rồi nên không cần kế hoạch thoát lệnh làm gì"
+    expect:
+      focus: [overconfidence]
+
+  # ── ANCHORING ───────────────────────────────────────────────────────────
+  - id: anchor-001-tung-dat-dinh
+    message: "Giá từng đạt 120.000 hồi 2022, giờ còn 65.000 là rẻ quá"
+    context:
+      company: MSN
+      market_context: "MSN giao dịch quanh vùng 65.000 hiện tại"
+    expect:
+      focus: [anchoring]
+
+  - id: anchor-002-so-voi-hom-qua
+    message: "So với hôm qua chỉ giảm 3% thôi mà, có gì phải bận tâm đâu"
+    expect:
+      focus: [anchoring]
+
+  - id: anchor-003-ve-moc-hoa-von
+    message: "Tôi mua ở 30.000, giờ về mốc đó thì tôi hòa vốn, chờ vậy"
+    context:
+      company: TCB
+    expect:
+      focus: [anchoring]
+
+  - id: anchor-004-se-hoi-len-dinh
+    message: "Cổ phiếu này từng đạt đỉnh 85.000, giờ về 60.000 rồi sẽ hồi lên đó thôi"
+    context:
+      market_context: "Khối ngoại bán ròng phiên thứ 4 liên tiếp"
+    expect:
+      focus: [anchoring]
+
+  - id: anchor-005-moc-tham-chieu
+    message: "Giá cũ 42.000 mới là mốc tham chiếu chuẩn, dưới mốc đó là hời rồi"
+    expect:
+      focus: [anchoring]
+
+  - id: anchor-006-hoi-gia-cao-hon
+    message: "Nó từng chạm 52.000 đầu năm, giờ 47.500 chắc chắn sẽ hồi giá cao hơn thôi"
+    expect:
+      focus: [overconfidence, anchoring]
+
+  # ── CONFIRMATION BIAS ───────────────────────────────────────────────────
+  - id: conf-001-chi-thay-tin-tot
+    message: "Tôi chỉ thấy tin tốt về mã này, toàn bộ phân tích đều ủng hộ quyết định của tôi"
+    context:
+      company: PNJ
+    expect:
+      focus: [confirmation_bias]
+
+  - id: conf-002-tim-du-ly-do
+    message: "Tôi tìm đủ lý do để giữ vị thế này rồi, cái nào cũng hợp lý cả"
+    expect:
+      focus: [confirmation_bias]
+
+  - id: conf-003-phot-lo-tin-xau
+    message: "Tôi thường phớt lờ tin xấu, chỉ tin những gì ủng hộ mã mình đang giữ"
+    expect:
+      focus: [confirmation_bias]
+
+  - id: conf-004-phan-tich-ung-ho
+    message: "Mọi phân tích đều ủng hộ quyết định của tôi, không có điểm nào phản bác"
+    expect:
+      focus: [confirmation_bias]
+
+  - id: conf-005-chi-doc-bao-ung-ho
+    message: "Tôi chỉ thấy tin tốt về cổ phiếu mình đang giữ, báo nào chê là thiếu khách quan"
+    expect:
+      focus: [confirmation_bias]
+
+  - id: conf-006-quyet-dinh-da-dung
+    message: "Bằng chứng nào cũng ủng hộ quyết định của tôi, tôi tìm đủ lý do để giữ vị thế rồi"
+    expect:
+      focus: [confirmation_bias]
+
+  # ── NOISE TRADING ───────────────────────────────────────────────────────
+  - id: noise-001-tin-don
+    message: "Có tin đồn mã này sắp có thông tin lớn, nên mua trước cho chắc?"
+    context:
+      company: SHB
+    expect:
+      focus: [noise_trading]
+
+  - id: noise-002-insider
+    message: "Một anh insider bảo deal lớn sắp chốt, nghe nói giá sẽ chạy lên 20%"
+    expect:
+      focus: [noise_trading]
+
+  - id: noise-003-mai-co-tin
+    message: "Mai có tin công bố, mua ngay bây giờ kẻo trễ nhịp"
+    expect:
+      focus: [noise_trading, fomo]
+
+  - id: noise-004-bi-mat
+    message: "Có tin bí mật từ bên trong, tôi được người quen chỉ cho mã này"
+    expect:
+      focus: [noise_trading]
+
+  - id: noise-005-nghe-noi-chay-gia
+    message: "Nghe nói cuối tuần này sẽ chạy giá, nhiều người bàn tán quá"
+    expect:
+      focus: [noise_trading]
+
+  - id: noise-006-facebook-chuyen-gia
+    message: "Trang Facebook đồn đại mã này nhân đôi trong 2 tháng, tin đồn lan khắp group"
+    expect:
+      focus: [noise_trading, herding]
+
+  # ── PROCESS (trung tính) ────────────────────────────────────────────────
+  - id: proc-001-phan-van-hai-phuong-an
+    message: "Tôi đang phân vân giữa hai phương án phân bổ vốn cho danh mục"
+    expect:
+      focus: [process]
+
+  - id: proc-002-hoi-quy-trinh
+    message: "Trước khi vào một vị thế mới, tôi cần chuẩn bị những gì?"
+    expect:
+      focus: [process]
+
+  - id: proc-003-moi-bat-dau
+    message: "Tôi mới bắt đầu tìm hiểu thị trường, nên bắt đầu từ đâu?"
+    expect:
+      focus: [process]
+
+  - id: proc-004-ke-hoach-thoat
+    message: "Làm sao để xây dựng kế hoạch thoát lệnh cho một vị thế dài hạn?"
+    expect:
+      focus: [process]
+
+  - id: proc-005-quan-tri-rui-ro
+    message: "Muốn học cách quản trị rủi ro danh mục thì nên tập trung vào kỹ năng nào?"
+    expect:
+      focus: [process]
+
+  - id: proc-006-nhat-ky-giao-dich
+    message: "Ghi nhật ký giao dịch có giúp cải thiện quyết định không anh?"
+    expect:
+      focus: [process]
+
+  # ── BIÊN: không dấu / mixed ngôn ngữ / context trống ────────────────────
+  - id: edge-001-khong-dau-fomo
+    message: "ma nay tang vun vut, khong mua la bo lo!"
+    context:
+      company: DIG
+    expect:
+      focus: [fomo]
+
+  - id: edge-002-mixed-tieng-anh
+    message: "Stock nay dang hot qua, minh so bo lo co hoi"
+    expect:
+      focus: [fomo]
+
+  - id: edge-003-context-trong
+    message: "Tôi muốn cải thiện quy trình ra quyết định của mình"
+    expect:
+      focus: [process]
+
+  - id: edge-004-d-d-normalize
+    message: "Đang lỗ sâu quá, không Định bán nữa, chờ Về bờ"
+    expect:
+      focus: [loss_aversion]
+
+  - id: edge-005-nhieu-thien-kien
+    message: "Cả room đang gom, mã này từng đạt 90.000 giờ rẻ, nghe đồn sắp có tin, không mua là bỏ lỡ!"
+    context:
+      company: VNM
+    expect:
+      focus: [fomo]
+
+  - id: edge-006-so-lieu-user-cung-cap
+    message: "Tôi vừa đặt mua 1000 cổ ở giá 58.700, bạn nghĩ quyết định đặt lệnh đó ổn không?"
+    context:
+      company: REE
+      portfolio: "Tiền mặt 200 triệu đồng; chưa có vị thế"
+    expect:
+      focus: [process]
+
+  - id: edge-007-cau-hoi-dai
+    message: "Tôi giữ cổ phiếu ngân hàng từ đầu quý, giá đi ngang mấy tuần nay, thanh khoản thấp, tôi hơi mất kiên nhẫn và định chuyển sang mã khác đang hot hơn để gỡ tốc độ, anh thấy cách làm đó thế nào?"
+    context:
+      market_context: "VN-Index đi ngang 6 phiên gần nhất"
+    expect:
+      focus: [fomo, anchoring, process]

@@ -33,3 +33,5 @@ Thumbs.db
 # Temp / Debug
 tmp_*.py
 *.log
+
+.vercel

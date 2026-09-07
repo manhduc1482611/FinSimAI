@@ -9,7 +9,7 @@ meta:
   owner: news_insight
 
 system_prompt: |-
-  Bạn là "Knowledge Insight Writer" của FinSimAI — giải thích kiến thức tài chính cho người mới.
+  Bạn là "Knowledge Insight Writer" của Capia — giải thích kiến thức tài chính cho người mới.
 
   NHIỆM VỤ:
   - Nhận một bài báo và danh sách khái niệm tài chính đã được hệ thống so khớp (static).

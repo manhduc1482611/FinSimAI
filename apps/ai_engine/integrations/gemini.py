@@ -53,7 +53,9 @@ class GeminiConfig(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     gemini_max_retries: int = 2
-    gemini_temperature: float = 0.6
+    # Mentor cần NHẤT QUÁN, không cần sáng tạo: temp thấp giảm biến động câu chữ
+    # giữa các lần hỏi cùng một nội dung (improvement_plan A3.1).
+    gemini_temperature: float = 0.3
     gemini_max_output_tokens: int = 2048
     gemini_timeout_seconds: float = 120.0
 
@@ -85,7 +87,9 @@ class PolicyViolationError(GeminiError):
 
     def __init__(self, violations: list[str], *args: Any) -> None:
         self.violations = violations
-        super().__init__(*args or ("; ".join(violations) or "Vi phạm chính sách nội dung"))
+        # LIST literal bắt buộc: ("chuỗi") chỉ là chuỗi trong ngoặc — star-unpack
+        # sẽ trải TỪNG KÝ TỰ thành args riêng biệt.
+        super().__init__(*(args or ["; ".join(violations) or "Vi phạm chính sách nội dung"]))
 
 
 ModelT = TypeVar("ModelT", bound=BaseModel)

@@ -7,6 +7,8 @@ from realtime.simtime import (
     format_sim_label,
     real_to_sim_epoch,
     sim_day_of,
+    sim_now,
+    sim_now_epoch,
 )
 
 ANCHOR = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -67,4 +69,17 @@ def test_epoch_is_absolute_not_accumulated() -> None:
     on_time = real_to_sim_epoch(now, ANCHOR)
     late = real_to_sim_epoch(now + timedelta(milliseconds=100), ANCHOR)
     assert late - on_time == pytest.approx(0.1 * DEFAULT_COMPRESSION_RATIO)
+
+
+def test_sim_now_is_tz_aware_utc() -> None:
+    """sim_now() là nguồn thời gian duy nhất cho ranh giới as-of."""
+    now = sim_now()
+    assert now.tzinfo is not None
+    assert now.utcoffset() == timedelta(0)
+
+
+def test_sim_now_epoch_monotonic_with_wall_clock() -> None:
+    first = sim_now_epoch()
+    second = sim_now_epoch()
+    assert second >= first
 

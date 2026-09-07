@@ -67,10 +67,10 @@ export default function LandingPage() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-500 text-sm font-black text-granite-950 shadow-board">
-              F
+              C
             </span>
             <span className="text-base font-black text-ink-900 dark:text-slip">
-              FinSim<span className="text-brand-700 dark:text-brand-300">AI</span>
+              Capia
             </span>
           </div>
           <nav className="flex items-center gap-3">
@@ -128,7 +128,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-line bg-[#FFFDF8] py-6 text-center text-xs text-ink-400 dark:border-granite-700 dark:bg-granite-900 dark:text-granite-400">
-        FinSimAI © 2026 — Môi trường mô phỏng, không phải lời khuyên đầu tư thật.
+        Capia © 2026 — Môi trường mô phỏng, không phải lời khuyên đầu tư thật.
       </footer>
     </div>
   );

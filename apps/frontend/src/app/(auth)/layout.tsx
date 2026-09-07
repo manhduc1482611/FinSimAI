@@ -9,10 +9,10 @@ export default function AuthLayout({
       <header className="flex h-16 items-center border-b border-line bg-[#FFFDF8] px-6 dark:border-granite-700 dark:bg-granite-900">
         <Link href="/" className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-500 text-sm font-black text-granite-950 shadow-board">
-            F
+            C
           </span>
           <span className="text-base font-black text-ink-900 dark:text-slip">
-            FinSim<span className="text-brand-700 dark:text-brand-300">AI</span>
+            Capia
           </span>
         </Link>
       </header>

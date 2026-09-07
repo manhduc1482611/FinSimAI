@@ -24,13 +24,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Callable
+import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol, cast
 
 from clients.mentor_client import mentor_client
 from core.config import settings
+from core.database import async_session_factory
 from fastapi import WebSocket
+from services.mentor_history import (
+    LLM_HISTORY_LIMIT,
+    recent_messages,
+    save_exchange,
+    to_llm_history,
+)
 
 from realtime.auth import get_ws_user, revalidate_user
 from realtime.connection_manager import (
@@ -39,11 +47,15 @@ from realtime.connection_manager import (
     build_message,
     connection_manager,
 )
-from realtime.mentor_engine import reply_to_text, socratic_reply
+from realtime.mentor_engine import detect_focus, reply_to_text, socratic_reply
 
 logger = logging.getLogger(__name__)
 
 _CHUNK_SIZE = 16
+
+# Nguồn nội dung mặc định là question-bank mirror của prompt YAML v3.1.0
+# (A3.4: ghi nguồn để truy vết chất lượng theo phiên bản).
+_DETERMINISTIC_PROMPT_VERSION = "qbank-3.1.0"
 
 
 class MentorStreamProvider(Protocol):
@@ -97,15 +109,20 @@ class HybridMentorStream:
     — và ngay khi đó vẫn bị ai_engine giới hạn bởi token bucket (RPM/BURST).
     Mọi lỗi (quota, mạng, timeout, ai_engine down) → tự rơi về deterministic,
     không bao giờ để người chơi đợi mất phản hồi.
+
+    ``history_provider`` (A3.2): lấy history hội thoại từ DB trước khi gọi LLM
+    — continuity giữa các phiên thay vì phụ thuộc client gửi lại.
     """
 
     def __init__(
         self,
         deterministic: DeterministicMentorStream | None = None,
         client: Any | None = None,
+        history_provider: Callable[[str], Awaitable[list[dict[str, str]]]] | None = None,
     ) -> None:
         self._deterministic = deterministic or DeterministicMentorStream()
         self._client = client if client is not None else mentor_client
+        self._history_provider = history_provider
 
     @property
     def llm_enabled(self) -> bool:
@@ -120,10 +137,17 @@ class HybridMentorStream:
     ) -> AsyncIterator[str]:
         text: str | None = None
         if self.llm_enabled:
+            history: list[dict[str, str]] | None = None
+            if self._history_provider is not None:
+                try:
+                    history = await self._history_provider(user_id) or None
+                except Exception:  # noqa: BLE001 - history là tối ưu, không chặn trả lời
+                    logger.warning("history_provider lỗi — gọi LLM không history", exc_info=True)
             reply = await self._client.ask(
                 message=message,
                 user_id=user_id,
                 session_id=session_id,
+                history=history,
             )
             if reply and isinstance(reply.get("questions"), list):
                 questions = [str(q) for q in reply["questions"]]
@@ -140,7 +164,41 @@ class HybridMentorStream:
             yield chunk
 
 
-mentor_stream_provider = HybridMentorStream()
+async def _db_history_provider(user_id: str) -> list[dict[str, str]]:
+    """Nguồn history mặc định: 12 tin gần nhất từ bảng mentor_messages."""
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        return []
+    try:
+        async with async_session_factory() as db:
+            rows = await recent_messages(db, user_uuid, LLM_HISTORY_LIMIT)
+            return to_llm_history(rows)
+    except Exception:  # noqa: BLE001 - DB lỗi → LLM chạy không history
+        logger.warning("Không tải được lịch sử mentor từ DB", exc_info=True)
+        return []
+
+
+async def save_exchange_safe(
+    user_id: str, session_id: str, message: str, reply_text: str
+) -> None:
+    """Lưu 1 lượt hỏi-đáp vào mentor_messages; mọi lỗi chỉ log, không ảnh hưởng chat."""
+    try:
+        async with async_session_factory() as db:
+            await save_exchange(
+                db,
+                user_id=user_id,
+                session_id=session_id,
+                user_message=message,
+                mentor_reply=reply_text,
+                focus=detect_focus(message).value,
+                prompt_version=_DETERMINISTIC_PROMPT_VERSION,
+            )
+    except Exception:  # noqa: BLE001 - persistence phải tuyệt đối không hỏng phiên
+        logger.warning("Lưu lịch sử mentor thất bại (session=%s)", session_id, exc_info=True)
+
+
+mentor_stream_provider = HybridMentorStream(history_provider=_db_history_provider)
 
 
 @dataclass
@@ -181,6 +239,7 @@ def create_mentor_endpoint(
         message: str,
         session: _AskSession,
     ) -> None:
+        chunks: list[str] = []
         try:
             if session.cancelled:
                 return
@@ -197,6 +256,7 @@ def create_mentor_endpoint(
             ):
                 if session.cancelled:
                     return
+                chunks.append(chunk)
                 if not await manager.send(
                     conn,
                     build_message("mentor_chunk", {"session_id": session_id, "text": chunk}),
@@ -220,6 +280,10 @@ def create_mentor_endpoint(
                     ),
                 )
         finally:
+            # Lưu hội thoại (A3.2): chỉ khi stream hoàn tất trọn vẹn — phiên bị
+            # cancel giữa chừng không ghi reply dở dang vào lịch sử/LLM.
+            if len(chunks) > 0 and not session.cancelled:
+                await save_exchange_safe(user_id, session_id, message, "".join(chunks))
             if active_sessions.get(conn.connection_id) is session:
                 active_sessions.pop(conn.connection_id, None)
 

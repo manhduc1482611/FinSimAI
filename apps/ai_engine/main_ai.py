@@ -18,7 +18,7 @@ from routers.mentor import router as mentor_router
 logger = logging.getLogger("ai_engine_api")
 
 app = FastAPI(
-    title="FinSimAI AI Engine API",
+    title="Capia AI Engine API",
     description="AI Engine Web API — mentors, news intelligence & social agents",
     version="0.1.0",
     docs_url="/docs",

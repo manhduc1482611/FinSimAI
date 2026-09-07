@@ -9,7 +9,6 @@ from sqlalchemy import (
     Index,
     Integer,
     Numeric,
-    String,
     UniqueConstraint,
     func,
     text,
@@ -201,6 +200,11 @@ class Transaction(Base):
     quantity: Mapped[Decimal] = mapped_column(Numeric(20, 4), nullable=False)
     price: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
     fee: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=Decimal("0.00"), nullable=False)
+    # Thuế thu nhập từ chuyển nhượng vốn (0.1% giá trị khớp, chỉ chiều bán).
+    tax: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=Decimal("0.00"), nullable=False)
+    # Mốc thanh toán T+2: tiền bán được giải phóng vào cash_balance khi now() >=
+    # settles_at. NULL với chiều mua (không chờ) — worker release_due dùng cột này.
+    settles_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     simulated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

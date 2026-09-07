@@ -6,12 +6,13 @@
  */
 import { useEffect, useState } from "react";
 
-import { getWsBaseUrl } from "@/services/api";
+import { getWsBaseUrl, isDemoMode } from "@/services/api";
 import { fetchWsTicket } from "@/services/auth";
 import { reportTaskEvent } from "@/services/tasks";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useMentorStore } from "@/store/useMentorStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { matchKnowledgeLocal } from "@/utils/knowledge_matcher";
 
 export interface SocraticMentor {
   messages: ReturnType<typeof useMentorStore.getState>["messages"];
@@ -34,9 +35,9 @@ export function useSocraticMentor(): SocraticMentor {
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (isDemoMode() || !user) {
       setTicketUrl(null);
-      useMentorStore.getState().setReady(false);
+      useMentorStore.getState().setReady(isDemoMode());
       return;
     }
     let cancelled = false;
@@ -76,6 +77,24 @@ export function useSocraticMentor(): SocraticMentor {
       return;
     }
     const store = useMentorStore.getState();
+
+    // Demo mode: không có WebSocket → trả lời bằng glossary local.
+    if (isDemoMode()) {
+      store.pushUserMessage(trimmed);
+      void reportTaskEvent("mentor_chat").catch(() => {
+        // bỏ qua lỗi tracking
+      });
+      // Simulate nhỏ để có cảm giác stream.
+      setTimeout(() => {
+        const matches = matchKnowledgeLocal(trimmed, 2);
+        const reply = buildDemoMentorReply(trimmed, matches);
+        useMentorStore.setState({ messages: [...useMentorStore.getState().messages, {
+          id: `m-${Date.now()}`, role: "mentor", content: reply, ts: new Date().toISOString(),
+        }], isStreaming: false });
+      }, 600);
+      return;
+    }
+
     if (wsStatus !== "open") {
       store.setError("Chưa kết nối được tới Mentor — vui lòng thử lại sau giây lát.");
       return;
@@ -106,11 +125,26 @@ export function useSocraticMentor(): SocraticMentor {
   return {
     messages,
     isStreaming,
-    isReady,
-    isConnected: wsStatus === "open",
+    isReady: isDemoMode() ? true : isReady,
+    isConnected: isDemoMode() ? true : wsStatus === "open",
     lastError,
     sendAsk,
     sendCancel,
     reset,
   };
+}
+
+/** Dựng câu trả lời demo cho Mentor dựa trên glossary local. */
+function buildDemoMentorReply(
+  text: string,
+  matches: ReturnType<typeof matchKnowledgeLocal>,
+): string {
+  const intro = "Mentor (Demo):";
+  if (matches.length === 0) {
+    return `${intro} Mình đã ghi nhận câu hỏi "${text}". Ở chế độ demo, hãy hỏi về các khái niệm như P/E, ROE, biên lợi nhuận ròng, cắt lỗ, quản trị rủi ro, khối lượng, hỗ trợ/kháng cự, hoặc lệnh market/limit.`;
+  }
+  const parts = matches.map(
+    (m) => `• ${m.concept}: ${m.definition}`,
+  );
+  return `${intro} Đây là những khái niệm liên quan tới "${text}":\n${parts.join("\n")}`;
 }

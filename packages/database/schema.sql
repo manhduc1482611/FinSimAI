@@ -27,7 +27,9 @@ CREATE TABLE users (
     -- Tài chính & Kỷ luật
     cash_balance    NUMERIC(20, 2) NOT NULL DEFAULT 100000000.00 CHECK (cash_balance >= 0),
     frozen_cash     NUMERIC(20, 2) NOT NULL DEFAULT 0.00 CHECK (frozen_cash >= 0),
+    settling_cash   NUMERIC(20, 2) NOT NULL DEFAULT 0.00 CHECK (settling_cash >= 0),
     risk_score      INTEGER NOT NULL DEFAULT 0 CHECK (risk_score >= 0 AND risk_score <= 100),
+    discipline_score INTEGER NOT NULL DEFAULT 90 CHECK (discipline_score >= 0 AND discipline_score <= 100),
     cooldown_until  TIMESTAMPTZ,
 
     is_active       BOOLEAN NOT NULL DEFAULT true,
@@ -134,6 +136,8 @@ CREATE TABLE transactions (
     price         NUMERIC(20, 2) NOT NULL CHECK (price >= 0),
     total_value   NUMERIC(20, 2) GENERATED ALWAYS AS (quantity * price) STORED,
     fee           NUMERIC(20, 2) NOT NULL DEFAULT 0 CHECK (fee >= 0),
+    tax           NUMERIC(20, 2) NOT NULL DEFAULT 0 CHECK (tax >= 0),
+    settles_at    TIMESTAMPTZ,
     simulated_at  TIMESTAMPTZ NOT NULL,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -248,6 +252,70 @@ CREATE TABLE user_scenarios (
 
 CREATE INDEX idx_user_scenarios_user ON user_scenarios (user_id);
 CREATE INDEX idx_user_scenarios_status ON user_scenarios (status);
+
+-- ─── Discipline Score History ─────────────────────────────
+CREATE TABLE discipline_score_history (
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    score_delta INTEGER NOT NULL,
+    reason      VARCHAR(64) NOT NULL,
+    context     JSONB,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_discipline_history_user
+    ON discipline_score_history (user_id, created_at DESC);
+
+-- ─── Corporate Actions ────────────────────────────────────
+CREATE TABLE corporate_actions (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id   UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    action_type  VARCHAR(24) NOT NULL,
+    ex_date      TIMESTAMPTZ NOT NULL,
+    record_date  TIMESTAMPTZ,
+    config       JSONB NOT NULL DEFAULT '{}',
+    is_active    BOOLEAN NOT NULL DEFAULT true,
+    applied_at   TIMESTAMPTZ,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_corporate_actions_company
+    ON corporate_actions (company_id, ex_date DESC);
+
+-- ─── Reports (Daily Digest / Weekly) ──────────────────────
+CREATE TABLE reports (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind         VARCHAR(10) NOT NULL,
+    period       DATE NOT NULL,
+    payload      JSONB NOT NULL DEFAULT '{}',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_reports_user_kind_period UNIQUE (user_id, kind, period)
+);
+
+CREATE INDEX idx_reports_user_period ON reports (user_id, period DESC);
+
+-- ─── Daily Challenges ─────────────────────────────────────
+CREATE TABLE daily_challenges (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    challenge_date DATE NOT NULL,
+    code           VARCHAR(64) NOT NULL,
+    title          VARCHAR(200) NOT NULL,
+    description    TEXT NOT NULL,
+    target         JSONB NOT NULL DEFAULT '{}',
+    reward_amount  NUMERIC(20, 2) NOT NULL DEFAULT 0,
+    is_active      BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT uq_daily_challenges_date_code UNIQUE (challenge_date, code)
+);
+
+CREATE TABLE user_daily_challenges (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    challenge_id  UUID NOT NULL REFERENCES daily_challenges(id) ON DELETE CASCADE,
+    completed_at  TIMESTAMPTZ,
+    reward_earned NUMERIC(20, 2) NOT NULL DEFAULT 0,
+    CONSTRAINT uq_user_daily_challenges UNIQUE (user_id, challenge_id)
+);
 
 -- ─── Triggers ─────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at_column()
