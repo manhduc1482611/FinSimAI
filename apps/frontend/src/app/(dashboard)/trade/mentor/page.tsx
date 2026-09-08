@@ -3,7 +3,7 @@
  */
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { PageHeader } from "@/components/common/PageHeader";
@@ -28,7 +28,7 @@ const MODES: { id: MentorMode; label: string; description: string }[] = [
   },
 ];
 
-export default function MentorPage() {
+function MentorPageContent() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const rawMode = searchParams.get("mode");
@@ -70,5 +70,13 @@ export default function MentorPage() {
       </div>
       <MentorChat initialMode={mode} key={mode} />
     </div>
+  );
+}
+
+export default function MentorPage() {
+  return (
+    <Suspense fallback={null}>
+      <MentorPageContent />
+    </Suspense>
   );
 }
