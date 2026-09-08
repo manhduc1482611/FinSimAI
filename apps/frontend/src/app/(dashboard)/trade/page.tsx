@@ -20,6 +20,7 @@ import { usePriceStream } from "@/hooks/usePriceStream";
 import { useTrade } from "@/hooks/useTrade";
 import { parseDecimal } from "@/utils/format";
 import { cn } from "@/utils/cn";
+import { useMentorStore } from "@/store/useMentorStore";
 import type { CompanyResponse } from "@finsim/shared-types/generated/api-types";
 import type { AsyncStatus } from "@/types/api";
 
@@ -76,7 +77,14 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
         actions={
           <Button
             variant="secondary"
-            onClick={() => {}}
+            onClick={() => {
+              if (selectedSymbol !== null) {
+                useMentorStore
+                  .getState()
+                  .setTradeContext({ mode: "trade_now", selected_symbol: selectedSymbol });
+              }
+              useMentorStore.getState().requestFocus();
+            }}
             aria-label="Hỏi Mentor tài chính"
           >
             <IconChat className="h-4 w-4" />
@@ -186,7 +194,7 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
         onCancel={(orderId) => void trade.cancelOrder(orderId)}
       />
 
-      <MentorChat />
+      <MentorChat fixedSymbol={selectedSymbol ?? undefined} />
     </div>
   );
 }

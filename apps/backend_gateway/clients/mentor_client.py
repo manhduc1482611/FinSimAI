@@ -48,6 +48,8 @@ class MentorClient:
         message: str,
         session_id: str,
         history: list[dict[str, Any]] | None = None,
+        mode: str | None = None,
+        trade_snapshot: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """Gọi Mentor của ai_engine; trả phản hồi, hoặc ``None`` khi thất bại."""
         payload: dict[str, Any] = {
@@ -57,6 +59,10 @@ class MentorClient:
         }
         if history:
             payload["history"] = history
+        if mode:
+            payload["mode"] = mode
+        if trade_snapshot is not None:
+            payload["trade_snapshot"] = trade_snapshot
         try:
             client = await self._ensure_client()
             resp = await client.post(

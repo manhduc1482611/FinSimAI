@@ -31,6 +31,8 @@ async def save_exchange(
     mentor_reply: str,
     focus: str | None = None,
     prompt_version: str | None = None,
+    mode: str | None = None,
+    metadata_json: dict | None = None,
 ) -> None:
     """Ghi 1 lượt hỏi-đáp (2 row). Lỗi DB chỉ log — không làm hỏng phiên chat."""
     try:
@@ -42,6 +44,7 @@ async def save_exchange(
                     role="user",
                     content=user_message,
                     prompt_version=prompt_version,
+                    mode=mode,
                 ),
                 MentorMessage(
                     user_id=user_id,
@@ -50,6 +53,8 @@ async def save_exchange(
                     content=mentor_reply,
                     focus=focus,
                     prompt_version=prompt_version,
+                    mode=mode,
+                    metadata_json=metadata_json,
                 ),
             ]
         )
@@ -92,6 +97,8 @@ def to_api_dicts(rows: list[MentorMessage]) -> list[dict[str, Any]]:
             "content": row.content,
             "focus": row.focus,
             "prompt_version": row.prompt_version,
+            "mode": row.mode or "socratic",
+            "metadata": row.metadata_json,
             "created_at": row.created_at.isoformat() if row.created_at else None,
         }
         for row in rows

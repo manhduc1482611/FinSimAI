@@ -11,10 +11,12 @@ from typing import Any
 import pytest
 from core.config import settings
 from realtime.mentor_engine import (
+    _STRATEGY_BANK,
     SocraticFocus,
     detect_focus,
     reply_to_text,
     socratic_reply,
+    strategy_reply_text,
 )
 from realtime.mentor_ws import DeterministicMentorStream, HybridMentorStream
 
@@ -81,6 +83,56 @@ async def test_deterministic_stream_chunks_full_reply() -> None:
     stream = DeterministicMentorStream()
     got = await _collect(stream.stream(user_id="1", message="hello", session_id="s"))
     assert got == expected
+
+
+@pytest.mark.asyncio
+async def test_deterministic_stream_plan_renders_strategy() -> None:
+    """Chế độ 2 (plan) trả framework từ bank đã duyệt — KHÔNG rơi về socratic."""
+    stream = DeterministicMentorStream()
+    got = await _collect(
+        stream.stream(
+            user_id="1",
+            message="tôi muốn đầu tư dài hạn, an toàn",
+            session_id="s",
+            mode="plan",
+        )
+    )
+    assert "Framework phù hợp: Income" in got
+    assert "Phân bổ vốn:" in got
+    assert "Hãy tự phản biện:" in got
+    assert "Capia là môi trường mô phỏng" in got
+
+
+@pytest.mark.asyncio
+async def test_deterministic_stream_plan_uses_snapshot_context() -> None:
+    stream = DeterministicMentorStream()
+    got = await _collect(
+        stream.stream(
+            user_id="1",
+            message="nên đầu tư thế nào",
+            session_id="s",
+            mode="plan",
+            snapshot={"text": "portfolio có xu hướng tăng trưởng nhanh"},
+        )
+    )
+    assert "Framework phù hợp: Growth" in got
+
+
+def test_strategy_reply_never_gives_advice() -> None:
+    reply = strategy_reply_text("tôi muốn mua ACB ngay bây giờ kẻo hết")
+    lowered = reply.lower()
+    for phrase in _FORBIDDEN_ADVICE:
+        assert phrase not in lowered
+    assert "ACB" not in reply
+
+
+def test_strategy_reply_has_no_specific_ticker_or_price_target() -> None:
+    for framework_id in _STRATEGY_BANK:
+        reply = strategy_reply_text("tôi muốn đầu tư", portfolio_text="")
+        lowered = reply.lower()
+        assert "giá mục tiêu" not in lowered, f"{framework_id}: chứa 'giá mục tiêu'"
+        assert "sẽ tăng" not in lowered, f"{framework_id}: dự đoán tăng"
+        assert "sẽ giảm" not in lowered, f"{framework_id}: dự đoán giảm"
 
 
 @pytest.mark.asyncio

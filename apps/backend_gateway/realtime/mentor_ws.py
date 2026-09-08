@@ -32,6 +32,7 @@ from typing import Any, Protocol, cast
 from clients.mentor_client import mentor_client
 from core.config import settings
 from core.database import async_session_factory
+from core.ratelimit import check_rate
 from fastapi import WebSocket
 from services.mentor_history import (
     LLM_HISTORY_LIMIT,
@@ -39,6 +40,8 @@ from services.mentor_history import (
     save_exchange,
     to_llm_history,
 )
+from services.mentor_metadata import to_metadata_dict
+from services.trade_snapshot import trade_snapshot_service
 
 from realtime.auth import get_ws_user, revalidate_user
 from realtime.connection_manager import (
@@ -47,11 +50,21 @@ from realtime.connection_manager import (
     build_message,
     connection_manager,
 )
-from realtime.mentor_engine import detect_focus, reply_to_text, socratic_reply
+from realtime.mentor_engine import (
+    concept_reply_text,
+    detect_focus,
+    reply_to_text,
+    socratic_reply,
+    strategy_reply_text,
+    trade_challenge_text,
+)
 
 logger = logging.getLogger(__name__)
 
 _CHUNK_SIZE = 16
+
+# Những mode hợp lệ trong chỉ định "AI Mentor 3 chế độ" (kế hoạch v2.0).
+_MENTOR_MODES = ("socratic", "concept", "trade_now", "plan")
 
 # Nguồn nội dung mặc định là question-bank mirror của prompt YAML v3.1.0
 # (A3.4: ghi nguồn để truy vết chất lượng theo phiên bản).
@@ -65,6 +78,8 @@ class MentorStreamProvider(Protocol):
         user_id: str,
         message: str,
         session_id: str,
+        mode: str = "socratic",
+        snapshot: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         """Yield từng đoạn text phản hồi của Mentor."""
         ...
@@ -82,9 +97,16 @@ def _chunk_text(text: str, size: int = _CHUNK_SIZE) -> AsyncIterator[str]:
 
 
 class DeterministicMentorStream:
-    """Phản hồi Socratic deterministic (question-bank, 0 token Gemini).
+    """Phản hồi deterministic cho cả 3 chế độ (0 token Gemini).
 
-    Đây là nguồn mặc định của Mentor — Mentor luôn trả lời mà không tốn lượt AI.
+    Đây là nguồn mặc định của Mentor — Mentor luôn trả lời mà không tốn lượt AI:
+    - mode ``concept``: giải thích khái niệm từ glossary (nếu khớp), kèm câu
+      hỏi Socratic dẫn dắt.
+    - mode ``plan``: render khung chiến lược từ framework bank đã duyệt (docs
+      v2.0 mục 4.2) — không nêu mã/giá mục tiêu/dự đoán.
+    - mode ``trade_now``: phản biện lúc giao dịch dựa trên energy risk-flags do
+      backend tính từ snapshot.
+    - mode ``socratic``: question-bank phản biện chuẩn.
     """
 
     def __init__(self, company: str = "") -> None:
@@ -96,7 +118,28 @@ class DeterministicMentorStream:
         user_id: str,
         message: str,
         session_id: str,
+        mode: str = "socratic",
+        snapshot: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
+        if mode == "concept":
+            text = concept_reply_text(message)
+            if text is not None:
+                async for chunk in _chunk_text(text):
+                    yield chunk
+                return
+        if mode == "plan":
+            # Khung chiến lược từ bank đã duyệt (0 token) — không rơi về socratic.
+            portfolio_text = (snapshot or {}).get("text", "")
+            reply = strategy_reply_text(message, portfolio_text=portfolio_text)
+            async for chunk in _chunk_text(reply):
+                yield chunk
+            return
+        if mode == "trade_now" and snapshot is not None:
+            # Phản biện theo dấu hiệu rủi ro từ snapshot có thật (backend tính).
+            challenge = trade_challenge_text(snapshot)
+            async for chunk in _chunk_text(challenge):
+                yield chunk
+            return
         reply = socratic_reply(message, company=self._company)
         async for chunk in _chunk_text(reply_to_text(reply)):
             yield chunk
@@ -134,6 +177,8 @@ class HybridMentorStream:
         user_id: str,
         message: str,
         session_id: str,
+        mode: str = "socratic",
+        snapshot: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         text: str | None = None
         if self.llm_enabled:
@@ -148,6 +193,8 @@ class HybridMentorStream:
                 user_id=user_id,
                 session_id=session_id,
                 history=history,
+                mode=mode,
+                trade_snapshot=snapshot,
             )
             if reply and isinstance(reply.get("questions"), list):
                 questions = [str(q) for q in reply["questions"]]
@@ -156,7 +203,11 @@ class HybridMentorStream:
                 text = "\n".join([*questions, "", f"Bài tập: {tip}", "", disclaimer])
         if text is None:
             async for chunk in self._deterministic.stream(
-                user_id=user_id, message=message, session_id=session_id
+                user_id=user_id,
+                message=message,
+                session_id=session_id,
+                mode=mode,
+                snapshot=snapshot,
             ):
                 yield chunk
             return
@@ -180,11 +231,20 @@ async def _db_history_provider(user_id: str) -> list[dict[str, str]]:
 
 
 async def save_exchange_safe(
-    user_id: str, session_id: str, message: str, reply_text: str
+    user_id: str,
+    session_id: str,
+    message: str,
+    reply_text: str,
+    *,
+    mode: str = "socratic",
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     """Lưu 1 lượt hỏi-đáp vào mentor_messages; mọi lỗi chỉ log, không ảnh hưởng chat."""
     try:
         async with async_session_factory() as db:
+            save_kwargs: dict[str, Any] = {}
+            if metadata:
+                save_kwargs["metadata_json"] = metadata
             await save_exchange(
                 db,
                 user_id=user_id,
@@ -193,6 +253,8 @@ async def save_exchange_safe(
                 mentor_reply=reply_text,
                 focus=detect_focus(message).value,
                 prompt_version=_DETERMINISTIC_PROMPT_VERSION,
+                mode=mode,
+                **save_kwargs,
             )
     except Exception:  # noqa: BLE001 - persistence phải tuyệt đối không hỏng phiên
         logger.warning("Lưu lịch sử mentor thất bại (session=%s)", session_id, exc_info=True)
@@ -217,12 +279,18 @@ def create_mentor_endpoint(
     *,
     heartbeat_seconds: float | None = None,
     revalidate_auth: bool | None = None,
+    rate_limit_enabled: bool | None = None,
 ) -> Callable[[WebSocket], Any]:
     manager = manager or connection_manager
     stream_provider = cast(Any, provider or mentor_stream_provider)
     auth = auth_provider or get_ws_user
     heartbeat = (
         heartbeat_seconds if heartbeat_seconds is not None else settings.ws_heartbeat_seconds
+    )
+    do_rate_limit = (
+        rate_limit_enabled
+        if rate_limit_enabled is not None
+        else settings.mentor_rate_limit_enabled
     )
     # Chỉ bật revalidation giữa phiên khi dùng auth JWT mặc định (custom auth trong
     # test không có token → không revalidate để tránh đóng oan kết nối).
@@ -237,6 +305,8 @@ def create_mentor_endpoint(
         user_id: str,
         session_id: str,
         message: str,
+        mode: str,
+        mode_snapshot: dict[str, Any] | None,
         session: _AskSession,
     ) -> None:
         chunks: list[str] = []
@@ -247,12 +317,16 @@ def create_mentor_endpoint(
                 conn,
                 build_message(
                     "mentor_start",
-                    {"session_id": session_id, "user_id": user_id},
+                    {"session_id": session_id, "user_id": user_id, "mode": mode},
                 ),
             ):
                 return
             async for chunk in stream_provider.stream(
-                user_id=user_id, message=message, session_id=session_id
+                user_id=user_id,
+                message=message,
+                session_id=session_id,
+                mode=mode,
+                snapshot=mode_snapshot,
             ):
                 if session.cancelled:
                     return
@@ -283,7 +357,57 @@ def create_mentor_endpoint(
             # Lưu hội thoại (A3.2): chỉ khi stream hoàn tất trọn vẹn — phiên bị
             # cancel giữa chừng không ghi reply dở dang vào lịch sử/LLM.
             if len(chunks) > 0 and not session.cancelled:
-                await save_exchange_safe(user_id, session_id, message, "".join(chunks))
+                metadata = None
+                if mode_snapshot:
+                    try:
+                        snap = mode_snapshot.get("_trade_snapshot")
+                        ts_meta = None
+                        if snap is not None:
+                            ts_meta = {
+                                "symbol": snap.selected_symbol,
+                                "total_nav": (
+                                    float(snap.total_nav)
+                                    if snap.total_nav is not None
+                                    else None
+                                ),
+                                "cash_balance": (
+                                    float(snap.cash_balance)
+                                    if snap.cash_balance is not None
+                                    else None
+                                ),
+                                "holdings": len(snap.holdings),
+                                "open_orders": len(snap.open_orders),
+                                "allocation_pct": (
+                                    snap.holdings[0]["allocation_pct"]
+                                    if snap.holdings
+                                    and snap.holdings[0].get("allocation_pct") is not None
+                                    else None
+                                ),
+                                "pnl_pct": (
+                                    snap.holdings[0]["pnl_pct"]
+                                    if snap.holdings
+                                    and snap.holdings[0].get("pnl_pct") is not None
+                                    else None
+                                ),
+                            }
+                        metadata = to_metadata_dict(
+                            mode=mode,
+                            prompt_version=_DETERMINISTIC_PROMPT_VERSION,
+                            focus=detect_focus(message).value,
+                            trade_snapshot=ts_meta,
+                        )
+                    except Exception:  # noqa: BLE001 - metadata là audit phụ
+                        logger.warning(
+                            "Dựng metadata mentor lỗi (session=%s)", session_id, exc_info=True
+                        )
+                await save_exchange_safe(
+                    user_id,
+                    session_id,
+                    message,
+                    "".join(chunks),
+                    mode=mode,
+                    metadata=metadata,
+                )
             if active_sessions.get(conn.connection_id) is session:
                 active_sessions.pop(conn.connection_id, None)
 
@@ -325,6 +449,76 @@ def create_mentor_endpoint(
                         ),
                     )
                     return
+                # Mode hợp lệ — mặc định socratic (kế hoạch 3 chế độ v2.0).
+                # Client có thể gửi ở top-level (``mode``/``selected_symbol``) hoặc
+                # gộp trong ``trade_context`` (plan v2.0 mục 5.3.1) — hỗ trợ cả hai.
+                trade_context = payload.get("trade_context")
+                trade_ctx = trade_context if isinstance(trade_context, dict) else {}
+                raw_mode = payload.get("mode") or trade_ctx.get("mode") or "socratic"
+                mode = raw_mode if raw_mode in _MENTOR_MODES else "socratic"
+                selected_symbol = payload.get("selected_symbol") or trade_ctx.get("selected_symbol")
+                if selected_symbol is not None and not isinstance(selected_symbol, str):
+                    selected_symbol = None
+
+                # Rate limit per-user (GĐ 1.6): trả lỗi rõ ràng, KHÔNG tạo task.
+                if do_rate_limit and not await check_rate(
+                    f"mentor:{user_id}:minute",
+                    max_attempts=settings.mentor_rate_limit_per_minute,
+                    window_seconds=60,
+                ):
+                    await manager.send(
+                        conn,
+                        build_message(
+                            "mentor_error",
+                            {
+                                "session_id": session_id,
+                                "code": "rate_limited",
+                                "message": (
+                                    "Bạn đã gửi quá nhiều câu liên tiếp. Hãy chờ một "
+                                    "chút rồi thử lại."
+                                ),
+                            },
+                        ),
+                    )
+                    return
+                if do_rate_limit and not await check_rate(
+                    f"mentor:{user_id}:day",
+                    max_attempts=settings.mentor_rate_limit_per_day,
+                    window_seconds=86400,
+                ):
+                    await manager.send(
+                        conn,
+                        build_message(
+                            "mentor_error",
+                            {
+                                "session_id": session_id,
+                                "code": "daily_limit",
+                                "message": (
+                                    "Bạn đã dùng hết lượt hỏi mentor hôm nay. Quay lại "
+                                    "vào ngày mai nhé."
+                                ),
+                            },
+                        ),
+                    )
+                    return
+
+                # Trade snapshot từ DB (Chế độ 3) — nguồn chân lý, không tin client.
+                mode_snapshot = None
+                if mode in ("trade_now", "plan"):
+                    try:
+                        async with async_session_factory() as db:
+                            snap = await trade_snapshot_service.get_snapshot(
+                                db, user_id, selected_symbol
+                            )
+                            mode_snapshot = {
+                                "_trade_snapshot": snap,
+                                "text": snap.to_prompt_text(),
+                            }
+                    except Exception:  # noqa: BLE001 - snapshot lỗi → vẫn mentor an toàn
+                        logger.warning(
+                            "Không lấy được trade snapshot (user=%s)", user_id, exc_info=True
+                        )
+
                 prev = active_sessions.get(conn.connection_id)
                 generation = (prev.generation + 1) if prev is not None else 1
                 session = _AskSession(generation=generation)
@@ -334,7 +528,15 @@ def create_mentor_endpoint(
                     prev.cancelled = True
                     prev.task.cancel()
                 task = asyncio.create_task(
-                    _run_ask(conn, str(user.id), session_id, message, session),
+                    _run_ask(
+                        conn,
+                        str(user.id),
+                        session_id,
+                        message,
+                        mode,
+                        mode_snapshot,
+                        session,
+                    ),
                     name=f"mentor-ask-{conn.connection_id}",
                 )
                 session.task = task

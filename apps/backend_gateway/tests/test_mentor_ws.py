@@ -21,7 +21,13 @@ class FastProvider:
         self.parts = parts
 
     async def stream(
-        self, *, user_id: str, message: str, session_id: str
+        self,
+        *,
+        user_id: str,
+        message: str,
+        session_id: str,
+        mode: str = "socratic",
+        snapshot: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         for part in self.parts:
             yield part
@@ -33,7 +39,13 @@ class SlowProvider:
         self.release = asyncio.Event()
 
     async def stream(
-        self, *, user_id: str, message: str, session_id: str
+        self,
+        *,
+        user_id: str,
+        message: str,
+        session_id: str,
+        mode: str = "socratic",
+        snapshot: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         self.started.set()
         await self.release.wait()
@@ -61,7 +73,12 @@ def test_mentor_ws_endpoint_streams_answer() -> None:
     app = FastAPI()
     app.add_websocket_route(
         "/ws/mentor",
-        create_mentor_endpoint(manager, cast(MentorStreamProvider, provider), allow_auth),
+        create_mentor_endpoint(
+                manager,
+                cast(MentorStreamProvider, provider),
+                allow_auth,
+                rate_limit_enabled=False,
+            ),
     )
 
     with TestClient(app) as client:
@@ -92,7 +109,12 @@ def test_mentor_ws_endpoint_rejects_empty_message() -> None:
     app = FastAPI()
     app.add_websocket_route(
         "/ws/mentor",
-        create_mentor_endpoint(manager, cast(MentorStreamProvider, provider), allow_auth),
+        create_mentor_endpoint(
+                manager,
+                cast(MentorStreamProvider, provider),
+                allow_auth,
+                rate_limit_enabled=False,
+            ),
     )
 
     with TestClient(app) as client:
@@ -113,7 +135,12 @@ def test_mentor_ws_endpoint_cancel() -> None:
     app = FastAPI()
     app.add_websocket_route(
         "/ws/mentor",
-        create_mentor_endpoint(manager, cast(MentorStreamProvider, provider), allow_auth),
+        create_mentor_endpoint(
+                manager,
+                cast(MentorStreamProvider, provider),
+                allow_auth,
+                rate_limit_enabled=False,
+            ),
     )
 
     with TestClient(app) as client:
@@ -145,7 +172,8 @@ def test_mentor_ws_endpoint_rejects_unauthenticated() -> None:
     app.add_websocket_route(
         "/ws/mentor",
         create_mentor_endpoint(
-            manager, cast(MentorStreamProvider, FastProvider(["x"])), deny_auth
+            manager, cast(MentorStreamProvider, FastProvider(["x"])), deny_auth,
+            rate_limit_enabled=False,
         ),
     )
 

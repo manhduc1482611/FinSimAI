@@ -12,6 +12,52 @@
 /** Trạng thái nguồn realtime (tham chiếu realtime_status của server). */
 export type RealtimeStatus = "live" | "degraded";
 
+/** Chế độ trả lời của Mentor (kế hoạch 3 chế độ v2.0). */
+export type MentorMode = "socratic" | "concept" | "plan" | "trade_now";
+
+/** Client CHỈ gửi mode + selected_symbol — mọi số liệu tài chính lấy từ server. */
+export interface TradeContext {
+  mode: MentorMode;
+  selected_symbol?: string;
+}
+
+/** Card khái niệm (Chế độ 1) — đồng bộ schema ConceptReply của ai_engine. */
+export interface ConceptReply {
+  id: string;
+  name: string;
+  definition: string;
+  explanation?: string;
+  example?: string;
+  formula?: string;
+  interpretation?: string;
+  related: string[];
+  followup_question: string;
+  disclaimer?: string;
+  difficulty?: number;
+  category?: string;
+}
+
+/** Card khung chiến lược (Chế độ 2) — đồng bộ schema StrategyReply của ai_engine. */
+export interface StrategyReply {
+  framework_id: string;
+  framework_name: string;
+  criteria: string[];
+  allocation_rule: string;
+  risk_rule: string;
+  how_to_trade: string[];
+  questions: string[];
+  disclaimer?: string;
+}
+
+/** Card phản biện lúc giao dịch (Chế độ 3) — challenge kèm risk flags từ server. */
+export interface MentorChallenge {
+  focus: string;
+  risk_flags: string[];
+  questions: string[];
+  coaching_tip: string;
+  disclaimer?: string;
+}
+
 export interface WsEnvelope<T> {
   type: string;
   data: T;
@@ -95,6 +141,7 @@ export interface WsMentorReadyData {
 export interface WsMentorStartData {
   session_id: string;
   user_id?: string;
+  mode?: MentorMode;
 }
 
 export interface WsMentorChunkData {
@@ -114,6 +161,7 @@ export interface WsMentorCancelledData {
 export interface WsMentorErrorData {
   session_id: string;
   message: string;
+  code?: string;
 }
 
 export interface WsErrorData {
@@ -137,6 +185,9 @@ export type WsServerMessage =
   | WsEnvelope<WsMentorEndData> & { type: "mentor_end" }
   | WsEnvelope<WsMentorCancelledData> & { type: "mentor_cancelled" }
   | WsEnvelope<WsMentorErrorData> & { type: "mentor_error" }
+  | WsEnvelope<ConceptReply> & { type: "mentor_concept" }
+  | WsEnvelope<StrategyReply> & { type: "mentor_strategy" }
+  | WsEnvelope<MentorChallenge> & { type: "mentor_challenge" }
   | WsEnvelope<WsErrorData> & { type: "error" };
 
 /** Tin nhắn client → server. */
@@ -144,7 +195,12 @@ export type WsClientMessage =
   | { action: "ping" }
   | { action: "subscribe" | "unsubscribe"; channels: string[] }
   | { action: "snapshot" }
-  | { action: "ask"; message: string; session_id: string }
+  | {
+      action: "ask";
+      message: string;
+      session_id: string;
+      trade_context?: TradeContext;
+    }
   | { action: "cancel"; session_id: string };
 
 /** Mã close chuẩn phía server (tương ứng connection_manager.py). */

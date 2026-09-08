@@ -17,12 +17,13 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func, text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from models.base import Base
 
 _MENTOR_ROLES = ("user", "mentor")
+_MENTOR_MODES = ("concept", "plan", "trade_now", "socratic")
 
 
 class MentorMessage(Base):
@@ -48,6 +49,12 @@ class MentorMessage(Base):
     # Focus Socratic của lượt trả lời (NULL với tin nhắn user).
     focus: Mapped[str | None] = mapped_column(String(32))
     prompt_version: Mapped[str | None] = mapped_column(String(64))
+    # Chế độ Mentor 3-mode (docs/ai_mentor_3mode_plan.md): concept/plan/trade_now/socratic.
+    # NULL cho row cũ lưu trước migration 0014 — lúc đọc mặc định 'socratic'.
+    mode: Mapped[str | None] = mapped_column(String(16))
+    # Metadata versioned cho audit (MentorMetadata): schema_version, prompt_version,
+    # model, focus, trade_snapshot, used_layers.
+    metadata_json: Mapped[dict | None] = mapped_column(JSONB)
     token_count: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -57,4 +64,7 @@ class MentorMessage(Base):
         role = kwargs.get("role")
         if role not in _MENTOR_ROLES:
             raise ValueError(f"role phải là một trong {_MENTOR_ROLES}, nhận {role!r}")
+        mode = kwargs.get("mode")
+        if mode is not None and mode not in _MENTOR_MODES:
+            raise ValueError(f"mode phải là một trong {_MENTOR_MODES}, nhận {mode!r}")
         super().__init__(**kwargs)

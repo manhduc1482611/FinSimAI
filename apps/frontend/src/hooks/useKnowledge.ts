@@ -9,7 +9,10 @@ import type { KnowledgeResponse } from "@finsim/shared-types/generated/api-types
 
 import { matchKnowledge } from "@/services/mentor";
 import type { AsyncStatus } from "@/types/api";
-import { matchKnowledgeLocal } from "@/utils/knowledge_matcher";
+import {
+  matchKnowledgeLocal,
+  toKnowledgeResponse,
+} from "@/utils/knowledge_matcher";
 
 export interface KnowledgeResult {
   matches: KnowledgeResponse[];
@@ -37,7 +40,7 @@ export function useKnowledge(): KnowledgeResult {
       return response.matches;
     } catch {
       // Backend offline → fallback local, vẫn trả kết quả có ích.
-      const local = matchKnowledgeLocal(trimmed);
+      const local = matchKnowledgeLocal(trimmed).map(toKnowledgeResponse);
       setMatches(local);
       setStatus("success");
       return local;

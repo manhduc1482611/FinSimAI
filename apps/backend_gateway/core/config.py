@@ -81,6 +81,12 @@ class Settings(BaseSettings):
     ai_engine_url: str = ""
     mentor_llm_mode: str = "off"
     ai_engine_timeout_seconds: float = 25.0
+    # Per-user rate limit cho WS mentor (docs/ai_mentor_3mode_plan.md, GĐ 1.6):
+    # kiểm soát chi phí + chống spam áp cho cả 3 mode. Mặc định 10 câu/phút,
+    # 100 câu/ngày.
+    mentor_rate_limit_enabled: bool = True
+    mentor_rate_limit_per_minute: int = 10
+    mentor_rate_limit_per_day: int = 100
 
     # Khoá nội bộ để service khác (AI Engine) ghi nội dung vào DB qua
     # ``/api/v1/ai/content``. Khi để trống endpoint bị khoá (403) — fail-closed.

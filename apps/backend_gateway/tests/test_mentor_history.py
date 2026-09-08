@@ -153,7 +153,13 @@ def test_to_llm_history_shape() -> None:
 # ── WS: lưu hội thoại khi stream hoàn tất ───────────────────────────────────
 class _ChunkProvider:
     async def stream(
-        self, *, user_id: str, message: str, session_id: str
+        self,
+        *,
+        user_id: str,
+        message: str,
+        session_id: str,
+        mode: str = "socratic",
+        snapshot: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         yield "phần "
         yield "hai"
@@ -164,7 +170,10 @@ def _ws_app(provider: Any) -> FastAPI:
     app.add_websocket_route(
         "/ws/mentor",
         create_mentor_endpoint(
-            ConnectionManager(), cast(MentorStreamProvider, provider), _allow_auth
+            ConnectionManager(),
+            cast(MentorStreamProvider, provider),
+            _allow_auth,
+            rate_limit_enabled=False,
         ),
     )
     return app
@@ -210,7 +219,13 @@ def test_cancelled_ask_is_not_persisted(monkeypatch: pytest.MonkeyPatch) -> None
             self.release = asyncio.Event()
 
         async def stream(
-            self, *, user_id: str, message: str, session_id: str
+            self,
+            *,
+            user_id: str,
+            message: str,
+            session_id: str,
+            mode: str = "socratic",
+            snapshot: dict[str, Any] | None = None,
         ) -> AsyncIterator[str]:
             self.started.set()
             await self.release.wait()

@@ -183,14 +183,80 @@ def _is_question(sentence: str) -> bool:
     return bool(_QUESTION_PREFIX.search(normalize_text(sentence)))
 
 
-def scan_policy(*texts: str) -> list[PolicyViolation]:
-    """Quét chính sách: trả về danh sách vi phạm (rỗng nếu sạch)."""
+# ─── Whitelist tường minh W1-W4 cho mode plan/trade_now (docs v2.0, mục 2.2) ──
+# Quy tắc: câu nhắc tới mua/bán/gom/xả/chốt CHỈ được phép nếu thuộc đúng các
+# pattern trắng sau VÀ không có tân ngữ cụ thể (mã/ticker/giá/ngày).
+# LƯU Ý: pattern viết ở dạng CHUẨN HOÁ (bỏ dấu) vì được so với normalize_text(sentence).
+_WHITELIST_PATTERNS: list[re.Pattern[str]] = [
+    # W4 — Tiêu chí định lượng chung (PE < x, ROE > y%) — KHÔNG chỉ mã.
+    re.compile(
+        r"\b(?:pe|roe|net\s*margin|eps|bien\s*loi\s*nhuan|chon\s*ma\s*co|ma\s*dat|"
+        r"doanh\s*nghiep\s*co|ty\s*suat\s*co\s*tuc)\b"
+        r"[^.]*?(?:<|>|>=|<=|=)\s*\d"
+    ),
+    # W3 — Rule tổng quát "không quá x% một mã" / "tối đa x% vốn".
+    re.compile(
+        r"\b(?:gioi\s*han\s*toi\s*da|khong\s*qua|toi\s*da|khong\s*vuot\s*qua)\s*\d+%?\s*"
+        r"(?:von|danh\s*muc|mot\s*ma|mot\s*co\s*phieu)\b"
+    ),
+    re.compile(r"\bda\s*dang\s*hoa\s*toi\s*thieu\s*\d+\s*(?:ma|co\s*phieu)\b"),
+    # W2 — Mô tả quy trình chung (không nêu mã): trước khi vào lệnh/đặt lệnh,
+    #      xác định ngưỡng cắt lỗ, rule chốt lời theo điều kiện chung.
+    re.compile(
+        r"(?:truoc\s*khi\s*(?:vao|dat|mo|giu)\s*lenh|"
+        r"xac\s*dinh\s*(?:nguong|muc)\s*cat\s*lo|"
+        r"quy\s*tac\s*chot\s*loi\s*theo\s*tung|"
+        r"ke\s*hoach\s*thoat\s*khan\s*cap)"
+    ),
+]
+
+# Pattern cấm MỚI riêng cho chế độ plan: giá mục tiêu, dự đoán TĂNG/GIẢM thị trường.
+_PLAN_BANNED_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"\bgia\s*muc\s*tieu\b"),
+    re.compile(r"\bchi\s*dinh\s*cu\s*the\s*(?:ma|co\s*phieu|ticker)\b"),
+    re.compile(r"\b(?:thi\s*truong|gia)\s*se\s*(?:tang|giam)\b"),
+    re.compile(r"\bdu\s*doan\s*(?:thi\s*truong|gia)\b"),
+]
+
+# Dấu hiệu tân ngữ cụ thể (mã/ticker/giá/ngày) — nếu câu có → KHÔNG thuộc whitelist.
+_SPECIFIC_OBJECT = re.compile(
+    r"\b(?:mua|ban|do|don\s+toan\s+bo\s+von)\s+(?:co|ma|co\s*phieu)\b", re.IGNORECASE
+)
+
+
+def _is_whitelisted(sentence: str) -> bool:
+    """Câu khớp 1 trong W1-W4 VÀ không chỉ mã/giá cụ thể → được miễn trừ."""
+    haystack = normalize_text(sentence)
+    if _SPECIFIC_OBJECT.search(haystack):
+        return False
+    # W1 (câu hỏi kết thúc dấu ?) đã được _is_question loại — xử lý riêng.
+    return any(pattern.search(haystack) for pattern in _WHITELIST_PATTERNS)
+
+
+def scan_policy(*texts: str, allow_whitelist: bool = False) -> list[PolicyViolation]:
+    """Quét chính sách: trả về danh sách vi phạm (rỗng nếu sạch).
+
+    Khi ``allow_whitelist=True`` (mode plan/trade_now), các câu khớp whitelist
+    W1-W4 (và sạch tân ngữ cụ thể) được miễn trừ; câu không khớp pattern mà vẫn
+    chứa từ mua/bán → vẫn bị chặn. Pattern cấm plan (giá mục tiêu/dự đoán) luôn
+    chặn bất kể whitelist.
+    """
     violations: list[PolicyViolation] = []
+    banned = _PLAN_BANNED_PATTERNS
     for text in texts:
         for sentence in _split_sentences(text):
             if _is_question(sentence):
                 continue
             haystack = normalize_text(sentence)
+            if allow_whitelist and _is_whitelisted(sentence):
+                ban = next((p for p in banned if p.search(normalize_text(sentence))), None)
+                if ban is not None:
+                    violations.append(
+                        PolicyViolation(
+                            sentence=sentence, kind="plan_banned", pattern=ban.pattern
+                        )
+                    )
+                continue
             for pattern in _ADVICE_PATTERNS:
                 if pattern.search(haystack):
                     violations.append(
@@ -201,12 +267,17 @@ def scan_policy(*texts: str) -> list[PolicyViolation]:
                     violations.append(
                         PolicyViolation(sentence=sentence, kind="judgment", pattern=pattern.pattern)
                     )
+            for pattern in banned:
+                if pattern.search(haystack):
+                    violations.append(
+                        PolicyViolation(sentence=sentence, kind="plan_banned", pattern=pattern.pattern)
+                    )
     return violations
 
 
-def assert_policy(*texts: str) -> None:
+def assert_policy(*texts: str, allow_whitelist: bool = False) -> None:
     """Ném :class:`PolicyViolationError` nếu bất kỳ đoạn nào vi phạm chính sách."""
-    violations = scan_policy(*texts)
+    violations = scan_policy(*texts, allow_whitelist=allow_whitelist)
     if violations:
         details = [f"[{v.kind}] {v.sentence}" for v in violations]
         raise PolicyViolationError(details)

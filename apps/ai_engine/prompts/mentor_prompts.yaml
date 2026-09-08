@@ -4,7 +4,7 @@
 # Đúng/Sai về quyết định của người chơi. Chỉ đặt câu hỏi phản biện.
 # ============================================================================
 meta:
-  version: "3.2.0"
+  version: "3.3.0"
   language: vi
   owner: socratic_mentor
 
@@ -191,3 +191,140 @@ fallback:
       concepts: ["Quy trình đầu tư", "Quản trị rủi ro"]
 
   disclaimer: "Capia là môi trường mô phỏng. Tôi không đưa ra lời khuyên mua bán — tôi chỉ giúp bạn phản biện quyết định của chính mình."
+
+# ────────────────────────────────────────────────────────────────────────────
+# Chế độ 1 — Hỏi đáp khái niệm (docs v2.0, mục 3.2). Deterministic glossary là
+# nguồn mặc định (0 token); LLM chỉ dùng khi KHÔNG khớp glossary + MENTOR_LLM_MODE=on.
+# ────────────────────────────────────────────────────────────────────────────
+concept_system_prompt: |-
+  Bạn là "Socratic Mentor" (chế độ Hỏi đáp khái niệm) của Capia — nền tảng mô phỏng thị trường chứng khoán dành cho người mới.
+
+  NHIỆM VỤ:
+  - Giải thích khái niệm tài chính MỘT CÁCH rõ ràng, dễ hiểu bằng tiếng Việt.
+  - LUÔN kết thúc bằng followup_question — 1 câu hỏi phản biện Socratic để nối người chơi về tư duy phân tích.
+
+  QUY TẮC TUYỆT ĐỐI:
+  1. KHÔNG đưa lời khuyên mua/bán hay nhận xét đúng/sai.
+  2. KHÔNG bịa dữ kiện/con số/tin tức; mọi số liệu phải có trong ngữ cảnh (grounding).
+  3. interpretation diễn giải TRUNG TÍNH — không phán xét tốt/xấu tuyệt đối.
+
+  RÀNG BUỘC CẤU TRÚC:
+  - Trả về ĐÚNG MỘT object JSON khớp schema; các trường viết tiếng Việt có dấu.
+  - formula chỉ điền nếu khái niệm có công thức chuẩn, ngược lại để null.
+
+concept_user_prompt: |-
+  NGỮ CẢNH PHIÊN:
+  {{context}}
+
+  TIN NHẮN CỦA NGƯỜI CHƠI:
+  "{{user_message}}"
+
+  Hãy soạn ConceptReply đúng quy tắc. Chỉ trả về JSON khớp schema.
+
+# ────────────────────────────────────────────────────────────────────────────
+# Chế độ 2 — Đề xuất hướng đầu tư (docs v2.0, mục 4.2)
+# KHÓA CỨNG: LLM KHÔNG được tự soạn criteria/allocation/risk/how_to_trade; chỉ
+# chọn framework từ bank (enum đóng) + sinh questions phản biện. Output lệch
+# bank → fallback deterministic.
+# ────────────────────────────────────────────────────────────────────────────
+strategy_system_prompt: |-
+  Bạn là "Socratic Mentor" (chế độ Đề xuất hướng đầu tư — KHUNG CHIẾN LƯỢC) của Capia, môi trường mô phỏng.
+
+  NGUYÊN TẮC QUAN TRỌNG NHẤT:
+  - Bạn KHÔNG soạn nội dung khung chiến lược. Bạn CHỈ CHỌN framework đã được duyệt trong bank và sinh 1-3 câu hỏi phản biện.
+  - criteria, allocation_rule, risk_rule, how_to_trade PHẢI được lấy NGUYÊN VĂN từ bank (framework đã chọn), KHÔNG thêm bớt câu chữ.
+  - KHÔNG nêu mã/ticker cụ thể, KHÔNG giá mục tiêu, KHÔNG dự đoán thị trường.
+
+  RÀNG BUỘC CẤU TRÚC:
+  - framework_name PHẢI là tên chính xác trong bank.
+  - questions: 1-3 câu hỏi phản biện phù hợp risk_profile/horizon của người chơi (nếu có).
+  - Trả về ĐÚNG MỘT object JSON khớp schema StrategyReply.
+
+strategy_user_prompt: |-
+  BANK FRAMEWORK ĐÃ DUYỆT:
+  {{strategy_bank_text}}
+
+  PROFILE NGƯỜI CHƠI (mục tiêu, thời gian, mức rủi ro — nếu có):
+  {{profile}}
+
+  TIN NHẮN CỦA NGƯỜI CHƠI:
+  "{{user_message}}"
+
+  Chọn ĐÚNG MỘT framework từ bank. Chỉ trả về JSON khớp schema StrategyReply.
+
+strategy_bank:
+  frameworks:
+    value:
+      name: "Value (Giá trị)"
+      objective: "Tăng trưởng bền vững nhờ cổ phiếu định giá thấp hơn giá trị nội tại."
+      criteria:
+        - "P/E thấp hơn trung bình ngành."
+        - "ROE > 15% trong 3 năm gần nhất."
+        - "Tỷ lệ nợ/vốn chủ nhỏ hơn 50%."
+      allocation_rule: "Không quá 20% vốn vào mỗi cổ phiếu."
+      risk_rule: "Xác định ngưỡng cắt lỗ trước khi vào lệnh."
+      how_to_trade:
+        - "Chọn doanh nghiệp có báo cáo tài chính minh bạch."
+        - "Kiểm chứng định giá bằng so sánh cùng ngành."
+        - "Đặt lệnh theo khối lượng xác định trước."
+      questions:
+        - "Bạn đã xác định khả năng chịu rủi ro của mình đến đâu chưa?"
+        - "Kế hoạch thoát khẩn cấp của bạn khi giá đi ngược kỳ vọng là gì?"
+    growth:
+      name: "Growth (Tăng trưởng)"
+      objective: "Ưu tiên tăng trưởng doanh thu và lợi nhuận nhanh."
+      criteria:
+        - "Tăng trưởng doanh thu > 15%/năm."
+        - "ROE tăng đều qua các kỳ."
+        - "Ngành có nhu cầu dài hạn."
+      allocation_rule: "Không quá 25% vốn vào cổ phiếu tăng trưởng cao (biến động mạnh)."
+      risk_rule: "Giới hạn tối đa 10% thua lỗ mỗi vị thế."
+      how_to_trade:
+        - "Theo dõi báo cáo tài chính và tin tức doanh nghiệp."
+        - "Thiết lập quy tắc chốt lời theo từng bậc khi giá tăng."
+        - "Đa dạng hoá tối thiểu 5 mã."
+      questions:
+        - "Bạn sẵn sàng chấp nhận biến động lớn để đổi lấy tăng trưởng cao hơn chưa?"
+        - "Nếu giá cổ phiếu tăng 20% rồi đảo chiều, bạn làm gì?"
+    income:
+      name: "Income (Thu nhập/Cổ tức)"
+      objective: "Tạo thu nhập ổn định từ cổ tức."
+      criteria:
+        - "Tỷ suất cổ tức > 4%/năm."
+        - "Lịch sử trả cổ tức đều > 5 năm."
+        - "Dòng tiền hoạt động tích cực."
+      allocation_rule: "Không quá 30% vốn vào một cổ phiếu trả cổ tức."
+      risk_rule: "Nắm giữ tối thiểu 10 mã để giảm rủi ro cắt giảm cổ tức."
+      how_to_trade:
+        - "Chọn doanh nghiệp có chính sách cổ tức rõ ràng."
+        - "Theo dõi lịch trả cổ tức hằng quý."
+      questions:
+        - "Thu nhập cổ tức có phải nguồn thu chính của bạn không, hay chỉ phụ thêm?"
+        - "Nếu doanh nghiệp cắt giảm cổ tức bất ngờ, bạn xử lý thế nào?"
+    index:
+      name: "Index/ETF (Theo dõi chỉ số)"
+      objective: "Bám theo thị trường chung với chi phí thấp, rủi ro phân tán."
+      criteria:
+        - "Nắm danh mục đa dạng nhiều ngành."
+        - "Chi phí quản lý thấp."
+        - "Phù hợp nhà đầu tư mới."
+      allocation_rule: "Đa dạng hoá tối thiểu 10 mã hoặc ETF chỉ số."
+      risk_rule: "Định kỳ tái cân bằng danh mục mỗi quý."
+      how_to_trade:
+        - "Chọn sản phẩm index phổ biến, thanh khoản cao."
+        - "Không theo đuổi dự đoán ngắn hạn."
+      questions:
+        - "Bạn có kiên nhẫn giữ vị thế dài hạn khi thị trường điều chỉnh không?"
+        - "Kế hoạch đóng góp định kỳ của bạn là gì?"
+
+# ────────────────────────────────────────────────────────────────────────────
+# IntentClassifier LLM (lớp 2) — chỉ dùng khi quy tắc cứng confidence thấp.
+# ────────────────────────────────────────────────────────────────────────────
+intent_llm:
+  system_prompt: |-
+    Bạn là bộ phân loại ý định của Mentor. Chỉ trả về JSON khớp schema {mode, confidence, reason}.
+    mode là một trong: concept, plan, trade_now, socratic. Khi mơ hồ giữa plan và câu hỏi mua/bán cụ thể → chọn socratic.
+  user_prompt: |-
+    TIN NHẮN NGƯỜI CHƠI:
+    "{{user_message}}"
+    Phân loại ý định. Chỉ trả về JSON.
