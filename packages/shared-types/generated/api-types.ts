@@ -19,6 +19,11 @@ export interface LoginRequest {
   password: string
 }
 
+// ─── USER · REFRESH_REQUEST ───
+export interface RefreshRequest {
+  refresh_token: string
+}
+
 // ─── USER · REGISTER_REQUEST ───
 export interface RegisterRequest {
   email: string
@@ -84,6 +89,7 @@ export interface NewsResponse {
   is_ai_generated: boolean
   simulated_at: string
   created_at: string
+  is_saved?: boolean
 }
 
 // ─── COMPANY · COMPANY_LIST_RESPONSE ───
@@ -177,12 +183,6 @@ export interface SocialLikeResponse {
   likes_count: number
 }
 
-// ─── SOCIAL · SOCIAL_POST_CREATE ───
-export interface SocialPostCreate {
-  content: string
-  company_symbol?: string | null
-}
-
 // ─── SOCIAL · SOCIAL_POST_LIST_RESPONSE ───
 export interface SocialPostListResponse {
   items: SocialPostResponse[]
@@ -197,6 +197,7 @@ export interface SocialPostResponse {
   persona_type: string
   content: string
   sentiment: string
+  is_trap?: boolean
   virality_score: number
   likes_count: number
   shares_count: number
@@ -206,6 +207,33 @@ export interface SocialPostResponse {
   simulated_at: string
   created_at: string
   liked_by_me?: boolean
+  is_saved?: boolean
+}
+
+// ─── SAVES · CONTENT_SAVE_TOGGLE_REQUEST ───
+export interface ContentSaveToggleRequest {
+  content_type: string
+  content_id: string
+}
+
+// ─── SAVES · CONTENT_SAVE_TOGGLE_RESPONSE ───
+export interface ContentSaveToggleResponse {
+  saved: boolean
+}
+
+// ─── SAVES · SAVED_CONTENT_ITEM ───
+export interface SavedContentItem {
+  content_type: string
+  content_id: string
+  saved_at: string
+  news?: NewsResponse | null
+  social?: SocialPostResponse | null
+}
+
+// ─── SAVES · SAVED_CONTENT_LIST_RESPONSE ───
+export interface SavedContentListResponse {
+  items: SavedContentItem[]
+  total: number
 }
 
 // ─── KNOWLEDGE · KNOWLEDGE_LIST_RESPONSE ───
@@ -484,6 +512,7 @@ export interface TaskClaimResponse {
   progress_count: number
   target_count: number
   completed: boolean
+  claimed?: boolean
   reward_earned: string
 }
 
@@ -503,6 +532,7 @@ export interface TaskListResponse {
   streak_current: number
   streak_longest: number
   total_reward_earned: string
+  next_reset_at?: string | null
   tasks: TaskProgressResponse[]
 }
 
@@ -513,6 +543,7 @@ export interface TaskProgressResponse {
   target_count: number
   completed: boolean
   claimable?: boolean
+  claimed?: boolean
   completed_at?: string | null
 }
 
@@ -526,6 +557,7 @@ export interface TaskResponse {
   reward_amount: string
   target_count: number
   reset_frequency: "none" | "daily"
+  group: "daily" | "achievement"
 }
 
 // ─── ERROR SHAPE (FastAPI mặc định) ───

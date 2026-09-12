@@ -9,6 +9,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
+  IconBookmark,
   IconBuilding,
   IconClose,
   IconHome,
@@ -58,6 +59,12 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Tin tức",
         description: "Cảm xúc thị trường",
         icon: IconNews,
+      },
+      {
+        href: "/saved",
+        label: "Đã lưu",
+        description: "Bookmark tin & bài viết",
+        icon: IconBookmark,
       },
       {
         href: "/companies",
@@ -131,26 +138,22 @@ export function Sidebar({ open, onClose, groups, homeHref }: SidebarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-200 bg-[#FFFDF8] transition-transform duration-200 dark:border-granite-800 dark:bg-granite-950",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-200 bg-paper transition-transform duration-200 dark:border-granite-800 dark:bg-granite-950",
           "lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center justify-between border-b border-line px-5 dark:border-granite-800">
-          <Link href={logoHref} className="group flex items-center gap-2.5" onClick={onClose}>
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-500 text-sm font-black text-granite-950 shadow-board transition-colors group-hover:bg-brand-400">
-              C
-            </span>
-            <span className="leading-tight">
-              <span className="block text-base font-black tracking-tight text-ink-900 dark:text-slip">
-                Capia
-              </span>
-              <span className="board-label block">Quầy giao dịch</span>
-            </span>
+        <div className="relative flex h-20 items-center justify-center border-b border-line px-5 dark:border-granite-800">
+          <Link href={logoHref} className="flex items-center" onClick={onClose}>
+            <img
+              src="/logo.png"
+              alt="Capia"
+              className="h-16 w-auto select-none transition-opacity group-hover:opacity-80"
+            />
           </Link>
           <button
             type="button"
-            className="btn-ghost p-1.5 lg:hidden"
+            className="btn-ghost absolute right-3 p-1.5 lg:hidden"
             onClick={onClose}
             aria-label="Đóng menu"
           >
@@ -189,16 +192,6 @@ export function Sidebar({ open, onClose, groups, homeHref }: SidebarProps) {
                         />
                         <span className="min-w-0">
                           <span className="block truncate font-semibold">{item.label}</span>
-                          <span
-                            className={cn(
-                              "block truncate text-xs",
-                              active
-                                ? "text-granite-900/80"
-                                : "text-ink-400 dark:text-granite-400",
-                            )}
-                          >
-                            {item.description}
-                          </span>
                         </span>
                       </Link>
                     </li>

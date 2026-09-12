@@ -26,7 +26,7 @@ export function SocialSidebar({ posts }: { posts: SocialPostResponse[] }) {
 
   return (
     <div className="space-y-5 lg:sticky lg:top-24">
-      <section className="rounded-xl border border-line bg-[#FFFDF8] p-4 dark:border-granite-700 dark:bg-granite-900">
+      <section className="rounded-xl border border-line bg-paper p-4 dark:border-granite-700 dark:bg-granite-900">
         <h2 className="mb-3 text-sm font-bold text-ink-900 dark:text-slip">Đang thịnh hành</h2>
         <ol className="space-y-3">
           {trending.map((post, index) => (
@@ -54,7 +54,7 @@ export function SocialSidebar({ posts }: { posts: SocialPostResponse[] }) {
         </ol>
       </section>
 
-      <section className="rounded-xl border border-line bg-[#FFFDF8] p-4 dark:border-granite-700 dark:bg-granite-900">
+      <section className="rounded-xl border border-line bg-paper p-4 dark:border-granite-700 dark:bg-granite-900">
         <h2 className="mb-3 text-sm font-bold text-ink-900 dark:text-slip">Tâm lý thị trường</h2>
         {sentimentRows.length === 0 ? (
           <p className="text-sm text-ink-400">Chưa có dữ liệu.</p>

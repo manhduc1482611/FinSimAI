@@ -83,7 +83,7 @@ export function CompanyMap({ companies }: { companies: CompanyResponse[] }) {
   const hoveredCompany = hovered?.company ?? null;
 
   return (
-    <div className="rounded-xl border border-line bg-[#FFFDF8] p-4 dark:border-granite-700 dark:bg-granite-900">
+    <div className="rounded-xl border border-line bg-paper p-4 dark:border-granite-700 dark:bg-granite-900">
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-ink-500 dark:text-granite-400">
           {companies.length} doanh nghiệp · Trục X = ngành · Trục Y = sức khỏe tài chính

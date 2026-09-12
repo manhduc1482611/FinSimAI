@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/common/Badge";
 import { useNewsStore } from "@/store/useNewsStore";
+import { formatImpact, sanitizeTemplateVars } from "@/utils/format";
 import { NEWS_CATEGORIES, newsCategoryLabel } from "@/utils/domain";
 import { cn } from "@/utils/cn";
 import type { NewsResponse } from "@finsim/shared-types/generated/api-types";
@@ -17,43 +18,47 @@ export function NewsSidebar({ items }: { items: NewsResponse[] }) {
   const total = useNewsStore((state) => state.total);
 
   const notable = [...items]
-    .sort((a, b) => b.impact_score - a.impact_score)
+    .sort((a, b) => Number(b.impact_score) - Number(a.impact_score))
     .slice(0, 5);
 
   return (
     <div className="space-y-5 lg:sticky lg:top-24">
-      <section className="rounded-xl border border-line bg-[#FFFDF8] p-4 dark:border-granite-700 dark:bg-granite-900">
+      <section className="rounded-xl border border-line bg-paper p-4 dark:border-granite-700 dark:bg-granite-900">
         <h2 className="mb-3 border-b border-line pb-2 text-sm font-bold uppercase tracking-wide text-ink-900 dark:text-slip dark:border-granite-800">
           Tin đáng chú ý
         </h2>
         <ol className="space-y-3">
-          {notable.map((news) => (
-            <li key={news.id}>
-              <Link
-                href={`/news/${news.id}`}
-                className="group block text-sm text-ink-800 transition-colors hover:text-brand-700 dark:text-slip dark:hover:text-brand-400"
-              >
-                <span className="line-clamp-2 font-medium group-hover:underline">{news.title}</span>
-                <span className="mt-1 flex items-center gap-1.5 text-xs text-ink-400">
-                  <Badge variant="neutral">{newsCategoryLabel(news.category)}</Badge>
-                  <span>{news.source}</span>
-                  <span
-                    className={cn(
-                      "font-semibold",
-                      news.impact_score >= 5 ? "text-mkt-up dark:text-mkt-up-400" : "text-mkt-down dark:text-mkt-down-400",
-                    )}
-                  >
-                    {news.impact_score.toFixed(1)}
+          {notable.map((news) => {
+            const impactNum = Number(news.impact_score);
+            const safeImpact = Number.isFinite(impactNum) && impactNum <= 100 ? impactNum : 0;
+            return (
+              <li key={news.id}>
+                <Link
+                  href={`/news/${news.id}`}
+                  className="group block text-sm text-ink-800 transition-colors hover:text-brand-700 dark:text-slip dark:hover:text-brand-400"
+                >
+                  <span className="line-clamp-2 font-medium group-hover:underline">{sanitizeTemplateVars(news.title)}</span>
+                  <span className="mt-1 flex items-center gap-1.5 text-xs text-ink-400">
+                    <Badge variant="neutral">{newsCategoryLabel(news.category)}</Badge>
+                    <span>{news.source}</span>
+                    <span
+                      className={cn(
+                        "font-semibold",
+                        safeImpact >= 5 ? "text-mkt-up dark:text-mkt-up-400" : "text-mkt-down dark:text-mkt-down-400",
+                      )}
+                    >
+                      {formatImpact(safeImpact)}
+                    </span>
                   </span>
-                </span>
-              </Link>
-            </li>
-          ))}
+                </Link>
+              </li>
+            );
+          })}
           {notable.length === 0 && <li className="text-sm text-ink-400">Chưa có tin nổi bật.</li>}
         </ol>
       </section>
 
-      <section className="rounded-xl border border-line bg-[#FFFDF8] p-4 dark:border-granite-700 dark:bg-granite-900">
+      <section className="rounded-xl border border-line bg-paper p-4 dark:border-granite-700 dark:bg-granite-900">
         <h2 className="mb-3 border-b border-line pb-2 text-sm font-bold uppercase tracking-wide text-ink-900 dark:text-slip dark:border-granite-800">
           Chuyên mục
         </h2>

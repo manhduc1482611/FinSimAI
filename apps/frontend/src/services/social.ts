@@ -10,7 +10,6 @@ import type {
   SocialCommentListResponse,
   SocialCommentResponse,
   SocialLikeResponse,
-  SocialPostCreate,
   SocialPostListResponse,
   SocialPostResponse,
 } from "@finsim/shared-types/generated/api-types";
@@ -18,6 +17,7 @@ import type {
 export interface ListSocialPostsQuery extends ListQuery {
   persona_type?: string | null;
   sentiment?: string | null;
+  q?: string | null;
 }
 
 export async function listSocialPosts(
@@ -26,6 +26,7 @@ export async function listSocialPosts(
   const search = buildQueryString({
     persona_type: query.persona_type,
     sentiment: query.sentiment,
+    q: query.q,
     skip: query.skip,
     limit: query.limit,
   });
@@ -34,11 +35,6 @@ export async function listSocialPosts(
 
 export function getSocialPost(postId: string): Promise<SocialPostResponse> {
   return apiClient.get<SocialPostResponse>(`/api/v1/social/${postId}`);
-}
-
-/** POST /social — đăng bài mới (cần đăng nhập). */
-export function createSocialPost(body: SocialPostCreate): Promise<SocialPostResponse> {
-  return apiClient.post<SocialPostResponse>("/api/v1/social", body);
 }
 
 /** POST /social/{id}/like — bật/tắt like (cần đăng nhập). */

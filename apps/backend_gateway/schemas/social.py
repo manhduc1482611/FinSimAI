@@ -23,11 +23,7 @@ class SocialPostResponse(BaseModel):
     simulated_at: datetime
     created_at: datetime
     liked_by_me: bool = False
-
-
-class SocialPostCreate(BaseModel):
-    content: str = Field(min_length=1, max_length=2000)
-    company_symbol: str | None = Field(default=None, max_length=20)
+    is_saved: bool = False
 
 
 class SocialPostListResponse(BaseModel):

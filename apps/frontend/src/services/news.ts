@@ -12,6 +12,7 @@ import { apiClient } from "@/services/api";
 export interface NewsQuery extends ListQuery {
   category?: string;
   sentiment?: string;
+  q?: string;
 }
 
 /** GET /news → danh sách tin tức (có thể lọc theo category/sentiment). */

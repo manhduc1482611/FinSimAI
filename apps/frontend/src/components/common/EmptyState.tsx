@@ -10,7 +10,7 @@ export interface EmptyStateProps {
 
 export function EmptyState({ title, description, icon, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-ink-300 bg-[#FFFDF8] px-6 py-12 text-center dark:border-granite-700 dark:bg-granite-900">
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-ink-300 bg-paper px-6 py-12 text-center dark:border-granite-700 dark:bg-granite-900">
       {icon !== undefined && (
         <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100 text-ink-400 dark:bg-granite-800 dark:text-granite-300">
           {icon}

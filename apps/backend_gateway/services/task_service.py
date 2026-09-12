@@ -83,6 +83,30 @@ def _today() -> date:
     return datetime.now(ZoneInfo(settings.app_timezone)).date()
 
 
+def _next_reset_at_tz() -> datetime:
+    """Mốc reset nhiệm vụ hằng ngày tiếp theo (00:00 Asia/Ho_Chi_Minh)."""
+    now = datetime.now(ZoneInfo(settings.app_timezone))
+    tomorrow = now + timedelta(days=1)
+    return tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def _task_response(task: Task) -> dict[str, object]:
+    """Serialise Task kèm ``group`` (daily/achievement) cho API response."""
+    from schemas.task import TaskResponse
+
+    return TaskResponse(
+        id=task.id,
+        code=task.code,
+        name=task.name,
+        description=task.description,
+        category=task.category,
+        reward_amount=task.reward_amount,
+        target_count=task.target_count,
+        reset_frequency=task.reset_frequency,
+        group=CAT_DAILY if task.category == CAT_DAILY else "achievement",
+    )
+
+
 async def _get_active_task(db: AsyncSession, code: str) -> Task | None:
     result = await db.execute(
         select(Task).where(Task.code == code, Task.is_active.is_(True))
@@ -122,13 +146,17 @@ async def _progress_task(
 async def _try_complete(
     db: AsyncSession, user: User, progress: UserTaskProgress, task: Task
 ) -> bool:
+    """Tăng tiến độ; khi đủ target chỉ đánh dấu hoàn thành, KHÔNG cộng tiền.
+
+    Phần thưởng chỉ được cộng vào ``cash_balance`` khi user bấm "Nhận thưởng"
+    (claim_task) — chờ ở trạng thái ``claimable``.
+    """
     if progress.completed_at is not None:
         return False
     progress.progress_count += 1
     progress.last_progress_at = _now_utc()
     if progress.progress_count < task.target_count:
         return False
-    await _credit_reward(db, user, task.reward_amount)
     progress.reward_amount = task.reward_amount
     progress.completed_at = _now_utc()
     return True
@@ -187,7 +215,6 @@ async def _maybe_complete_onboarding(db: AsyncSession, user: User) -> None:
         db, user.id, CAT_ONBOARDING, META_ONBOARDING, None
     )
     if required > 0 and completed >= required:
-        await _credit_reward(db, user, task.reward_amount)
         progress.reward_amount = task.reward_amount
         progress.progress_count = 1
         progress.completed_at = _now_utc()
@@ -206,7 +233,6 @@ async def _maybe_complete_daily(db: AsyncSession, user: User) -> None:
         db, user.id, CAT_DAILY, META_DAILY, today
     )
     if required >= 2 and completed >= required - 1:
-        await _credit_reward(db, user, task.reward_amount)
         progress.reward_amount = task.reward_amount
         progress.progress_count = 1
         progress.completed_at = _now_utc()
@@ -228,10 +254,8 @@ async def _maybe_complete_streaks(
             continue
         progress.progress_count = task.target_count
         progress.last_progress_at = _now_utc()
-        await _credit_reward(db, user, task.reward_amount)
         progress.reward_amount = task.reward_amount
         progress.completed_at = _now_utc()
-        total += task.reward_amount
     return total
 
 
@@ -303,8 +327,8 @@ async def checkin(db: AsyncSession, user: User) -> dict[str, object]:
     if task is not None:
         progress = await _progress_task(db, user, task, today)
         completed_now = await _try_complete(db, user, progress, task)
+        # Giá trị phần thưởng chỉ cộng khi user bấm "Nhận thưởng" (claim_task).
         if completed_now:
-            reward += task.reward_amount
             await _maybe_complete_daily(db, user)
 
     # Check-in đều đặn là hành vi kỷ luật → +1 điểm kỷ luật mỗi ngày (không spam).
@@ -384,7 +408,7 @@ async def user_best_rank(db: AsyncSession, user_id: object) -> int | None:
 
 async def list_tasks(db: AsyncSession, user: User) -> dict[str, object]:
     """Danh sách nhiệm vụ active + tiến độ của user (cho trang Nhiệm vụ & Thưởng)."""
-    from schemas.task import TaskListResponse, TaskProgressResponse, TaskResponse
+    from schemas.task import TaskListResponse, TaskProgressResponse
 
     tasks = (
         await db.execute(
@@ -408,7 +432,7 @@ async def list_tasks(db: AsyncSession, user: User) -> dict[str, object]:
     longest = streak_row.longest_streak if streak_row else 0
     total_reward = Decimal("0.00")
     for row in progress_rows:
-        if row.completed_at is not None:
+        if row.claimed_at is not None:
             total_reward += row.reward_amount or Decimal("0.00")
 
     items: list[TaskProgressResponse] = []
@@ -424,20 +448,25 @@ async def list_tasks(db: AsyncSession, user: User) -> dict[str, object]:
                 None,
             )
         completed = prog is not None and prog.completed_at is not None
+        claimed = prog is not None and prog.claimed_at is not None
         progress_count = prog.progress_count if prog else 0
         if task.category == CAT_STREAK and not completed:
             progress_count = min(current, task.target_count)
         claimable = False
-        if task.code == CODE_CONTEST_TOP10 and not completed:
-            best_rank = await user_best_rank(db, user.id)
-            claimable = best_rank is not None and best_rank <= 10
+        if completed and not claimed:
+            if task.code == CODE_CONTEST_TOP10:
+                best_rank = await user_best_rank(db, user.id)
+                claimable = best_rank is not None and best_rank <= 10
+            else:
+                claimable = True
         items.append(
             TaskProgressResponse(
-                task=TaskResponse.model_validate(task),
+                task=_task_response(task),
                 progress_count=progress_count,
                 target_count=task.target_count,
                 completed=completed,
                 claimable=claimable,
+                claimed=claimed,
                 completed_at=prog.completed_at if prog else None,
             )
         )
@@ -445,17 +474,25 @@ async def list_tasks(db: AsyncSession, user: User) -> dict[str, object]:
         streak_current=current,
         streak_longest=longest,
         total_reward_earned=total_reward,
+        next_reset_at=_next_reset_at_tz(),
         tasks=items,
     ).model_dump(mode="json")
 
 
 async def claim_task(db: AsyncSession, user: User, task_id: object) -> dict[str, object]:
-    """Nhận thưởng thủ công — hiện chỉ áp dụng cho nhiệm vụ top 10 cuộc thi."""
-    from schemas.task import TaskClaimResponse, TaskResponse
+    """Nhận thưởng thủ công cho mọi nhiệm vụ đã hoàn thành chưa nhận.
+
+    Phần thưởng chỉ được cộng vào ``cash_balance`` tại đây (không còn auto-credit
+    lúc hoàn thành). ``contest_top10`` vẫn cần xác minh thứ hạng tại thời điểm nhận.
+    """
+    from schemas.task import TaskClaimResponse
 
     task = await db.get(Task, task_id)
     if task is None or not task.is_active:
         raise TaskServiceError("Nhiệm vụ không tồn tại hoặc đã bị tắt")
+
+    period = _today() if task.reset_frequency == "daily" else None
+    progress = await _progress_task(db, user, task, period)
 
     if task.code == CODE_CONTEST_TOP10:
         best_rank = await user_best_rank(db, user.id)
@@ -463,27 +500,32 @@ async def claim_task(db: AsyncSession, user: User, task_id: object) -> dict[str,
             raise TaskNotClaimableError(
                 "Bạn chưa đứng trong top 10 của bất kỳ cuộc thi nào — chưa thể nhận thưởng"
             )
-        progress = await _progress_task(db, user, task, None)
-        if progress.completed_at is not None:
-            return TaskClaimResponse(
-                task=TaskResponse.model_validate(task),
-                progress_count=progress.progress_count,
-                target_count=task.target_count,
-                completed=True,
-                reward_earned=Decimal("0.00"),
-            ).model_dump(mode="json")
         progress.progress_count = task.target_count
         progress.last_progress_at = _now_utc()
-        await _credit_reward(db, user, task.reward_amount)
-        progress.reward_amount = task.reward_amount
         progress.completed_at = _now_utc()
-        await db.commit()
+
+    if progress.completed_at is None:
+        raise TaskNotClaimableError("Nhiệm vụ chưa hoàn thành — chưa thể nhận thưởng")
+
+    if progress.claimed_at is not None:
         return TaskClaimResponse(
-            task=TaskResponse.model_validate(task),
-            progress_count=task.target_count,
+            task=_task_response(task),
+            progress_count=progress.progress_count,
             target_count=task.target_count,
             completed=True,
-            reward_earned=task.reward_amount,
+            claimed=True,
+            reward_earned=Decimal("0.00"),
         ).model_dump(mode="json")
 
-    raise TaskServiceError("Nhiệm vụ này được thưởng tự động, không cần nhận thủ công")
+    await _credit_reward(db, user, task.reward_amount)
+    progress.reward_amount = task.reward_amount
+    progress.claimed_at = _now_utc()
+    await db.commit()
+    return TaskClaimResponse(
+        task=_task_response(task),
+        progress_count=progress.progress_count,
+        target_count=task.target_count,
+        completed=True,
+        claimed=True,
+        reward_earned=task.reward_amount,
+    ).model_dump(mode="json")

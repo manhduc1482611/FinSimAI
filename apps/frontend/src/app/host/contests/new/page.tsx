@@ -257,7 +257,7 @@ export default function NewContestPage() {
                   type="color"
                   value={primaryColor}
                   onChange={(event) => setPrimaryColor(event.target.value)}
-                  className="h-10 w-16 cursor-pointer rounded-lg border border-line bg-[#FFFDF8] dark:border-granite-700"
+                  className="h-10 w-16 cursor-pointer rounded-lg border border-line bg-paper dark:border-granite-700"
                 />
               </div>
             </div>

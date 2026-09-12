@@ -26,6 +26,7 @@ import type { PriceTick } from "@/types/websocket";
 import type { TimedPriceTick } from "@/utils/candles";
 import { buildCandles } from "@/utils/candles";
 import { formatNumber } from "@/utils/format";
+import { generateHistoricalPrices } from "@/utils/priceSimulator";
 import { cn } from "@/utils/cn";
 
 export interface PriceChartProps {
@@ -62,10 +63,23 @@ export function PriceChart({
   const fittedRef = useRef(false);
   const { theme } = useTheme();
 
-  const candles = useMemo(
-    () => buildCandles(ticks, bucketSeconds),
-    [ticks, bucketSeconds],
-  );
+  const candles = useMemo(() => {
+    if (ticks.length > 0) {
+      return buildCandles(ticks, bucketSeconds);
+    }
+    if (snapshot !== null) {
+      const base = Number.isFinite(snapshot.price) && snapshot.price > 0 ? snapshot.price : 100;
+      return generateHistoricalPrices(symbol, base, 90, 0.02).map((c) => ({
+        ...c,
+        time: c.time,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      }));
+    }
+    return [];
+  }, [ticks, bucketSeconds, snapshot, symbol]);
 
   const change = snapshot !== null ? snapshot.change : null;
   const changePct = snapshot !== null ? snapshot.change_pct : null;
@@ -80,22 +94,22 @@ export function PriceChart({
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: theme === "dark" ? "#B7AE9C" : "#787166",
+        textColor: theme === "dark" ? "#A7B1BE" : "#66727F",
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: "rgba(120, 113, 102, 0.14)" },
-        horzLines: { color: "rgba(120, 113, 102, 0.14)" },
+        vertLines: { color: "rgba(102, 114, 127, 0.14)" },
+        horzLines: { color: "rgba(102, 114, 127, 0.14)" },
       },
-      rightPriceScale: { borderColor: "rgba(120, 113, 102, 0.24)" },
+      rightPriceScale: { borderColor: "rgba(102, 114, 127, 0.24)" },
       timeScale: {
-        borderColor: "rgba(120, 113, 102, 0.24)",
+        borderColor: "rgba(102, 114, 127, 0.24)",
         timeVisible: true,
         secondsVisible: false,
       },
       crosshair: {
-        vertLine: { color: "rgba(201, 162, 39, 0.55)", labelBackgroundColor: "#2D2B27" },
-        horzLine: { color: "rgba(201, 162, 39, 0.55)", labelBackgroundColor: "#2D2B27" },
+        vertLine: { color: "rgba(0, 230, 217, 0.55)", labelBackgroundColor: "#1E2430" },
+        horzLine: { color: "rgba(0, 230, 217, 0.55)", labelBackgroundColor: "#1E2430" },
       },
       localization: {
         locale: "vi-VN",
@@ -131,7 +145,7 @@ export function PriceChart({
     }
     chart.applyOptions({
       layout: {
-        textColor: theme === "dark" ? "#B7AE9C" : "#787166",
+        textColor: theme === "dark" ? "#A7B1BE" : "#66727F",
       },
     });
   }, [theme]);

@@ -49,6 +49,7 @@ SCHEMA_MODULES = [
     "company",
     "trade",
     "social",
+    "saves",
     "knowledge",
     "risk",
     "contest",

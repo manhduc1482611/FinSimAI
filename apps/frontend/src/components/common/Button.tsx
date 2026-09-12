@@ -21,7 +21,7 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
     "border border-transparent bg-brand-500 text-granite-950 hover:bg-brand-400 focus:ring-brand-500/40 dark:bg-brand-400 dark:text-granite-950 dark:hover:bg-brand-300",
   secondary:
-    "border border-ink-300 bg-[#FFFDF8] text-ink-700 hover:border-brand-500 hover:text-brand-700 focus:ring-brand-500/30 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-200 dark:hover:border-brand-400 dark:hover:text-brand-300",
+    "border border-ink-300 bg-paper text-ink-700 hover:border-brand-500 hover:text-brand-700 focus:ring-brand-500/30 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-200 dark:hover:border-brand-400 dark:hover:text-brand-300",
   ghost:
     "border border-transparent text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-granite-200 dark:hover:bg-granite-800 dark:hover:text-slip",
   danger: "bg-mkt-down text-white hover:bg-mkt-down-500 focus:ring-mkt-down/40 border border-transparent",

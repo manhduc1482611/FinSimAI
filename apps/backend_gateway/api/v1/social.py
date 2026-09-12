@@ -2,7 +2,6 @@ import uuid
 
 from core.dependencies import get_current_user, get_current_user_optional, get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from models.company import Company
 from models.social import SocialComment, SocialLike, SocialPost
 from models.user import User
 from realtime.simtime import sim_now
@@ -11,43 +10,27 @@ from schemas.social import (
     SocialCommentListResponse,
     SocialCommentResponse,
     SocialLikeResponse,
-    SocialPostCreate,
     SocialPostListResponse,
     SocialPostResponse,
 )
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.v1.pagination import paginate
+from api.v1.saves import saved_content_ids
 
 router = APIRouter(prefix="/social", tags=["social"])
 
-# Ngữ liệu gợi ý tâm lý cho bài đăng của người dùng (mô phỏng heuristic đơn giản).
-_POSITIVE_TOKENS = (
-    "tăng", "tốt", "tích cực", "kỳ vọng", "triển vọng", "lãi", "chốt lời",
-    "phát triển", "mạnh", "cơ hội", "tuyệt", "bùng nổ", "ấn tượng", "hiệu quả", "đạt",
-)
-_NEGATIVE_TOKENS = (
-    "giảm", "xấu", "tiêu cực", "rủi ro", "lỗ", "cắt lỗ", "thua", "bán tháo",
-    "điều chỉnh", "mất", "thất bại", "lo ngại", "nguy hiểm", "lừa đảo", "cảnh báo",
-    "sụp", "rớt", "phá sản",
-)
 
-
-def _classify_sentiment(text: str) -> str:
-    lower = text.lower()
-    positive = sum(1 for token in _POSITIVE_TOKENS if token in lower)
-    negative = sum(1 for token in _NEGATIVE_TOKENS if token in lower)
-    if positive > negative:
-        return "positive"
-    if negative > positive:
-        return "negative"
-    return "neutral"
-
-
-def _post_to_response(post: SocialPost, liked_ids: set[uuid.UUID]) -> SocialPostResponse:
+def _post_to_response(
+    post: SocialPost,
+    liked_ids: set[uuid.UUID],
+    saved_ids: set[uuid.UUID] | None = None,
+) -> SocialPostResponse:
     response = SocialPostResponse.model_validate(post)
     response.liked_by_me = post.id in liked_ids
+    if saved_ids is not None:
+        response.is_saved = post.id in saved_ids
     return response
 
 
@@ -70,6 +53,7 @@ async def _liked_post_ids(
 async def list_social_posts(
     persona_type: str | None = Query(None),
     sentiment: str | None = Query(None),
+    q: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     user: User | None = Depends(get_current_user_optional),
@@ -80,13 +64,26 @@ async def list_social_posts(
         stmt = stmt.where(SocialPost.persona_type == persona_type)
     if sentiment:
         stmt = stmt.where(SocialPost.sentiment == sentiment)
+    if q:
+        pattern = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                SocialPost.content.ilike(pattern),
+                SocialPost.author_name.ilike(pattern),
+            )
+        )
 
     stmt = stmt.order_by(SocialPost.simulated_at.desc())
     items, total = await paginate(db, stmt, skip, limit)
 
     liked_ids = await _liked_post_ids(db, user, [post.id for post in items])
+    saved_ids = (
+        await saved_content_ids(db, user.id, "social") if user is not None else set()
+    )
     return SocialPostListResponse(
-        items=[_post_to_response(post, liked_ids) for post in items],
+        items=[
+            _post_to_response(post, liked_ids, saved_ids) for post in items
+        ],
         total=total,
     )
 
@@ -101,41 +98,10 @@ async def get_social_post(
     if not entry or entry.simulated_at > sim_now():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Social post not found")
     liked_ids = await _liked_post_ids(db, user, [post_id])
-    return _post_to_response(entry, liked_ids)
-
-
-@router.post("", response_model=SocialPostResponse, status_code=status.HTTP_201_CREATED)
-async def create_social_post(
-    body: SocialPostCreate,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> SocialPostResponse:
-    company_id = None
-    if body.company_symbol:
-        company = (
-            await db.execute(select(Company).where(Company.symbol == body.company_symbol))
-        ).scalar_one_or_none()
-        if company is not None:
-            company_id = company.id
-
-    post = SocialPost(
-        author_name=user.display_name or user.username,
-        author_avatar=user.avatar_url,
-        persona_type="user",
-        content=body.content,
-        sentiment=_classify_sentiment(body.content),
-        virality_score=1.0,
-        likes_count=0,
-        shares_count=0,
-        comments_count=0,
-        company_id=company_id,
-        news_id=None,
-        simulated_at=sim_now(),
+    saved_ids = (
+        await saved_content_ids(db, user.id, "social") if user is not None else set()
     )
-    db.add(post)
-    await db.commit()
-    await db.refresh(post)
-    return _post_to_response(post, set())
+    return _post_to_response(entry, liked_ids, saved_ids)
 
 
 @router.get("/{post_id}/comments", response_model=SocialCommentListResponse)

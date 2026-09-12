@@ -54,7 +54,7 @@ export default function CompaniesPage() {
         title="Doanh nghiệp"
         description="Khám phá và so sánh sức khỏe tài chính của các công ty trong mô phỏng."
         actions={
-          <div className="flex items-center gap-1 rounded-lg border border-line bg-[#FFFDF8] p-1 dark:border-granite-700 dark:bg-granite-900">
+          <div className="flex items-center gap-1 rounded-lg border border-line bg-paper p-1 dark:border-granite-700 dark:bg-granite-900">
             <button
               type="button"
               onClick={() => setView("grid")}

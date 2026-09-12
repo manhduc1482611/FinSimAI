@@ -62,9 +62,11 @@ interface MentorChatProps {
   fixedSymbol?: string;
   /** initialMode: chế độ mặc định khi mở lần đầu. */
   initialMode?: MentorMode;
+  /** compact: dùng trong panel chat nổi — card chiếm hết chiều cao chứa của nó. */
+  compact?: boolean;
 }
 
-export function MentorChat({ fixedSymbol, initialMode }: MentorChatProps) {
+export function MentorChat({ fixedSymbol, initialMode, compact }: MentorChatProps) {
   const token = useAuthStore((state) => state.token);
   const mentor = useSocraticMentor();
   const sessionId = useMentorStore((state) => state.sessionId);
@@ -131,7 +133,7 @@ export function MentorChat({ fixedSymbol, initialMode }: MentorChatProps) {
 
   if (token === null) {
     return (
-      <div className="rounded-xl border border-dashed border-line bg-[#FFFDF8] px-6 py-16 text-center dark:border-granite-600 dark:bg-granite-900">
+      <div className="rounded-xl border border-dashed border-line bg-paper px-6 py-16 text-center dark:border-granite-600 dark:bg-granite-900">
         <h3 className="text-sm font-black text-ink-900 dark:text-slip">Cần đăng nhập</h3>
         <p className="mt-1 text-sm text-ink-500 dark:text-granite-400">
           Đăng nhập để bắt đầu phiên hỏi đáp với Mentor.
@@ -148,13 +150,20 @@ export function MentorChat({ fixedSymbol, initialMode }: MentorChatProps) {
   const effectiveSymbol = fixedSymbol ?? tradeContext.selected_symbol;
 
   return (
-    <div ref={rootRef}>
-      <Card className="flex h-[calc(100vh-16rem)] min-h-[28rem] flex-col">
+    <div ref={rootRef} className={compact ? "h-full" : undefined}>
+      <Card
+        className={cn(
+          "flex flex-col",
+          compact
+            ? "h-full min-h-0 rounded-none border-0"
+            : "h-[calc(100vh-16rem)] min-h-[28rem]",
+        )}
+      >
       <div className="border-b border-line px-5 py-3 dark:border-granite-700">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-base font-black text-ink-900 dark:text-slip">
-              <IconMentor className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+              <IconMentor className="h-4 w-4 text-accent-600 dark:text-accent-400" />
               Mentor tài chính
             </h2>
             <p className="text-xs text-ink-500 dark:text-granite-400">
@@ -184,8 +193,8 @@ export function MentorChat({ fixedSymbol, initialMode }: MentorChatProps) {
               className={cn(
                 "rounded-full border px-3 py-1 text-xs transition-colors",
                 mode === option.id
-                  ? "border-brand-500 bg-brand-500 text-granite-950 shadow-board"
-                  : "border-ink-200 bg-[#FFFDF8] text-ink-600 hover:border-brand-500 hover:text-brand-700 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-300 dark:hover:border-brand-400 dark:hover:text-brand-300",
+                  ? "border-accent-500 bg-accent-500 text-granite-950 shadow-board"
+                  : "border-ink-200 bg-paper text-ink-600 hover:border-accent-500 hover:text-accent-700 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-300 dark:hover:border-accent-400 dark:hover:text-accent-300",
               )}
               title={option.hint}
             >
@@ -209,7 +218,7 @@ export function MentorChat({ fixedSymbol, initialMode }: MentorChatProps) {
         <p
           role="note"
           aria-label="Miễn trừ trách nhiệm"
-          className="mt-2 rounded-lg border border-dashed border-line bg-[#FFFDF8] px-3 py-1.5 text-[11px] font-medium leading-snug text-ink-500 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-400"
+          className="mt-2 rounded-lg border border-dashed border-line bg-paper px-3 py-1.5 text-[11px] font-medium leading-snug text-ink-500 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-400"
         >
           Mentor không khuyến nghị mua/bán — chỉ giúp bạn phản biện quyết định của mình.
         </p>
@@ -238,7 +247,7 @@ export function MentorChat({ fixedSymbol, initialMode }: MentorChatProps) {
                 <button
                   key={suggestion}
                   type="button"
-                  className="rounded-full border border-line bg-[#FFFDF8] px-3 py-1 text-xs text-ink-600 transition-colors hover:border-brand-400 hover:text-brand-700 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-300 dark:hover:border-brand-400 dark:hover:text-brand-300"
+                  className="rounded-full border border-line bg-paper px-3 py-1 text-xs text-ink-600 transition-colors hover:border-accent-400 hover:text-accent-700 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-300 dark:hover:border-accent-400 dark:hover:text-accent-300"
                   onClick={() => {
                     setDraft(suggestion);
                     inputRef.current?.focus();
@@ -276,7 +285,7 @@ export function MentorChat({ fixedSymbol, initialMode }: MentorChatProps) {
                       "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                       message.role === "user"
                         ? "rounded-br-md bg-brand-500 text-granite-950 shadow-card"
-                        : "rounded-bl-md border border-line bg-[#FFFDF8] text-ink-800 dark:border-granite-700 dark:bg-granite-900 dark:text-slip",
+                        : "rounded-bl-md border border-line bg-paper text-ink-800 dark:border-granite-700 dark:bg-granite-900 dark:text-slip",
                     )}
                   >
                     {message.content}
@@ -364,7 +373,7 @@ function MentorCard({
   }
   // Fallback an toàn: giống bubble text.
   return (
-    <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-[#FFFDF8] px-4 py-2.5 text-sm leading-relaxed text-ink-800 dark:border-granite-700 dark:bg-granite-900 dark:text-slip">
+    <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-paper px-4 py-2.5 text-sm leading-relaxed text-ink-800 dark:border-granite-700 dark:bg-granite-900 dark:text-slip">
       {message.content}
     </div>
   );
@@ -382,9 +391,9 @@ function ConceptCard({
   onSendChip: (chip: string) => void;
 }) {
   return (
-    <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-brand-500/30 bg-[#FFFDF8] p-4 text-sm leading-relaxed shadow-card dark:border-brand-400/30 dark:bg-granite-900">
+    <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-accent-500/30 bg-paper p-4 text-sm leading-relaxed shadow-card dark:border-accent-400/30 dark:bg-granite-900">
       <div className="flex items-center justify-between gap-2">
-        <h4 className="text-sm font-black text-brand-700 dark:text-brand-300">
+        <h4 className="text-sm font-black text-accent-700 dark:text-accent-300">
           {concept.name}
         </h4>
         {concept.category !== undefined && (
@@ -393,7 +402,7 @@ function ConceptCard({
       </div>
       <p className="mt-2 text-ink-800 dark:text-slip">{concept.definition}</p>
       {concept.formula !== undefined && concept.formula !== "" && (
-        <p className="mt-2 rounded-lg border border-dashed border-line bg-[#FFFDF8] px-3 py-1.5 font-mono text-xs text-brand-700 dark:border-granite-700 dark:text-brand-300">
+        <p className="mt-2 rounded-lg border border-dashed border-line bg-paper px-3 py-1.5 font-mono text-xs text-accent-700 dark:border-granite-700 dark:text-accent-300">
           {concept.formula}
         </p>
       )}
@@ -422,7 +431,7 @@ function ConceptCard({
               type="button"
               onClick={() => onChipAsk(term)}
               onDoubleClick={() => onSendChip(term)}
-              className="rounded-full border border-line bg-[#FFFDF8] px-2 py-0.5 text-xs text-ink-600 transition-colors hover:border-brand-500 hover:text-brand-700 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-300 dark:hover:border-brand-400 dark:hover:text-brand-300"
+              className="rounded-full border border-line bg-paper px-2 py-0.5 text-xs text-ink-600 transition-colors hover:border-accent-500 hover:text-accent-700 dark:border-granite-600 dark:bg-granite-900 dark:text-granite-300 dark:hover:border-accent-400 dark:hover:text-accent-300"
               title={`Nhấn 1 lần để điền, 2 lần để hỏi "${term} là gì?"`}
             >
               {term}
@@ -441,7 +450,7 @@ function ConceptCard({
 
 function StrategyCard({ strategy }: { strategy: StrategyReply }) {
   return (
-    <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-mkt-up/30 bg-[#FFFDF8] p-4 text-sm leading-relaxed shadow-card dark:border-mkt-up/30 dark:bg-granite-900">
+    <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-mkt-up/30 bg-paper p-4 text-sm leading-relaxed shadow-card dark:border-mkt-up/30 dark:bg-granite-900">
       <h4 className="flex items-center gap-1.5 text-sm font-black text-mkt-up-dark dark:text-mkt-up-400">
         <IconTrendUp className="h-4 w-4" />
         {strategy.framework_name}
@@ -485,7 +494,7 @@ function ChallengeCard({
   challenge: import("@/types/websocket").MentorChallenge;
 }) {
   return (
-    <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-mkt-down/30 bg-[#FFFDF8] p-4 text-sm leading-relaxed shadow-card dark:border-mkt-down/30 dark:bg-granite-900">
+    <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-mkt-down/30 bg-paper p-4 text-sm leading-relaxed shadow-card dark:border-mkt-down/30 dark:bg-granite-900">
       <div className="flex items-center justify-between gap-2">
         <h4 className="flex items-center gap-1.5 text-sm font-black text-mkt-down dark:text-mkt-down-400">
           <IconRisk className="h-4 w-4" />

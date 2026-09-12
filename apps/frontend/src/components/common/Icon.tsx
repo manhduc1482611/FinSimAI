@@ -103,6 +103,14 @@ export function IconChevronDown(props: IconProps) {
   );
 }
 
+export function IconChevronRight(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
 export function IconLogout(props: IconProps) {
   return (
     <svg {...base(props)}>
@@ -293,6 +301,14 @@ export function IconWarning(props: IconProps) {
     <svg {...base(props)}>
       <path d="M10.3 3.2 1.7 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.2a2 2 0 0 0-3.4 0Z" />
       <path d="M12 9v4M12 17h.01" />
+    </svg>
+  );
+}
+
+export function IconBookmark(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </svg>
   );
 }

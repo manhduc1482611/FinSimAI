@@ -14,7 +14,6 @@ import { OrderTable } from "@/components/trade/OrderTable";
 import { Portfolio } from "@/components/trade/Portfolio";
 import { TradePanel } from "@/components/trade/TradePanel";
 import { PriceChart } from "@/components/companies/PriceChart";
-import { MentorChat } from "@/components/mentor/MentorChat";
 import { listCompanies } from "@/services/companies";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useTrade } from "@/hooks/useTrade";
@@ -118,7 +117,7 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
                       "shrink-0 rounded-lg border px-3 py-1.5 text-left transition-colors",
                       active
                         ? "border-brand-500 bg-brand-500 text-granite-950 shadow-board"
-                        : "border-ink-200 bg-[#FFFDF8] text-ink-700 hover:border-brand-500 hover:text-brand-700 dark:border-granite-700 dark:bg-granite-900 dark:text-granite-200 dark:hover:border-brand-400 dark:hover:text-brand-300",
+                        : "border-ink-200 bg-paper text-ink-700 hover:border-brand-500 hover:text-brand-700 dark:border-granite-700 dark:bg-granite-900 dark:text-granite-200 dark:hover:border-brand-400 dark:hover:text-brand-300",
                     )}
                   >
                     <span className="board-num text-sm font-black">{company.symbol}</span>
@@ -193,8 +192,6 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
         onRetry={trade.refresh}
         onCancel={(orderId) => void trade.cancelOrder(orderId)}
       />
-
-      <MentorChat fixedSymbol={selectedSymbol ?? undefined} />
     </div>
   );
 }

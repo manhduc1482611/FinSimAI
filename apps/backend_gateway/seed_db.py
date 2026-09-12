@@ -152,7 +152,13 @@ def _news_rows(companies: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "cổ phiếu {symbol} tăng mạnh phiên sáng",
             "Báo cáo tài chính mới nhất của {name} vượt dự báo của giới phân tích, "
             "đẩy giá cổ phiếu {symbol} đi lên trong phiên giao dịch đầu ngày. "
-            "Ban lãnh đạo cho biết sẽ tiếp tục đẩy mạnh mảng kinh doanh cốt lõi.",
+            "Ban lãnh đạo cho biết sẽ tiếp tục đẩy mạnh mảng kinh doanh cốt lõi.\n\n"
+            "Theo báo cáo, doanh thu quý tăng trưởng hai chữ số so với cùng kỳ nhờ "
+            "mở rộng kênh phân phối và tối ưu biên gộp. Biên lợi nhuận ròng cải thiện "
+            "đáng kể sau khi doanh nghiệp kiểm soát chi phí vận hành.\n\n"
+            "Giới phân tích nâng ước tính giá mục tiêu cho {symbol} sau kết quả vượt "
+            "trội, đồng thời lưu ý rủi ro từ biến động tỷ giá và chu kỳ hàng tồn kho. "
+            "Nhà đầu tư dự kiến sẽ đón thêm thông tin chi tiết tại buổi họp cổ đông tới.",
             "positive",
             2.5,
         ),
@@ -160,7 +166,13 @@ def _news_rows(companies: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "{name} đẩy nhanh kế hoạch mở rộng thị phần trong quý tới",
             "Ban điều hành {name} công bố chiến lược mở rộng mới, "
             "tập trung vào các thị trường tiềm năng. "
-            "Nhiều nhà đầu tư kỳ vọng động thái này sẽ cải thiện doanh thu dài hạn.",
+            "Nhiều nhà đầu tư kỳ vọng động thái này sẽ cải thiện doanh thu dài hạn.\n\n"
+            "Kế hoạch bao gồm mở thêm điểm bán, tăng độ phủ sản phẩm và đầu tư vào "
+            "chuyển đổi số. Lãnh đạo công ty nhấn mạnh việc thận trọng trong chi tiêu "
+            "để bảo đảm dòng tiền ổn định.\n\n"
+            "Cổ phiếu {symbol} phản ứng tích cực trong ngắn hạn. Tuy nhiên các chuyên "
+            "gia khuyến nghị theo dõi tiến độ thực thi kế hoạch trước khi đưa ra nhận "
+            "định dài hạn về mức tăng trưởng.",
             "positive",
             1.8,
         ),
@@ -168,7 +180,12 @@ def _news_rows(companies: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "Cổ đông {name} băn khoăn trước biến động ngắn hạn của cổ phiếu {symbol}",
             "Mặc dù nền tảng cơ bản ổn định, cổ phiếu {symbol} của {name} "
             "ghi nhận những phiên điều chỉnh, khiến một bộ phận cổ đông "
-            "thận trọng trước xu hướng ngắn hạn.",
+            "thận trọng trước xu hướng ngắn hạn.\n\n"
+            "Khối lượng giao dịch tăng trong các phiên giảm điểm cho thấy áp lực "
+            "chốt lời sau nhịp tăng trước đó. Nhà đầu tư nội bộ chưa ghi nhận giao "
+            "dịch bất thường của cổ đông lớn.\n\n"
+            "Ban lãnh đạo khẳng định hoạt động kinh doanh vẫn diễn ra bình thường và "
+            "kỳ vọng thị trường sẽ sớm ổn định khi các thông tin cụ thể được công bố.",
             "neutral",
             1.2,
         ),
@@ -176,25 +193,30 @@ def _news_rows(companies: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "Áp lực cạnh tranh ngày càng lớn với {name}, chuyên gia đưa khuyến nghị thận trọng",
             "Sự xuất hiện của nhiều đối thủ mới cùng biên lợi nhuận bị thu hẹp "
             "khiến triển vọng {name} trở nên kém rõ ràng hơn. "
-            "Các chuyên gia khuyến nghị theo dõi thêm trước khi ra quyết định.",
+            "Các chuyên gia khuyến nghị theo dõi thêm trước khi ra quyết định.\n\n"
+            "Thị phần của doanh nghiệp đang chịu sức ép từ các sản phẩm thay thế và "
+            "chính sách giá cạnh tranh của đối thủ. Chi phí nguyên vật liệu tăng cũng "
+            "ăn mòn biên lợi nhuận quý gần nhất.\n\n"
+            "Nhiều quỹ đầu tư hạ tỷ trọng nắm giữ {symbol} trong danh mục. Cổ phiếu "
+            "có thể tiếp tục chịu áp lực cho tới khi doanh nghiệp cho thấy dấu hiệu "
+            "cải thiện rõ rệt về hiệu quả hoạt động.",
             "negative",
             2.2,
         ),
     ]
 
-    for idx, company in enumerate(companies):
-        if idx >= 12:
-            break
+    for idx, company in enumerate(companies[:40]):
         symbol = company["symbol"]
         name = company["name"]
         template = per_company_templates[idx % len(per_company_templates)]
         title_tpl, body, sentiment, impact = template
-        hours_ago = (idx * 7) % 60
+        full_body = body.format(symbol=symbol, name=name)
+        hours_ago = (idx * 7) % 90
         rows.append(
             {
                 "title": title_tpl.format(symbol=symbol, name=name),
-                "summary": body[:120],
-                "content": body,
+                "summary": full_body.split("\n\n")[0][:160],
+                "content": full_body,
                 "sentiment": sentiment,
                 "impact_score": impact,
                 "source": "Capia News",
@@ -209,23 +231,69 @@ def _news_rows(companies: list[dict[str, Any]]) -> list[dict[str, Any]]:
         (
             "Thị trường giao dịch tích cực nhờ dòng tiền luân chuyển",
             "Phiên giao dịch ghi nhận dòng tiền đổ vào các nhóm ngành chủ chốt, "
-            "giúp chỉ số duy trì đà tăng. Thanh khoản cải thiện so với các phiên trước đó.",
+            "giúp chỉ số duy trì đà tăng. Thanh khoản cải thiện so với các phiên trước đó.\n\n"
+            "Nhóm ngân hàng và bất động sản dẫn dắt đà hồi phục nhờ kỳ vọng tín dụng "
+            "tăng tốc cuối năm. Khối ngoại quay lại mua ròng trên cả hai sàn.\n\n"
+            "Giới phân tích cho rằng xu hướng tích lũy vẫn còn nguyên khi định giá "
+            "nhiều cổ phiếu đang về vùng hấp dẫn so với trung bình lịch sử.",
             "positive",
             1.5,
         ),
         (
             "Mặt bằng lãi suất tiếp tục ổn định, hỗ trợ định giá cổ phiếu",
             "Lãi suất giữ ở mức ổn định giúp chi phí vốn doanh nghiệp không đổi, "
-            "qua đó hỗ trợ mặt bằng định giá trên thị trường chứng khoán.",
+            "qua đó hỗ trợ mặt bằng định giá trên thị trường chứng khoán.\n\n"
+            "Ngân hàng nhà nước phát đi thông điệp điều hành linh hoạt, tránh gây sốc "
+            "lên thị trường tiền tệ. Lãi suất huy động vẫn ở vùng thấp tạo điều kiện "
+            "cho dòng tiền dư thừa tìm đến kênh đầu tư.\n\n"
+            "Các doanh nghiệp vay vốn mới được hưởng mức lãi suất cạnh tranh, giúp "
+            "giảm áp lực lên chi phí tài chính trong kỳ báo cáo sắp tới.",
             "neutral",
             1.0,
         ),
         (
             "Nhà đầu tư thận trọng chờ thêm tín hiệu vĩ mô rõ ràng",
             "Khối lượng giao dịch sụt giảm khi nhà đầu tư đứng ngoài quan sát, "
-            "chờ thêm dữ liệu kinh tế trước khi giải ngân trở lại.",
+            "chờ thêm dữ liệu kinh tế trước khi giải ngân trở lại.\n\n"
+            "Diễn biến thị trường toàn cầu chưa rõ nét khiến dòng vốn tổ chức chờ "
+            "đợi. Các phiên tăng giảm đan xen làm gia tăng sự phân vân của nhà đầu tư.\n\n"
+            "Nhiều khuyến nghị cho rằng nên ưu tiên quản trị rủi ro, duy trì tỷ trọng "
+            "tiền mặt hợp lý cho tới khi xu hướng chủ đạo được xác nhận.",
             "negative",
             1.3,
+        ),
+        (
+            "Chu kỳ nguyên vật liệu biến động khiến chi phí sản xuất tăng",
+            "Giá nguyên vật liệu đầu vào tăng mạnh trong những tuần gần đây, gây áp "
+            "lực lên biên lợi nhuận của các doanh nghiệp sản xuất.\n\n"
+            "Các doanh nghiệp lớn đang tái đàm phán hợp đồng cung cấp dài hạn nhằm "
+            "hạ nhiệt tác động ngắn hạn. Một số đơn vị tính phương án tăng giá bán."
+            "\n\nChuyên gia đánh giá mức độ ảnh hưởng phụ thuộc vào tỷ trọng chi phí "
+            "nguyên liệu trong cơ cấu giá thành của từng ngành.",
+            "negative",
+            2.0,
+        ),
+        (
+            "Ngành bán lẻ ghi nhận tín hiệu phục hồi tiêu dùng tích cực",
+            "Sức mua nội địa cải thiện khi lạm phát hạ nhiệt và thu nhập người lao "
+            "động phục hồi, mở ra triển vọng tích cực cho nhóm bán lẻ.\n\n"
+            "Doanh thu bán lẻ hàng hóa tăng so với cùng kỳ ở nhiều nhóm mặt hàng như "
+            "điện tử, thời trang và hàng tiêu dùng thiết yếu.\n\n"
+            "Các chuỗi bán lẻ chủ động mở rộng cửa hàng và triển khai khuyến mãi để "
+            "gia tăng thị phần trong mùa cao điểm tiêu dùng sắp tới.",
+            "positive",
+            1.7,
+        ),
+        (
+            "Tỷ giá giằng co, doanh nghiệp xuất khẩu được hưởng lợi một phần",
+            "Tỷ giá trung tâm được điều chỉnh linh hoạt theo biến động thị trường "
+            "quốc tế, tạo thuận lợi tương đối cho khối doanh nghiệp xuất khẩu.\n\n"
+            "Tuy nhiên các doanh nghiệp nhập khẩu nguyên liệu gặp áp lực chi phí cao "
+            "hơn. Cân đối thu chi ngoại tệ vẫn được duy trì ổn định.\n\n"
+            "Ngân hàng trung ương khẳng định sẽ can thiệp khi cần để tránh biến động "
+            "quá mức gây tổn hại cho nền kinh tế.",
+            "neutral",
+            1.4,
         ),
     ]
     for idx, (title, body, sentiment, impact) in enumerate(macro_templates):
@@ -439,80 +507,80 @@ _TASKS = [
     # ── A. Định hướng (onboarding) ──────────────────────────────────────────
     ("profile_complete", "Hoàn thiện hồ sơ cá nhân",
      "Cập nhật đầy đủ thông tin hồ sơ để bắt đầu hành trình đầu tư.",
-     "onboarding", "50000", 1, "none", True, 100),
+     "onboarding", "500000", 1, "none", True, 100),
     ("first_trade", "Đặt lệnh giao dịch đầu tiên",
      "Đặt thành công lệnh mua hoặc bán đầu tiên của bạn.",
-     "onboarding", "20000", 1, "none", True, 110),
+     "onboarding", "200000", 1, "none", True, 110),
     ("first_knowledge_read", "Đọc bài kiến thức đầu tiên",
      "Khám phá kho kiến thức chứng khoán của Capia.",
-     "onboarding", "10000", 1, "none", True, 120),
+     "onboarding", "100000", 1, "none", True, 120),
     ("first_news_read", "Đọc tin tức đầu tiên",
      "Cập nhật tin tức thị trường mới nhất trong ngày.",
-     "onboarding", "10000", 1, "none", True, 130),
+     "onboarding", "100000", 1, "none", True, 130),
     ("first_company_view", "Xem hồ sơ công ty đầu tiên",
      "Tìm hiểu thông tin một doanh nghiệp niêm yết.",
-     "onboarding", "10000", 1, "none", True, 140),
+     "onboarding", "100000", 1, "none", True, 140),
     ("first_mentor_chat", "Trò chuyện Mentor lần đầu",
      "Đặt câu hỏi đầu tiên cho Mentor AI của bạn.",
-     "onboarding", "20000", 1, "none", True, 150),
+     "onboarding", "200000", 1, "none", True, 150),
     ("scenario_1_done", "Hoàn thành kịch bản đầu tiên",
      "Vượt qua kịch bản mô phỏng đầu tiên trong chế độ luyện tập.",
-     "onboarding", "30000", 1, "none", True, 160),
+     "onboarding", "300000", 1, "none", True, 160),
     ("onboarding_complete", "Hoàn tất định hướng",
      "Hoàn thành TẤT CẢ nhiệm vụ định hướng để nhận thưởng lớn.",
-     "onboarding", "100000", 1, "none", True, 190),
+     "onboarding", "1000000", 1, "none", True, 190),
     # ── B. Học tập (learning) ───────────────────────────────────────────────
     ("read_5_knowledge", "Đọc 5 bài kiến thức",
      "Tích lũy 5 bài kiến thức đã đọc (cộng dồn).",
-     "learning", "30000", 5, "none", True, 200),
+     "learning", "300000", 5, "none", True, 200),
     ("read_10_knowledge", "Đọc 10 bài kiến thức",
      "Tích lũy 10 bài kiến thức đã đọc (cộng dồn).",
-     "learning", "50000", 10, "none", True, 210),
+     "learning", "500000", 10, "none", True, 210),
     ("read_10_news", "Đọc 10 tin tức",
      "Cập nhật 10 tin tức thị trường (cộng dồn).",
-     "learning", "40000", 10, "none", True, 220),
+     "learning", "400000", 10, "none", True, 220),
     ("analyze_3_companies", "Phân tích 3 công ty",
      "Xem hồ sơ chi tiết của 3 doanh nghiệp (cộng dồn).",
-     "learning", "30000", 3, "none", True, 230),
+     "learning", "300000", 3, "none", True, 230),
     ("mentor_3_chats", "Trò chuyện Mentor 3 lần",
      "Trao đổi 3 lượt với Mentor AI (cộng dồn).",
-     "learning", "40000", 3, "none", True, 240),
+     "learning", "400000", 3, "none", True, 240),
     # ── C. Hằng ngày (daily) ────────────────────────────────────────────────
     ("daily_checkin", "Điểm danh hằng ngày",
      "Đăng nhập và điểm danh mỗi ngày để giữ chuỗi ngày liên tiếp.",
-     "daily", "5000", 1, "daily", True, 300),
+     "daily", "50000", 1, "daily", True, 300),
     ("daily_trade_1", "Giao dịch trong ngày",
      "Đặt ít nhất 1 lệnh giao dịch trong ngày hôm nay.",
-     "daily", "10000", 1, "daily", True, 310),
+     "daily", "100000", 1, "daily", True, 310),
     ("daily_read_3_knowledge", "Đọc 3 bài kiến thức trong ngày",
      "Đọc 3 bài kiến thức trong ngày hôm nay.",
-     "daily", "10000", 3, "daily", True, 320),
+     "daily", "100000", 3, "daily", True, 320),
     ("daily_read_2_news", "Đọc 2 tin tức trong ngày",
      "Đọc 2 tin tức trong ngày hôm nay.",
-     "daily", "10000", 2, "daily", True, 330),
+     "daily", "100000", 2, "daily", True, 330),
     ("daily_mentor_1", "Trò chuyện Mentor trong ngày",
      "Trò chuyện với Mentor ít nhất 1 lần trong ngày.",
-     "daily", "10000", 1, "daily", True, 340),
+     "daily", "100000", 1, "daily", True, 340),
     ("daily_all_4", "Hoàn thành 4/5 nhiệm vụ hằng ngày",
      "Hoàn thành 4 trong 5 nhiệm vụ hằng ngày để nhận thưởng lớn.",
-     "daily", "50000", 1, "daily", True, 390),
+     "daily", "500000", 1, "daily", True, 390),
     # ── D. Chuỗi ngày (streak) ──────────────────────────────────────────────
     ("streak_3", "Chuỗi 3 ngày liên tiếp",
      "Duy trì chuỗi điểm danh 3 ngày liên tiếp.",
-     "streak", "20000", 3, "none", True, 400),
+     "streak", "200000", 3, "none", True, 400),
     ("streak_7", "Chuỗi 7 ngày liên tiếp",
      "Duy trì chuỗi điểm danh 7 ngày liên tiếp.",
-     "streak", "50000", 7, "none", True, 410),
+     "streak", "500000", 7, "none", True, 410),
     ("streak_30", "Chuỗi 30 ngày liên tiếp",
      "Duy trì chuỗi điểm danh 30 ngày liên tiếp.",
-     "streak", "200000", 30, "none", True, 420),
+     "streak", "2000000", 30, "none", True, 420),
     # ── E. Cuộc thi (contest) ───────────────────────────────────────────────
     ("contest_join_1", "Tham gia cuộc thi đầu tiên",
      "Gia nhập một cuộc thi đầu tư ảo để cạnh tranh thứ hạng.",
-     "contest", "20000", 1, "none", True, 500),
+     "contest", "200000", 1, "none", True, 500),
     ("contest_top10", "Lọt top 10 cuộc thi",
      "Đứng trong top 10 bảng xếp hạng một cuộc thi — nhận thưởng thủ công.",
-     "contest", "200000", 1, "none", True, 510),
+     "contest", "2000000", 1, "none", True, 510),
 ]
 
 

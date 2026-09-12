@@ -53,7 +53,7 @@ body {
 @layer components {
   /* Phiếu nội dung — mặt giấy ấm, viền tóc, bóng mềm */
   .card {
-    @apply rounded-slip border border-ink-200 bg-[#FFFDF8] shadow-card;
+    @apply rounded-slip border border-ink-200 bg-paper shadow-card;
   }
 
   .dark .card {
@@ -85,7 +85,7 @@ body {
 
   /* Vé chờ (queue ticket) — stub có cạnh khía + số thứ tự */
   .ticket {
-    @apply relative rounded-slip border border-ink-200 bg-[#FFFDF8] shadow-card;
+    @apply relative rounded-slip border border-ink-200 bg-paper shadow-card;
   }
 
   .dark .ticket {
@@ -142,7 +142,7 @@ body {
 
   /* Input — dòng trên phiếu */
   .input {
-    @apply w-full rounded-lg border border-ink-300 bg-[#FFFDF8] px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/25 disabled:cursor-not-allowed disabled:bg-ink-100;
+    @apply w-full rounded-lg border border-ink-300 bg-paper px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/25 disabled:cursor-not-allowed disabled:bg-ink-100;
   }
 
   .dark .input {
@@ -158,7 +158,7 @@ body {
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-ink-300 bg-[#FFFDF8] px-4 py-2 text-sm font-semibold text-ink-700 transition-colors hover:border-brand-500 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-ink-300 bg-paper px-4 py-2 text-sm font-semibold text-ink-700 transition-colors hover:border-brand-500 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .dark .btn-secondary {

@@ -127,3 +127,49 @@ export function formatDateTime(iso: string): string {
 export function formatSimDay(simDay: number): string {
   return `Ngày mô phỏng ${simDay}`;
 }
+
+/**
+ * Format impact score một cách an toàn.
+ * Nếu giá trị > 1000 → có thể bị leak timestamp → trả về 0.
+ * Nếu giá trị là NaN/undefined/null → trả về 0.
+ */
+export function formatImpact(value: number | null | undefined): string {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num < 0) return "0.0";
+  if (num > 100) return "0.0";
+  return num.toFixed(1);
+}
+
+/**
+ * Format virality score — chuyển raw number thành display an toàn.
+ * Nếu giá trị quá lớn (>1000) → có thể leak timestamp → clamp.
+ */
+export function formatViral(value: number | null | undefined): string {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num < 0) return "0";
+  if (num > 1000) return "0";
+  if (num >= 100) return `${Math.round(num)}`;
+  return num.toFixed(0);
+}
+
+/**
+ * Dọn template variable `{name}`, `{symbol}` etc. trong title/content.
+ * Trả về chuỗi đã sạch hoặc fallback.
+ */
+export function sanitizeTemplateVars(text: string | null | undefined): string {
+  if (!text) return "";
+  return text.replace(/\{[a-zA-Z_]+\}/g, "N/A").trim();
+}
+
+/**
+ * Validate giá trị có hợp lý để hiển thị không.
+ * Trả về true nếu giá trị nằm trong khoảng hợp lý.
+ */
+export function isValidDisplayValue(
+  value: number | null | undefined,
+  min = 0,
+  max = 10_000,
+): boolean {
+  const num = Number(value);
+  return Number.isFinite(num) && num >= min && num <= max;
+}

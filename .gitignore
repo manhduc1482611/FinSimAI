@@ -34,4 +34,7 @@ Thumbs.db
 tmp_*.py
 *.log
 
+# Logo nguồn thô (bản tách nền nằm ở apps/frontend/public/logo.png)
+2aOboQyAR6EZUNBrVEfoMDCAyszGnsxMh3Q8jVYm.jpg
+
 .vercel

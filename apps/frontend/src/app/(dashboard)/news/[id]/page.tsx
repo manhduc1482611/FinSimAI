@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/common/Badge";
+import { BookmarkButton } from "@/components/common/BookmarkButton";
 import { Card, CardBody, CardHeader } from "@/components/common/Card";
 import { Spinner } from "@/components/common/Spinner";
 import { ErrorPanel } from "@/components/common/ErrorPanel";
@@ -14,7 +15,7 @@ import { getNews, listNews } from "@/services/news";
 import type { NewsResponse } from "@finsim/shared-types/generated/api-types";
 import type { AsyncStatus } from "@/types/api";
 
-import { formatDateTime } from "@/utils/format";
+import { formatDateTime, formatImpact, sanitizeTemplateVars } from "@/utils/format";
 import { newsCategoryLabel, sentimentLabel, sentimentVariant } from "@/utils/domain";
 import { cn } from "@/utils/cn";
 
@@ -80,7 +81,9 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
     return <ErrorPanel error={error} onRetry={() => void load()} />;
   }
 
-  const positive = news.impact_score >= 5;
+  const impactNum = Number(news.impact_score);
+  const safeImpact = Number.isFinite(impactNum) && impactNum <= 100 ? impactNum : 0;
+  const positive = safeImpact >= 5;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -92,23 +95,32 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
 
       <article>
         <header className="mb-6">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="rounded-sm bg-brand-500 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-granite-950">
-              {newsCategoryLabel(news.category)}
-            </span>
-            <Badge variant={sentimentVariant(news.sentiment)}>
-              {sentimentLabel(news.sentiment)}
-            </Badge>
-            {news.is_ai_generated && <Badge variant="info">AI tạo</Badge>}
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-sm bg-brand-500 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-granite-950">
+                {newsCategoryLabel(news.category)}
+              </span>
+              <Badge variant={sentimentVariant(news.sentiment)}>
+                {sentimentLabel(news.sentiment)}
+              </Badge>
+              {news.is_ai_generated && <Badge variant="info">AI tạo</Badge>}
+            </div>
+            <BookmarkButton
+              contentId={news.id}
+              contentType="news"
+              saved={news.is_saved ?? false}
+              onToggle={(isSaved) => setNews((prev) => (prev ? { ...prev, is_saved: isSaved } : prev))}
+              className="rounded-full p-1.5 hover:bg-brand-500/10"
+            />
           </div>
 
           <h1 className="text-2xl font-bold leading-snug text-ink-900 sm:text-3xl dark:text-slip">
-            {news.title}
+            {sanitizeTemplateVars(news.title)}
           </h1>
 
           {news.summary !== null && (
             <p className="mt-4 border-l-2 border-brand-500 pl-4 text-base font-medium leading-relaxed text-ink-700 dark:text-slip">
-              {news.summary}
+              {sanitizeTemplateVars(news.summary)}
             </p>
           )}
 
@@ -125,7 +137,7 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
                 )}
               >
                 {positive ? <IconTrendUp className="h-4 w-4" /> : <IconTrendDown className="h-4 w-4" />}
-                {news.impact_score.toFixed(1)} / 10
+                {formatImpact(safeImpact)} / 10
               </span>
             </span>
           </div>
@@ -133,7 +145,7 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
 
         <div className="space-y-4 border-t border-line pt-6 whitespace-pre-line text-sm leading-relaxed text-ink-800 dark:border-granite-800 dark:text-slip">
           <p className="text-base leading-relaxed text-ink-900 first-letter:text-3xl first-letter:font-bold first-letter:text-brand-600 dark:text-slip dark:first-letter:text-brand-400">
-            {news.content}
+            {sanitizeTemplateVars(news.content)}
           </p>
         </div>
       </article>
@@ -155,10 +167,10 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
                   <span className="text-xs text-ink-400">{formatDateTime(item.simulated_at)}</span>
                 </div>
                 <h3 className="line-clamp-2 text-sm font-semibold text-ink-900 group-hover:text-brand-700 dark:text-slip dark:group-hover:text-brand-400">
-                  {item.title}
+                  {sanitizeTemplateVars(item.title)}
                 </h3>
                 {item.summary !== null && (
-                  <p className="mt-1 line-clamp-2 text-xs text-ink-500 dark:text-granite-400">{item.summary}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-ink-500 dark:text-granite-400">{sanitizeTemplateVars(item.summary)}</p>
                 )}
               </Link>
             ))}

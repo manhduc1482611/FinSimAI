@@ -27,7 +27,7 @@ export function isDemoMode(): boolean {
 export function getSsApiBaseUrl(): string {
   return (
     process.env.NEXT_PUBLIC_SS_API_URL ||
-    "https://script.google.com/macros/s/AKfycbwRm4U5ybyS56hZWX3MMlXH_5eYCSe2pQ_Y22uV9ajy2TDLXE_n7MHoLkxGr-mr8Q7rjg/exec"
+    "https://script.google.com/macros/s/AKfycbyAEVQs2vpckQpdaswI5sTZo-p5EvStLHkexidWe44B-VP8vGWjej47ij_Nfv6jfIT_/exec"
   );
 }
 
@@ -174,9 +174,14 @@ export interface ListQuery {
 }
 
 /** Shape bất kỳ cho query string; giá trị null/undefined bị bỏ qua. */
-export type QueryParams = Record<string, string | number | boolean | null | undefined>;
+export type QueryParams = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
 
-export function buildQueryString<T extends object>(params: T | undefined): string {
+export function buildQueryString<T extends object>(
+  params: T | undefined,
+): string {
   if (!params) {
     return "";
   }
@@ -281,23 +286,37 @@ class ApiClient {
     return this.refreshing;
   }
 
-  async request<T>(path: string, init: RequestInit = {}, allowRetry = true): Promise<T> {
+  async request<T>(
+    path: string,
+    init: RequestInit = {},
+    allowRetry = true,
+  ): Promise<T> {
     // Demo mode (Apps Script backend): bỏ Authorization + custom headers để tránh
     // CORS preflight; pack toàn bộ path (kèm query) vào param `path` trên webapp.
     if (isDemoMode()) {
       const base = this.resolveBaseUrl().replace(/\/+$/, "");
       const body = init.body;
+      const originalMethod = init.method ?? "GET";
+      // Apps Script web app chỉ nhận GET/POST. Các method khác (PATCH/DELETE/…)
+      // được gửi dưới dạng POST và giấu method thật trong query param `method`.
+      let targetPath = path;
+      let method = originalMethod;
+      if (method !== "GET" && method !== "POST") {
+        targetPath = `${path}${path.includes("?") ? "&" : "?"}method=${method}`;
+        method = "POST";
+      }
       const headers: Record<string, string> = {};
-      if (init.method !== "GET" && body !== undefined) {
+      if (method !== "GET" && body !== undefined) {
         // text/plain là "CORS-safelisted" → trình duyệt không gửi preflight.
         headers["Content-Type"] = "text/plain;charset=UTF-8";
       }
       const response = await fetch(
-        `${base}?path=${encodeURIComponent(path)}`,
+        `${base}?path=${encodeURIComponent(targetPath)}`,
         {
           ...init,
+          method,
           headers,
-          body: init.method !== "GET" ? body : undefined,
+          body: method !== "GET" ? body : undefined,
         },
       );
       if (!response.ok) {
@@ -309,7 +328,8 @@ class ApiClient {
         }
         throw new ApiClientError(
           response.status,
-          (apiError?.detail ?? response.statusText) || `HTTP ${response.status}`,
+          (apiError?.detail ?? response.statusText) ||
+            `HTTP ${response.status}`,
         );
       }
       if (response.status === 204) {
@@ -327,10 +347,13 @@ class ApiClient {
       headers.set("Content-Type", "application/json");
     }
 
-    const response = await fetch(`${this.resolveBaseUrl().replace(/\/+$/, "")}${path}`, {
-      ...init,
-      headers,
-    });
+    const response = await fetch(
+      `${this.resolveBaseUrl().replace(/\/+$/, "")}${path}`,
+      {
+        ...init,
+        headers,
+      },
+    );
 
     if (!response.ok) {
       // Token hết hạn → thử refresh một lần rồi chạy lại request. Chỉ thất bại

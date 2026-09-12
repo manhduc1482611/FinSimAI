@@ -10,6 +10,7 @@ import { Button } from "@/components/common/Button";
 import { Card, CardBody, CardHeader } from "@/components/common/Card";
 import { SelectField, TextField } from "@/components/common/Field";
 import { ErrorPanel } from "@/components/common/ErrorPanel";
+import { OrderConfirmModal, type OrderConfirmData } from "@/components/trade/OrderConfirmModal";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTradeStore } from "@/store/useTradeStore";
 import type { CompanyResponse } from "@finsim/shared-types/generated/api-types";
@@ -39,6 +40,7 @@ export function TradePanel({
   const submitOrder = useTradeStore((state) => state.submitOrder);
   const orderStatus = useTradeStore((state) => state.orderStatus);
   const orderError = useTradeStore((state) => state.error);
+  const portfolio = useTradeStore((state) => state.portfolio);
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
 
@@ -49,6 +51,7 @@ export function TradePanel({
   const [quantity, setQuantity] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [confirmOrder, setConfirmOrder] = useState<OrderConfirmData | null>(null);
 
   const activeCompanyId = companyId !== undefined ? companyId : internalCompanyId;
 
@@ -112,8 +115,24 @@ export function TradePanel({
       setFieldError("Giá giới hạn phải lớn hơn 0.");
       return;
     }
-    // Backend đóng băng giá trị lệnh + buffer phí mua (1 + 0.15%) — kiểm tra
-    // phía client phải dùng cùng chuẩn để không báo "đủ tiền" oan.
+    // Với lệnh bán, kiểm tra số lượng đang nắm giữ trong danh mục.
+    if (side === "sell") {
+      const position = portfolio?.items.find(
+        (item) => item.company_id === selectedCompany.id,
+      );
+      const heldQty = position !== undefined ? parseDecimal(position.quantity) : 0;
+      if (heldQty <= 0) {
+        setFieldError("Bạn chưa nắm giữ cổ phiếu này để bán.");
+        return;
+      }
+      if (quantityNum > heldQty) {
+        setFieldError(
+          `Bạn chỉ đang nắm giữ ${formatNumber(heldQty)} ${selectedCompany.symbol} — không thể bán ${formatNumber(quantityNum)} cổ phiếu.`,
+        );
+        return;
+      }
+    }
+    // Với lệnh mua, kiểm tra vốn khả dụng (đã gồm buffer phí 0.15%).
     if (
       side === "buy" &&
       estimatedGross !== null &&
@@ -122,28 +141,60 @@ export function TradePanel({
       setFieldError(`Vốn khả dụng không đủ (cần ${formatNumber(estimatedNet ?? estimatedGross)} ₫).`);
       return;
     }
+    // Tất cả validation đạt → hiện bước xác nhận.
+    if (estimatedGross === null || estimatedFee === null) {
+      setFieldError("Không tính được giá trị lệnh.");
+      return;
+    }
+    const effectivePrice = type === "market" ? parseDecimal(selectedCompany.current_price) : priceNum;
+    setConfirmOrder({
+      symbol: selectedCompany.symbol,
+      companyName: selectedCompany.name,
+      side,
+      type,
+      price: effectivePrice > 0 ? effectivePrice : null,
+      quantity: quantityNum,
+      gross: estimatedGross,
+      fee: estimatedFee,
+      tax: side === "sell" ? (estimateSellTax(estimatedGross) ?? 0) : 0,
+      net: estimatedNet ?? estimatedGross,
+    });
+  };
+
+  const executeOrder = async () => {
+    if (confirmOrder === null || !selectedCompany) {
+      return;
+    }
+    setFieldError(null);
+    setResult(null);
     try {
       const order = await submitOrder({
         company_id: selectedCompany.id,
-        side,
-        type,
-        price: type === "limit" ? String(priceNum) : null,
-        quantity: String(quantityNum),
+        side: confirmOrder.side,
+        type: confirmOrder.type,
+        price: confirmOrder.type === "limit" && confirmOrder.price !== null
+          ? String(confirmOrder.price)
+          : null,
+        quantity: String(confirmOrder.quantity),
       });
+      setConfirmOrder(null);
+      setQuantity("");
       setResult(
-        `Đã đặt lệnh ${side === "buy" ? "MUA" : "BÁN"} ${formatNumber(quantityNum)} ${selectedCompany.symbol} — trạng thái: ${order.status}`,
+        `Đã đặt lệnh ${confirmOrder.side === "buy" ? "MUA" : "BÁN"} ${formatNumber(confirmOrder.quantity)} ${confirmOrder.symbol} — trạng thái: ${order.status}`,
       );
     } catch (error) {
+      setConfirmOrder(null);
       setFieldError(error instanceof Error ? error.message : "Không đặt được lệnh.");
     }
   };
 
   return (
-    <Card>
-      <CardHeader
-        title="Đặt lệnh"
-        description={token ? undefined : "Đăng nhập để đặt lệnh thực"}
-      />
+    <>
+      <Card>
+        <CardHeader
+          title="Đặt lệnh"
+          description={token ? undefined : "Đăng nhập để đặt lệnh thực"}
+        />
       <CardBody className="space-y-4">
         {!token && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
@@ -320,5 +371,12 @@ export function TradePanel({
         )}
       </CardBody>
     </Card>
+      <OrderConfirmModal
+        order={confirmOrder}
+        submitting={orderStatus === "loading"}
+        onConfirm={() => void executeOrder()}
+        onCancel={() => setConfirmOrder(null)}
+      />
+    </>
   );
 }

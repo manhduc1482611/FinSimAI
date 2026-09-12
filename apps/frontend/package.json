@@ -14,10 +14,14 @@
   },
   "dependencies": {
     "@finsim/shared-types": "*",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "@types/three": "^0.185.4",
     "lightweight-charts": "^5.2.0",
     "next": "14.2.35",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "three": "^0.186.0",
     "zustand": "^4.5.5"
   },
   "devDependencies": {

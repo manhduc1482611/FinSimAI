@@ -75,6 +75,8 @@ class UserTaskProgress(Base):
     )
     progress_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Thời điểm user bấm "Nhận thưởng" thủ công. NULL = chưa nhận → vẫn claimable.
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reward_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 2))
     period_date: Mapped[date | None] = mapped_column(Date)
     last_progress_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

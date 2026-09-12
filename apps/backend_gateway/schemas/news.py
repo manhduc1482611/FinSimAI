@@ -19,6 +19,7 @@ class NewsResponse(BaseModel):
     is_ai_generated: bool
     simulated_at: datetime
     created_at: datetime
+    is_saved: bool = False
 
 
 class NewsListResponse(BaseModel):

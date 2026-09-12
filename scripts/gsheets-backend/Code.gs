@@ -15,8 +15,9 @@
  *     g\u1eedi POST v\u1edbi Content-Type text/plain v\u00e0 KH\u00d4NG g\u1eafn Authorization header.
  */
 var SHEET_NAMES = [
-  'users', 'companies', 'news', 'social', 'social_comments',
-  'portfolio', 'orders', 'tasks', 'contests', 'contest_members', 'knowledge'
+  'users', 'companies', 'news', 'social', 'social_comments', 'social_likes',
+  'portfolio', 'orders', 'tasks', 'contests', 'contest_members', 'knowledge',
+  'reward_progress', 'reward_meta', 'content_saves'
 ];
 
 /**
@@ -121,6 +122,115 @@ function isoNow() {
 /** ISO timestamp sub (h)ours va (m)inutes truoc thoi diem hien tai. */
 function agoISO_(h, m) {
   return new Date(Date.now() - ((h * 3600 + (m || 0)) * 1000)).toISOString();
+}
+
+// ------------------------------------------------------------------
+// Trading engine: phí & thuế (parity với FastAPI trading_service)
+// ------------------------------------------------------------------
+var TRADING_FEE_RATE = 0.0015; // phí môi giới 0.15% (tính cả 2 chiều mua/bán)
+var SELL_TAX_RATE = 0.001;     // thuế bán 0.1% (chỉ áp cho bên bán)
+
+/** Chuyển value thành số thực an toàn (chuỗi rỗng / null / dấu phẩy). */
+function num_(v) {
+  var n = parseFloat(String(v === undefined || v === null ? '0' : v).replace(/,/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+/** Làm tròn về 2 chữ số thập phân (đơn vị VNĐ). */
+function round2_(v) {
+  return Math.round(v * 100) / 100;
+}
+
+/** Thêm cột cho sheet nếu chưa tồn tại (idempotent) — cho DB đã seed từ trước. */
+function _ensureColumn_(sheet, colName) {
+  var headers = getHeaders_(sheet);
+  if (headers.indexOf(colName) >= 0) return;
+  var last = headers.length + 1;
+  sheet.getRange(1, last).setValue(colName);
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, last, sheet.getLastRow() - 1, 1).setValue('0');
+  }
+}
+
+/** Ghi đồng thời nhiều cột của 1 user theo id (setValue theo từng cell, không đụng dòng khác). */
+function setUserValues_(uid, patches) {
+  var sheet = getSheet_('users');
+  var headers = getHeaders_(sheet);
+  var idCol = headers.indexOf('id');
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+  for (var r = 0; r < values.length; r++) {
+    if (String(values[r][idCol]) === String(uid)) {
+      for (var c = 0; c < headers.length; c++) {
+        var h = headers[c];
+        if (patches[h] !== undefined && patches[h] !== null) {
+          sheet.getRange(r + 2, c + 1).setValue(String(patches[h]));
+        }
+      }
+      return;
+    }
+  }
+}
+
+/** Lấy dòng portfolio của (user, company); trả object mặc định nếu chưa có. */
+function portfolioRowOrNew_(uid, company) {
+  var rows = readAll_(getSheet_('portfolio'));
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i].user_id === uid && String(rows[i].company_id) === String(company.id)) {
+      return rows[i];
+    }
+  }
+  return {
+    user_id: uid, company_id: company.id, symbol: company.symbol, company_name: company.name,
+    quantity: '0', average_buy_price: '0', current_price: String(company.current_price),
+    market_value: '0', unrealized_pnl: '0', frozen_quantity: '0'
+  };
+}
+
+/** Cập nhật (hoặc tạo) dòng portfolio theo (user, company) — an toàn khi trùng company_id giữa các user. */
+function upsertPortfolioRow_(uid, company, patch) {
+  var sheet = getSheet_('portfolio');
+  var headers = getHeaders_(sheet);
+  var uidCol = headers.indexOf('user_id');
+  var cidCol = headers.indexOf('company_id');
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+  for (var r = 0; r < values.length; r++) {
+    if (String(values[r][uidCol]) === String(uid) && String(values[r][cidCol]) === String(company.id)) {
+      for (var c = 0; c < headers.length; c++) {
+        var h = headers[c];
+        if (patch[h] !== undefined && patch[h] !== null) {
+          sheet.getRange(r + 2, c + 1).setValue(String(patch[h]));
+        }
+      }
+      return;
+    }
+  }
+  // Chưa có dòng → chỉ tạo mới khi giữ cổ phiếu thật (quantity > 0).
+  if (num_(patch.quantity) > 0) {
+    var row = {
+      user_id: uid, company_id: company.id, symbol: company.symbol, company_name: company.name,
+      quantity: patch.quantity, average_buy_price: patch.average_buy_price,
+      current_price: String(company.current_price),
+      market_value: String(round2_(num_(patch.quantity) * num_(company.current_price))),
+      unrealized_pnl: '0', frozen_quantity: '0'
+    };
+    appendRow_(sheet, row);
+  }
+}
+
+/** Xóa dòng portfolio theo (user, company) khi hết cổ phiếu. */
+function deletePortfolioRow_(uid, companyId) {
+  var sheet = getSheet_('portfolio');
+  var headers = getHeaders_(sheet);
+  var uidCol = headers.indexOf('user_id');
+  var cidCol = headers.indexOf('company_id');
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+  for (var r = 0; r < values.length; r++) {
+    if (String(values[r][uidCol]) === String(uid) && String(values[r][cidCol]) === String(companyId)) {
+      sheet.deleteRow(r + 2);
+      return true;
+    }
+  }
+  return false;
 }
 
 function sendJson_(obj, status) {
@@ -243,30 +353,30 @@ function seedIfEmpty_() {
     tasks.getRange(1, 1, 1, tHeaders.length).setValues([tHeaders]);
     // Nguon du lieu: su dung lai danh sach nhiem vu cua he thong cu (seed_db.py _TASKS)
     var tRows = [
-      ["t-1", "profile_complete", "Ho\u00e0n thi\u1ec7n h\u1ed3 s\u01a1 c\u00e1 nh\u00e2n", "C\u1eadp nh\u1eadt \u0111\u1ea7y \u0111\u1ee7 th\u00f4ng tin h\u1ed3 s\u01a1 \u0111\u1ec3 b\u1eaft \u0111\u1ea7u h\u00e0nh tr\u00ecnh \u0111\u1ea7u t\u01b0.", "onboarding", "50000", "1", "none", true, "100", now, now],
-      ["t-2", "first_trade", "\u0110\u1eb7t l\u1ec7nh giao d\u1ecbch \u0111\u1ea7u ti\u00ean", "\u0110\u1eb7t th\u00e0nh c\u00f4ng l\u1ec7nh mua ho\u1eb7c b\u00e1n \u0111\u1ea7u ti\u00ean c\u1ee7a b\u1ea1n.", "onboarding", "20000", "1", "none", true, "110", now, now],
-      ["t-3", "first_knowledge_read", "\u0110\u1ecdc b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u1ea7u ti\u00ean", "Kh\u00e1m ph\u00e1 kho ki\u1ebfn th\u1ee9c ch\u1ee9ng kho\u00e1n c\u1ee7a Capia.", "onboarding", "10000", "1", "none", true, "120", now, now],
-      ["t-4", "first_news_read", "\u0110\u1ecdc tin t\u1ee9c \u0111\u1ea7u ti\u00ean", "C\u1eadp nh\u1eadt tin t\u1ee9c th\u1ecb tr\u01b0\u1eddng m\u1edbi nh\u1ea5t trong ng\u00e0y.", "onboarding", "10000", "1", "none", true, "130", now, now],
-      ["t-5", "first_company_view", "Xem h\u1ed3 s\u01a1 c\u00f4ng ty \u0111\u1ea7u ti\u00ean", "T\u00ecm hi\u1ec3u th\u00f4ng tin m\u1ed9t doanh nghi\u1ec7p ni\u00eam y\u1ebft.", "onboarding", "10000", "1", "none", true, "140", now, now],
-      ["t-6", "first_mentor_chat", "Tr\u00f2 chuy\u1ec7n Mentor l\u1ea7n \u0111\u1ea7u", "\u0110\u1eb7t c\u00e2u h\u1ecfi \u0111\u1ea7u ti\u00ean cho Mentor AI c\u1ee7a b\u1ea1n.", "onboarding", "20000", "1", "none", true, "150", now, now],
-      ["t-7", "scenario_1_done", "Ho\u00e0n th\u00e0nh k\u1ecbch b\u1ea3n \u0111\u1ea7u ti\u00ean", "V\u01b0\u1ee3t qua k\u1ecbch b\u1ea3n m\u00f4 ph\u1ecfng \u0111\u1ea7u ti\u00ean trong ch\u1ebf \u0111\u1ed9 luy\u1ec7n t\u1eadp.", "onboarding", "30000", "1", "none", true, "160", now, now],
-      ["t-8", "onboarding_complete", "Ho\u00e0n t\u1ea5t \u0111\u1ecbnh h\u01b0\u1edbng", "Ho\u00e0n th\u00e0nh T\u1ea4T C\u1ea2 nhi\u1ec7m v\u1ee5 \u0111\u1ecbnh h\u01b0\u1edbng \u0111\u1ec3 nh\u1eadn th\u01b0\u1edfng l\u1edbn.", "onboarding", "100000", "1", "none", true, "190", now, now],
-      ["t-9", "read_5_knowledge", "\u0110\u1ecdc 5 b\u00e0i ki\u1ebfn th\u1ee9c", "T\u00edch l\u0169y 5 b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u00e3 \u0111\u1ecdc (c\u1ed9ng d\u1ed3n).", "learning", "30000", "5", "none", true, "200", now, now],
-      ["t-10", "read_10_knowledge", "\u0110\u1ecdc 10 b\u00e0i ki\u1ebfn th\u1ee9c", "T\u00edch l\u0169y 10 b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u00e3 \u0111\u1ecdc (c\u1ed9ng d\u1ed3n).", "learning", "50000", "10", "none", true, "210", now, now],
-      ["t-11", "read_10_news", "\u0110\u1ecdc 10 tin t\u1ee9c", "C\u1eadp nh\u1eadt 10 tin t\u1ee9c th\u1ecb tr\u01b0\u1eddng (c\u1ed9ng d\u1ed3n).", "learning", "40000", "10", "none", true, "220", now, now],
-      ["t-12", "analyze_3_companies", "Ph\u00e2n t\u00edch 3 c\u00f4ng ty", "Xem h\u1ed3 s\u01a1 chi ti\u1ebft c\u1ee7a 3 doanh nghi\u1ec7p (c\u1ed9ng d\u1ed3n).", "learning", "30000", "3", "none", true, "230", now, now],
-      ["t-13", "mentor_3_chats", "Tr\u00f2 chuy\u1ec7n Mentor 3 l\u1ea7n", "Trao \u0111\u1ed5i 3 l\u01b0\u1ee3t v\u1edbi Mentor AI (c\u1ed9ng d\u1ed3n).", "learning", "40000", "3", "none", true, "240", now, now],
-      ["t-14", "daily_checkin", "\u0110i\u1ec3m danh h\u1eb1ng ng\u00e0y", "\u0110\u0103ng nh\u1eadp v\u00e0 \u0111i\u1ec3m danh m\u1ed7i ng\u00e0y \u0111\u1ec3 gi\u1eef chu\u1ed7i ng\u00e0y li\u00ean ti\u1ebfp.", "daily", "5000", "1", "daily", true, "300", now, now],
-      ["t-15", "daily_trade_1", "Giao d\u1ecbch trong ng\u00e0y", "\u0110\u1eb7t \u00edt nh\u1ea5t 1 l\u1ec7nh giao d\u1ecbch trong ng\u00e0y h\u00f4m nay.", "daily", "10000", "1", "daily", true, "310", now, now],
-      ["t-16", "daily_read_3_knowledge", "\u0110\u1ecdc 3 b\u00e0i ki\u1ebfn th\u1ee9c trong ng\u00e0y", "\u0110\u1ecdc 3 b\u00e0i ki\u1ebfn th\u1ee9c trong ng\u00e0y h\u00f4m nay.", "daily", "10000", "3", "daily", true, "320", now, now],
-      ["t-17", "daily_read_2_news", "\u0110\u1ecdc 2 tin t\u1ee9c trong ng\u00e0y", "\u0110\u1ecdc 2 tin t\u1ee9c trong ng\u00e0y h\u00f4m nay.", "daily", "10000", "2", "daily", true, "330", now, now],
-      ["t-18", "daily_mentor_1", "Tr\u00f2 chuy\u1ec7n Mentor trong ng\u00e0y", "Tr\u00f2 chuy\u1ec7n v\u1edbi Mentor \u00edt nh\u1ea5t 1 l\u1ea7n trong ng\u00e0y.", "daily", "10000", "1", "daily", true, "340", now, now],
-      ["t-19", "daily_all_4", "Ho\u00e0n th\u00e0nh 4/5 nhi\u1ec7m v\u1ee5 h\u1eb1ng ng\u00e0y", "Ho\u00e0n th\u00e0nh 4 trong 5 nhi\u1ec7m v\u1ee5 h\u1eb1ng ng\u00e0y \u0111\u1ec3 nh\u1eadn th\u01b0\u1edfng l\u1edbn.", "daily", "50000", "1", "daily", true, "390", now, now],
-      ["t-20", "streak_3", "Chu\u1ed7i 3 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 3 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "20000", "3", "none", true, "400", now, now],
-      ["t-21", "streak_7", "Chu\u1ed7i 7 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 7 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "50000", "7", "none", true, "410", now, now],
-      ["t-22", "streak_30", "Chu\u1ed7i 30 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 30 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "200000", "30", "none", true, "420", now, now],
-      ["t-23", "contest_join_1", "Tham gia cu\u1ed9c thi \u0111\u1ea7u ti\u00ean", "Gia nh\u1eadp m\u1ed9t cu\u1ed9c thi \u0111\u1ea7u t\u01b0 \u1ea3o \u0111\u1ec3 c\u1ea1nh tranh th\u1ee9 h\u1ea1ng.", "contest", "20000", "1", "none", true, "500", now, now],
-      ["t-24", "contest_top10", "L\u1ecdt top 10 cu\u1ed9c thi", "\u0110\u1ee9ng trong top 10 b\u1ea3ng x\u1ebfp h\u1ea1ng m\u1ed9t cu\u1ed9c thi \u2014 nh\u1eadn th\u01b0\u1edfng th\u1ee7 c\u00f4ng.", "contest", "200000", "1", "none", true, "510", now, now]
+      ["t-1", "profile_complete", "Ho\u00e0n thi\u1ec7n h\u1ed3 s\u01a1 c\u00e1 nh\u00e2n", "C\u1eadp nh\u1eadt \u0111\u1ea7y \u0111\u1ee7 th\u00f4ng tin h\u1ed3 s\u01a1 \u0111\u1ec3 b\u1eaft \u0111\u1ea7u h\u00e0nh tr\u00ecnh \u0111\u1ea7u t\u01b0.", "onboarding", "500000", "1", "none", true, "100", now, now],
+      ["t-2", "first_trade", "\u0110\u1eb7t l\u1ec7nh giao d\u1ecbch \u0111\u1ea7u ti\u00ean", "\u0110\u1eb7t th\u00e0nh c\u00f4ng l\u1ec7nh mua ho\u1eb7c b\u00e1n \u0111\u1ea7u ti\u00ean c\u1ee7a b\u1ea1n.", "onboarding", "200000", "1", "none", true, "110", now, now],
+      ["t-3", "first_knowledge_read", "\u0110\u1ecdc b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u1ea7u ti\u00ean", "Kh\u00e1m ph\u00e1 kho ki\u1ebfn th\u1ee9c ch\u1ee9ng kho\u00e1n c\u1ee7a Capia.", "onboarding", "100000", "1", "none", true, "120", now, now],
+      ["t-4", "first_news_read", "\u0110\u1ecdc tin t\u1ee9c \u0111\u1ea7u ti\u00ean", "C\u1eadp nh\u1eadt tin t\u1ee9c th\u1ecb tr\u01b0\u1eddng m\u1edbi nh\u1ea5t trong ng\u00e0y.", "onboarding", "100000", "1", "none", true, "130", now, now],
+      ["t-5", "first_company_view", "Xem h\u1ed3 s\u01a1 c\u00f4ng ty \u0111\u1ea7u ti\u00ean", "T\u00ecm hi\u1ec3u th\u00f4ng tin m\u1ed9t doanh nghi\u1ec7p ni\u00eam y\u1ebft.", "onboarding", "100000", "1", "none", true, "140", now, now],
+      ["t-6", "first_mentor_chat", "Tr\u00f2 chuy\u1ec7n Mentor l\u1ea7n \u0111\u1ea7u", "\u0110\u1eb7t c\u00e2u h\u1ecfi \u0111\u1ea7u ti\u00ean cho Mentor AI c\u1ee7a b\u1ea1n.", "onboarding", "200000", "1", "none", true, "150", now, now],
+      ["t-7", "scenario_1_done", "Ho\u00e0n th\u00e0nh k\u1ecbch b\u1ea3n \u0111\u1ea7u ti\u00ean", "V\u01b0\u1ee3t qua k\u1ecbch b\u1ea3n m\u00f4 ph\u1ecfng \u0111\u1ea7u ti\u00ean trong ch\u1ebf \u0111\u1ed9 luy\u1ec7n t\u1eadp.", "onboarding", "300000", "1", "none", true, "160", now, now],
+      ["t-8", "onboarding_complete", "Ho\u00e0n t\u1ea5t \u0111\u1ecbnh h\u01b0\u1edbng", "Ho\u00e0n th\u00e0nh T\u1ea4T C\u1ea2 nhi\u1ec7m v\u1ee5 \u0111\u1ecbnh h\u01b0\u1edbng \u0111\u1ec3 nh\u1eadn th\u01b0\u1edfng l\u1edbn.", "onboarding", "1000000", "1", "none", true, "190", now, now],
+      ["t-9", "read_5_knowledge", "\u0110\u1ecdc 5 b\u00e0i ki\u1ebfn th\u1ee9c", "T\u00edch l\u0169y 5 b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u00e3 \u0111\u1ecdc (c\u1ed9ng d\u1ed3n).", "learning", "300000", "5", "none", true, "200", now, now],
+      ["t-10", "read_10_knowledge", "\u0110\u1ecdc 10 b\u00e0i ki\u1ebfn th\u1ee9c", "T\u00edch l\u0169y 10 b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u00e3 \u0111\u1ecdc (c\u1ed9ng d\u1ed3n).", "learning", "500000", "10", "none", true, "210", now, now],
+      ["t-11", "read_10_news", "\u0110\u1ecdc 10 tin t\u1ee9c", "C\u1eadp nh\u1eadt 10 tin t\u1ee9c th\u1ecb tr\u01b0\u1eddng (c\u1ed9ng d\u1ed3n).", "learning", "400000", "10", "none", true, "220", now, now],
+      ["t-12", "analyze_3_companies", "Ph\u00e2n t\u00edch 3 c\u00f4ng ty", "Xem h\u1ed3 s\u01a1 chi ti\u1ebft c\u1ee7a 3 doanh nghi\u1ec7p (c\u1ed9ng d\u1ed3n).", "learning", "300000", "3", "none", true, "230", now, now],
+      ["t-13", "mentor_3_chats", "Tr\u00f2 chuy\u1ec7n Mentor 3 l\u1ea7n", "Trao \u0111\u1ed5i 3 l\u01b0\u1ee3t v\u1edbi Mentor AI (c\u1ed9ng d\u1ed3n).", "learning", "400000", "3", "none", true, "240", now, now],
+      ["t-14", "daily_checkin", "\u0110i\u1ec3m danh h\u1eb1ng ng\u00e0y", "\u0110\u0103ng nh\u1eadp v\u00e0 \u0111i\u1ec3m danh m\u1ed7i ng\u00e0y \u0111\u1ec3 gi\u1eef chu\u1ed7i ng\u00e0y li\u00ean ti\u1ebfp.", "daily", "50000", "1", "daily", true, "300", now, now],
+      ["t-15", "daily_trade_1", "Giao d\u1ecbch trong ng\u00e0y", "\u0110\u1eb7t \u00edt nh\u1ea5t 1 l\u1ec7nh giao d\u1ecbch trong ng\u00e0y h\u00f4m nay.", "daily", "100000", "1", "daily", true, "310", now, now],
+      ["t-16", "daily_read_3_knowledge", "\u0110\u1ecdc 3 b\u00e0i ki\u1ebfn th\u1ee9c trong ng\u00e0y", "\u0110\u1ecdc 3 b\u00e0i ki\u1ebfn th\u1ee9c trong ng\u00e0y h\u00f4m nay.", "daily", "100000", "3", "daily", true, "320", now, now],
+      ["t-17", "daily_read_2_news", "\u0110\u1ecdc 2 tin t\u1ee9c trong ng\u00e0y", "\u0110\u1ecdc 2 tin t\u1ee9c trong ng\u00e0y h\u00f4m nay.", "daily", "100000", "2", "daily", true, "330", now, now],
+      ["t-18", "daily_mentor_1", "Tr\u00f2 chuy\u1ec7n Mentor trong ng\u00e0y", "Tr\u00f2 chuy\u1ec7n v\u1edbi Mentor \u00edt nh\u1ea5t 1 l\u1ea7n trong ng\u00e0y.", "daily", "100000", "1", "daily", true, "340", now, now],
+      ["t-19", "daily_all_4", "Ho\u00e0n th\u00e0nh 4/5 nhi\u1ec7m v\u1ee5 h\u1eb1ng ng\u00e0y", "Ho\u00e0n th\u00e0nh 4 trong 5 nhi\u1ec7m v\u1ee5 h\u1eb1ng ng\u00e0y \u0111\u1ec3 nh\u1eadn th\u01b0\u1edfng l\u1edbn.", "daily", "500000", "1", "daily", true, "390", now, now],
+      ["t-20", "streak_3", "Chu\u1ed7i 3 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 3 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "200000", "3", "none", true, "400", now, now],
+      ["t-21", "streak_7", "Chu\u1ed7i 7 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 7 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "500000", "7", "none", true, "410", now, now],
+      ["t-22", "streak_30", "Chu\u1ed7i 30 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 30 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "2000000", "30", "none", true, "420", now, now],
+      ["t-23", "contest_join_1", "Tham gia cu\u1ed9c thi \u0111\u1ea7u ti\u00ean", "Gia nh\u1eadp m\u1ed9t cu\u1ed9c thi \u0111\u1ea7u t\u01b0 \u1ea3o \u0111\u1ec3 c\u1ea1nh tranh th\u1ee9 h\u1ea1ng.", "contest", "200000", "1", "none", true, "500", now, now],
+      ["t-24", "contest_top10", "L\u1ecdt top 10 cu\u1ed9c thi", "\u0110\u1ee9ng trong top 10 b\u1ea3ng x\u1ebfp h\u1ea1ng m\u1ed9t cu\u1ed9c thi \u2014 nh\u1eadn th\u01b0\u1edfng th\u1ee7 c\u00f4ng.", "contest", "2000000", "1", "none", true, "510", now, now]
     ];
     for (var i = 0; i < tRows.length; i++) tasks.appendRow(tRows[i]);
   }
@@ -274,7 +384,7 @@ function seedIfEmpty_() {
   // Portfolio demo - demo user holds some stocks
   var portfolio = getSheet_('portfolio');
   if (portfolio.getLastRow() <= 1) {
-    var pHeaders = ['user_id', 'company_id', 'symbol', 'company_name', 'quantity', 'average_buy_price', 'current_price', 'market_value', 'unrealized_pnl'];
+    var pHeaders = ['user_id', 'company_id', 'symbol', 'company_name', 'quantity', 'average_buy_price', 'current_price', 'market_value', 'unrealized_pnl', 'frozen_quantity'];
     portfolio.getRange(1, 1, 1, pHeaders.length).setValues([pHeaders]);
     // Nguon du lieu: danh muc demo duoc tai tao tu he thong cu (seed_db.py portfolio)
     var pRows = [
@@ -290,10 +400,15 @@ function seedIfEmpty_() {
   // Orders demo (filled/pending)
   var orders = getSheet_('orders');
   if (orders.getLastRow() <= 1) {
-    var oHeaders = ['id', 'user_id', 'company_id', 'side', 'type', 'status', 'price', 'quantity', 'filled_quantity', 'created_at'];
+    var oHeaders = ['id', 'user_id', 'company_id', 'side', 'type', 'status', 'price', 'quantity', 'filled_quantity', 'frozen_cash', 'frozen_quantity', 'created_at'];
     orders.getRange(1, 1, 1, oHeaders.length).setValues([oHeaders]);
     // start empty; demo creates orders
   }
+
+  // Cho DB đã seed từ trước: đảm bảo các cột mới tồn tại (idempotent).
+  _ensureColumn_(getSheet_('portfolio'), 'frozen_quantity');
+  _ensureColumn_(getSheet_('orders'), 'frozen_cash');
+  _ensureColumn_(getSheet_('orders'), 'frozen_quantity');
 
   var contests = getSheet_('contests');
   if (contests.getLastRow() <= 1) {
@@ -338,7 +453,105 @@ function seedIfEmpty_() {
       ["k-22", "virality", "Social Media Virality", "A measure of how rapidly and widely a social media post spreads. In Capia, high-virality posts can temporarily impact stock prices. Some viral posts may be traps designed to mislead traders.", "finsimai_mechanics", "2", "[\"social agent\",\"trap\",\"sentiment\",\"impact model\"]", now],
       ["k-23", "time compression", "Time Compression", "The core simulation mechanic where 1 real minute equals N virtual days. Capia uses time compression to simulate weeks and months of market activity in a single gaming session.", "finsimai_mechanics", "2", "[\"simulation\",\"market cycle\",\"compressor\"]", now]
     ];
-    for (var i = 0; i < kRows.length; i++) knowledge.appendRow(kRows[i]);
+for (var i = 0; i < kRows.length; i++) knowledge.appendRow(kRows[i]);
+  }
+
+  // Augment: bổ sung tin/bài mới + nội dung dài hơn cho các DB đã seed từ trước.
+  augmentNewsSeed_();
+  augmentSocialSeed_();
+
+  // Đồng bộ mức thưởng mới theo code (idempotent) cho DB đã seed từ trước.
+  patchTaskRewards_();
+}
+
+/**
+ * Đồng bộ reward_amount theo code (idempotent) — parity với _seed_tasks
+ * (ON CONFLICT DO UPDATE) của FastAPI, để DB đã seed trước đó được cập nhật
+ * mức thưởng sau khi deploy mà không cần reset dữ liệu. Chạy mỗi request
+ * nhưng chỉ ghi cell khi giá trị khác biệt.
+ */
+function patchTaskRewards_() {
+  var sheet = getSheet_('tasks');
+  var headers = getHeaders_(sheet);
+  var codeIdx = headers.indexOf('code');
+  var rewardIdx = headers.indexOf('reward_amount');
+  if (codeIdx < 0 || rewardIdx < 0) return;
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+  var map = {
+    profile_complete: '500000', first_trade: '200000', first_knowledge_read: '100000',
+    first_news_read: '100000', first_company_view: '100000', first_mentor_chat: '200000',
+    scenario_1_done: '300000', onboarding_complete: '1000000', read_5_knowledge: '300000',
+    read_10_knowledge: '500000', read_10_news: '400000', analyze_3_companies: '300000',
+    mentor_3_chats: '400000', daily_checkin: '50000', daily_trade_1: '100000',
+    daily_read_3_knowledge: '100000', daily_read_2_news: '100000', daily_mentor_1: '100000',
+    daily_all_4: '500000', streak_3: '200000', streak_7: '500000', streak_30: '2000000',
+    contest_join_1: '200000', contest_top10: '2000000'
+  };
+  for (var r = 0; r < values.length; r++) {
+    var code = String(values[r][codeIdx]);
+    if (map[code] !== undefined && String(values[r][rewardIdx]) !== map[code]) {
+      sheet.getRange(r + 2, rewardIdx + 1).setValue(map[code]);
+    }
+  }
+}
+
+/**
+ * Bổ sung thêm tin tức (idempotent): nếu số tin < ngưỡng và thiếu các id mới
+ * thì chèn thêm các bài dài hơn. Chạy mỗi request nhưng vô hại (kiểm tra nhanh).
+ */
+function augmentNewsSeed_() {
+  var news = getSheet_('news');
+  var existing = readAll_(news);
+  var have = {};
+  existing.forEach(function (n) { have[n.id] = true; });
+  var now = isoNow();
+
+  // Mỗi phần tử: [id, title, summary, content, category, sentiment, impact, company_id, agoH, agoM]
+  var extraRows = [
+    ["n-x1", "Kim c\u01b0\u01a1ng ng\u00e0nh b\u00e1n l\u1ebb d\u1ea7n d\u1ea7n tr\u1ed9i d\u1eady", "S\u1ee9c mua n\u1ed9i \u0111\u1ecba h\u1ed3i ph\u1ee5c r\u00f5 n\u00e9t k\u00e9o theo \u0111\u00e0 t\u0103ng c\u1ee7a nh\u00f3m h\u00e0ng ti\u00eau d\u00f9ng khi d\u00f2ng ti\u1ec1n nh\u00e0 \u0111\u1ea7u t\u01b0 quay l\u1ea1i.", "Nh\u00f3m b\u00e1n l\u1ebb ghi nh\u1eadn s\u1ef1 kh\u1edfi s\u1eafc r\u00f5 r\u00e0ng trong hai tu\u1ea7n g\u1ea7n \u0111\u00e2y khi s\u1ee9c mua n\u1ed9i \u0111\u1ecba t\u0103ng tr\u1edf l\u1ea1i sau giai \u0111o\u1ea1n \u0111i\u1ec1u ch\u1ec9nh. \u0110\u00e2y l\u00e0 k\u1ebft qu\u1ea3 c\u1ee7a g\u00f3i k\u00edch c\u1ea7u v\u00e0 \u0111\u00e0 ph\u1ee5c h\u1ed3i c\u1ee7a th\u1ecb tr\u01b0\u1eddng lao \u0111\u1ed9ng.\n\nD\u00f2ng ti\u1ec1n t\u01b0\u01a1ng \u0111\u1ed1i d\u1ed3i d\u00e0o \u0111ang ch\u1ea3y d\u1ea7n v\u00e0o c\u00e1c c\u1ed5 phi\u1ebfu \u0111\u1ea7u ng\u00e0nh c\u00f3 \u0111\u1ecbnh gi\u00e1 h\u1ee3p l\u00fd. C\u00e1c chuy\u00ean gia cho r\u1eb1ng y\u1ebfu t\u1ed1 h\u1ed7 tr\u1ee3 l\u1edbn nh\u1ea5t \u0111\u1ebfn t\u1eeb k\u1ebft qu\u1ea3 kinh doanh qu\u00fd n\u00e0y kh\u1ea3 quan h\u01a1n d\u1ef1 ki\u1ebfn.\n\nNh\u00e0 \u0111\u1ea7u t\u01b0 c\u1ea7n ph\u00e2n bi\u1ec7t gi\u1eefa nh\u1eefng c\u00f4ng ty c\u00f3 t\u00e2m l\u00fd t\u0103ng tr\u01b0\u1edfng b\u1ec1n v\u1eefng v\u1edbi nh\u1eefng c\u00e1i t\u0103ng theo s\u00f3ng \u0111\u1ec3 tr\u00e1nh r\u1ee7i ro \u0111u \u0111\u1ec9nh khi th\u1ecb tr\u01b0\u1eddng \u0111\u1ea3o chi\u1ec1u.", "ng\u00e0nh", "positive", 2.0, null, 1, 5],
+    ["n-x2", "C\u00e1c qu\u1ef9 ngo\u1ea1i \u0111\u1ea9y m\u1ea1nh gi\u1ea3i ng\u00e2n v\u00e0o c\u1ed5 phi\u1ebfu c\u00f4ng ngh\u1ec7", "Kh\u1ed1i ngo\u1ea1i mua r\u00f2ng m\u1ea1nh nh\u00f3m c\u00f4ng ngh\u1ec7, t\u00edn hi\u1ec7u d\u00f2ng v\u1ed1n qu\u1ed1c t\u1ebf \u0111ang quay tr\u1edf l\u1ea1i v\u1edbi c\u00e1c doanh nghi\u1ec7p s\u1ed1.", "D\u00f2ng v\u1ed1n ngo\u1ea1i quay tr\u1edf l\u1ea1i m\u1ea1nh m\u1ebd v\u1edbi nh\u00f3m c\u00f4ng ngh\u1ec7 khi c\u00e1c qu\u1ef9 \u0111\u00e1nh gi\u00e1 l\u1ea1i tri\u1ec3n v\u1ecdng t\u0103ng tr\u01b0\u1edfng c\u1ee7a m\u1ea3ng d\u1ecbch v\u1ee5 s\u1ed1 v\u00e0 tr\u00ed tu\u1ec7 nh\u00e2n t\u1ea1o.\n\nGi\u1edbi ph\u00e2n t\u00edch l\u01b0u \u00fd r\u1eb1ng m\u1ee9c \u0111\u1ecbnh gi\u00e1 hi\u1ec7n t\u1ea1i v\u1eabn \u1edf v\u00f9ng ph\u00f9 h\u1ee3p so v\u1edbi t\u1ed1c \u0111\u1ed9 t\u0103ng doanh thu k\u1ef3 v\u1ecdng. Nhi\u1ec1u c\u1ed5 phi\u1ebfu \u0111\u00e3 ph\u1ee5c h\u1ed3i \u0111\u00e1ng k\u1ec3 t\u1eeb \u0111\u00e1y.\n\nTuy nhi\u00ean r\u1ee7i ro v\u1eabn c\u00f2n khi thanh kho\u1ea3n th\u1ecb tr\u01b0\u1eddng ph\u00e2n h\u00f3a v\u00e0 c\u00e1c ch\u00ednh s\u00e1ch qu\u1ea3n l\u00fd ng\u00e0nh c\u00f4ng ngh\u1ec7 c\u00f3 th\u1ec3 thay \u0111\u1ed5i b\u1ea5t ng\u1edd theo di\u1ec5n bi\u1ebfn v\u0129 m\u00f4.", "th\u1ecb tr\u01b0\u1eddng", "positive", 1.9, "c-techa-1", 2, 15],
+    ["n-x3", "Ng\u00e2n h\u00e0ng trung \u01b0\u01a1ng ph\u00e1t t\u00edn hi\u1ec7u gi\u1eef nguy\u00ean l\u00e3i su\u1ea5t \u0111i\u1ec1u h\u00e0nh", "L\u00e3i su\u1ea5t \u0111i\u1ec1u h\u00e0nh nhi\u1ec7m k\u1ef3 t\u1edbi d\u1ef1 ki\u1ebfn \u0111\u01b0\u1ee3c gi\u1eef \u1ed5n \u0111\u1ecbnh, gi\u00fap c\u00e2n b\u1eb1ng gi\u1eefa h\u1ed7 tr\u1ee3 t\u0103ng tr\u01b0\u1edfng v\u00e0 ki\u1ec3m so\u00e1t l\u1ea1m ph\u00e1t.", "Ng\u00e2n h\u00e0ng trung \u01b0\u01a1ng ph\u00e1t \u0111i th\u00f4ng \u0111i\u1ec7p gi\u1eef nguy\u00ean l\u00e3i su\u1ea5t \u0111i\u1ec1u h\u00e0nh trong k\u1ef3 h\u1ecdp s\u1eafp t\u1edbi, \u0111\u1ed3ng th\u1eddi theo d\u00f5i s\u00e1t di\u1ec5n bi\u1ebfn l\u1ea1m ph\u00e1t trong n\u01b0\u1edbc v\u00e0 qu\u1ed1c t\u1ebf.\n\nVi\u1ec7c gi\u1eef l\u00e3i su\u1ea5t \u1ed5n \u0111\u1ecbnh t\u1ea1o \u0111i\u1ec1u ki\u1ec7n thu\u1eadn l\u1ee3i cho doanh nghi\u1ec7p ti\u1ebfp c\u1eadn v\u1ed1n v\u1edbi chi ph\u00ed h\u1ee3p l\u00fd, \u0111\u1eb7c bi\u1ec7t trong b\u1ed1i c\u1ea3nh chu k\u1ef3 kinh t\u1ebf c\u00f2n nhi\u1ec1u bi\u1ebfn \u0111\u1ed9ng.\n\nGi\u1edbi \u0111\u1ea7u t\u01b0 k\u1ef3 v\u1ecdng \u0111\u1ed9ng th\u00e1i g\u1eedi t\u00edn hi\u1ec7u \u1ed5n \u0111\u1ecbnh s\u1ebd gi\u00fap th\u1ecb tr\u01b0\u1eddng gi\u1ea3m b\u1edbt lo ng\u1ea1i ng\u1eafn h\u1ea1n v\u00e0 c\u1ea3i thi\u1ec7n t\u00e2m l\u00fd n\u1eafm gi\u1eef t\u00e0i s\u1ea3n.", "v\u0129 m\u00f4", "neutral", 1.4, null, 3, 25],
+    ["n-x4", "C\u1ea3nh b\u00e1o \u0111\u1ed9t bi\u1ebfn gi\u00e1 n\u0103ng l\u01b0\u1ee3ng \u0111\u1ea7u v\u00e0o s\u1eafp ph\u00e1t", "Di\u1ec5n bi\u1ebfn gi\u00e1 n\u0103ng l\u01b0\u1ee3ng th\u1ebf gi\u1edbi c\u00f3 th\u1ec3 t\u00e1c \u0111\u1ed9ng l\u00ean chi ph\u00ed s\u1ea3n xu\u1ea5t c\u1ee7a nhi\u1ec1u doanh nghi\u1ec7p trong n\u01b0\u1edbc.", "Gi\u00e1 n\u0103ng l\u01b0\u1ee3ng th\u1ebf gi\u1edbi \u0111\u00e3 t\u0103ng li\u00ean t\u1ee5c nhi\u1ec1u phi\u00ean, d\u1eabn \u0111\u1ebfn lo ng\u1ea1i chi ph\u00ed \u0111\u1ea7u v\u00e0o t\u0103ng s\u1ebd b\u00f9ng ph\u00e1t trong qu\u00fd t\u1edbi, \u0111\u1eb7c bi\u1ec7t v\u1edbi c\u00e1c ng\u00e0nh th\u00e9p, xi m\u0103ng v\u00e0 h\u00f3a ch\u1ea5t.\n\nC\u00e1c doanh nghi\u1ec7p \u0111\u00e3 ch\u1ee7 \u0111\u1ed9ng t\u0103ng t\u1ed3n kho nguy\u00ean li\u1ec7u nh\u1eb1m ch\u1eb1n chi ph\u00ed, tuy nhi\u00ean kh\u00f4ng th\u1ec3 duy tr\u00ec m\u00e3i n\u1ebfu gi\u00e1 \u1edf m\u1ee9c cao k\u00e9o d\u00e0i.\n\nNhi\u1ec1u chuy\u00ean gia khuy\u1ebfn ngh\u1ecb nh\u00e0 \u0111\u1ea7u t\u01b0 theo d\u00f5i ch\u1eb7t bi\u00ean l\u1ee3i nhu\u1eadn qu\u00fd sau v\u00e0 th\u1eadn tr\u1ecdng v\u1edbi c\u00e1c c\u1ed5 phi\u1ebfu c\u00f3 t\u1ef7 tr\u1ecdng chi ph\u00ed n\u0103ng l\u01b0\u1ee3ng l\u1edbn trong c\u01a1 c\u1ea5u gi\u00e1 th\u00e0nh.", "ng\u00e0nh", "negative", 1.8, "c-energc-12", 4, 35],
+    ["n-x5", "D\u00f2ng ti\u1ec1n th\u00f4ng minh chuy\u1ec3n d\u1ecbch n\u1ed5i b\u1eadt gi\u1eefa c\u00e1c nh\u00f3m ng\u00e0nh", "Lu\u00e2n chuy\u1ec3n d\u00f2ng ti\u1ec1n gi\u1eefa c\u00e1c nh\u00f3m ng\u00e0nh \u0111ang l\u00e0 ch\u1ee7 \u0111\u1ec1 ch\u00ednh c\u1ee7a phi\u00ean giao d\u1ecbch h\u00f4m nay.", "Th\u1ecb tr\u01b0\u1eddng ghi nh\u1eadn s\u1ef1 lu\u00e2n chuy\u1ec3n d\u00f2ng ti\u1ec1n gi\u1eefa nh\u00f3m ng\u00e2n h\u00e0ng, c\u00f4ng ngh\u1ec7 v\u00e0 h\u00e0ng ti\u00eau d\u00f9ng. D\u00f2ng ti\u1ec1n th\u00f4ng minh c\u00f3 xu h\u01b0\u1edbng \u0111i t\u00ecm c\u00e1c c\u1ed5 phi\u1ebfu c\u00f3 n\u1ec1n t\u1ea3ng c\u01a1 b\u1ea3n t\u1ed1t v\u00e0 ch\u01b0a t\u0103ng nhi\u1ec1u.\n\nT\u00e2m l\u00fd nh\u00e0 \u0111\u1ea7u t\u01b0 ph\u1ea5n kh\u1edfi nh\u01b0ng v\u1eabn gi\u1eef s\u1ef1 th\u1eadn tr\u1ecdng nh\u1ea5t \u0111\u1ecbnh, th\u1ec3 hi\u1ec7n qua kh\u1ed1i l\u01b0\u1ee3ng giao d\u1ecbch \u1ed5n \u0111\u1ecbnh thay v\u00ec b\u00f9ng n\u1ed5 theo c\u1ea3m x\u00fac.\n\nChuy\u00ean gia cho r\u1eb1ng xu h\u01b0\u1edbng ph\u00e2n h\u00f3a s\u1ebd ti\u1ebfp di\u1ec5n, nh\u00e0 \u0111\u1ea7u t\u01b0 n\u00ean \u01b0u ti\u00ean ch\u1ecdn l\u1ecdc c\u1ed5 phi\u1ebfu c\u00f3 c\u00e2u chuy\u1ec7n t\u0103ng tr\u01b0\u1edfng r\u00f5 r\u00e0ng.", "th\u1ecb tr\u01b0\u1eddng", "positive", 1.2, null, 5, 45],
+    ["n-x6", "Doanh nghi\u1ec7p s\u1ea3n xu\u1ea5t \u0111\u1ed1i m\u1eb7t \u00e1p l\u1ef1c \u0111\u01a1n h\u00e0ng qu\u00fd sau", "\u0110\u01a1n h\u00e0ng m\u1edbi c\u00f3 d\u1ea5u hi\u1ec7u ch\u1eadm l\u1ea1i khi th\u1ecb tr\u01b0\u1eddng xu\u1ea5t kh\u1ea9u ch\u00ednh ghi nh\u1eadn t\u0103ng tr\u01b0\u1edfng ch\u1eadm h\u01a1n k\u1ef3 v\u1ecdng.", "Nhi\u1ec1u doanh nghi\u1ec7p s\u1ea3n xu\u1ea5t b\u00e1o c\u00e1o gi\u00e1 tr\u1ecb \u0111\u01a1n h\u00e0ng m\u1edbi qu\u00fd sau c\u00f3 d\u1ea5u hi\u1ec7u ch\u1eadm l\u1ea1i, do nhu c\u1ea7u t\u1eeb c\u00e1c th\u1ecb tr\u01b0\u1eddng ch\u00ednh gi\u1ea3m nh\u1eb9 trong b\u1ed1i c\u1ea3nh l\u00e3i su\u1ea5t to\u00e0n c\u1ea7u duy tr\u00ec \u1edf m\u1ee9c cao.\n\nTuy nhi\u00ean c\u00e1c nh\u00e0 m\u00e1y trong n\u01b0\u1edbc v\u1eabn ho\u1ea1t \u0111\u1ed9ng \u1ed5n \u0111\u1ecbnh nh\u1edd c\u00e1c h\u1ee3p \u0111\u1ed3ng d\u00e0i h\u1ea1n \u0111\u00e3 k\u00fd, gi\u00fap san s\u1ebb r\u1ee7i ro tr\u01b0\u1edbc m\u1eaft.\n\nVi\u1ec7c theo d\u00f5i t\u00edn hi\u1ec7u ph\u1ee5c h\u1ed3i \u0111\u01a1n h\u00e0ng trong qu\u00fd t\u1edbi s\u1ebd l\u00e0 ch\u00eca kh\u00f3a \u0111\u1ec3 \u0111\u00e1nh gi\u00e1 l\u1ea1i tri\u1ec3n v\u1ecdng c\u1ee7a c\u00e1c c\u1ed5 phi\u1ebfu ng\u00e0nh s\u1ea3n xu\u1ea5t", "ng\u00e0nh", "negative", 1.5, "c-indusc-18", 6, 55],
+    ["n-x7", "Chu\u1ed7i cung \u1ee9ng n\u00f4ng s\u1ea3n h\u1ed3i ph\u1ee5c t\u1ed1t h\u01a1n d\u1ef1 ki\u1ebfn", "D\u1eef li\u1ec7u b\u00e1n l\u1ebb cho th\u1ea5y chu\u1ed7i cung \u1ee9ng n\u00f4ng s\u1ea3n \u0111\u00e3 v\u01b0\u1ee3t qua giai \u0111o\u1ea1n kh\u00f3 kh\u0103n nh\u1ea5t, h\u1ed7 tr\u1ee3 nh\u00f3m c\u1ed5 phi\u1ebfu li\u00ean quan.", "Chu\u1ed7i cung \u1ee9ng n\u00f4ng s\u1ea3n ghi nh\u1eadn s\u1ef1 h\u1ed3i ph\u1ee5c t\u1ed1t h\u01a1n d\u1ef1 ki\u1ebfn nh\u1edd m\u00f9a v\u1ee5 thu\u1eadn l\u1ee3i v\u00e0 d\u00f2ng v\u1ed1n \u0111\u1ea7u t\u01b0 v\u00e0o c\u01a1 s\u1edf h\u1ea1 t\u1ea7ng logistics n\u00f4ng nghi\u1ec7p.\n\nDoanh thu c\u00e1c c\u00f4ng ty ph\u00e2n ph\u1ed1i n\u00f4ng s\u1ea3n t\u0103ng nh\u1edd gi\u00e1 b\u00e1n b\u00ecnh \u1ed5n v\u00e0 chi ph\u00ed v\u1eadn chuy\u1ec3n gi\u1ea3m.\n\nC\u00e1c chuy\u00ean gia cho r\u1eb1ng \u0111\u00e2y l\u00e0 nh\u00f3m c\u1ed5 phi\u1ebfu ph\u00f2ng th\u1ee7 t\u1ed1t, ph\u00f9 h\u1ee3p v\u1edbi nh\u00e0 \u0111\u1ea7u t\u01b0 \u01b0a th\u00edch s\u1ef1 \u1ed5n \u0111\u1ecbnh v\u00e0 d\u00f2ng c\u1ed5 t\u1ee9c \u0111\u1ec1u \u0111\u1eb7n.", "ng\u00e0nh", "positive", 1.1, "c-consmc-15", 7, 65],
+    ["n-x8", "Th\u1ecb tr\u01b0\u1eddng ch\u1edd \u0111\u1ee3n d\u1eef li\u1ec7u vi\u1ec7c l\u00e0m tr\u01b0\u1edbc khi \u0111\u1ecbnh h\u01b0\u1edbng m\u1edbi", "C\u00e1c d\u1eef li\u1ec7u vi\u1ec7c l\u00e0m s\u1eafp c\u00f4ng b\u1ed1 \u0111\u01b0\u1ee3c xem l\u00e0 y\u1ebfu t\u1ed1 quy\u1ebft \u0111\u1ecbnh h\u01b0\u1edbng giao d\u1ecbch trong k\u1ef3 t\u1edbi.", "Th\u1ecb tr\u01b0\u1eddng b\u01b0\u1edbc v\u00e0o tr\u1ea1ng th\u00e1i ch\u1edd \u0111\u1ee3i khi c\u00e1c d\u1eef li\u1ec7u vi\u1ec7c l\u00e0m m\u1edbi s\u1eafp \u0111\u01b0\u1ee3c c\u00f4ng b\u1ed1. Nh\u00e0 \u0111\u1ea7u t\u01b0 c\u00f3 xu h\u01b0\u1edbng t\u1ea1m th\u1eddi \u0111\u1ee9ng ngo\u00e0i quan s\u00e1t \u0111\u1ec3 ch\u1edd x\u00e1c nh\u1eadn xu h\u01b0\u1edbng.\n\nN\u1ebfu d\u1eef li\u1ec7u kh\u1ea3 quan, k\u1ef3 v\u1ecdng l\u00e3i su\u1ea5t h\u1ea1 nhi\u1ec7t t\u0103ng l\u00ean v\u00e0 d\u00f2ng ti\u1ec1n c\u00f3 th\u1ec3 quay l\u1ea1i nhanh h\u01a1n d\u1ef1 b\u00e1o.\n\nNg\u01b0\u1ee3c l\u1ea1i, d\u1eef li\u1ec7u y\u1ebfu c\u00f3 th\u1ec3 khi\u1ebfn th\u1ecb tr\u01b0\u1eddng \u0111i\u1ec1u ch\u1ec9nh s\u00e2u h\u01a1n, v\u00ec v\u1eady vi\u1ec7c qu\u1ea3n tr\u1ecb r\u1ee7i ro danh m\u1ee5c tr\u1edf n\u00ean quan tr\u1ecdng h\u01a1n bao gi\u1edd.", "v\u0129 m\u00f4", "neutral", 1.3, null, 8, 75],
+    ["n-x9", "S\u00f3ng \u0111\u1ea7u t\u01b0 h\u1ea1 t\u1ea7ng giao th\u00f4ng t\u0103ng nhi\u1ec7t", "H\u00e0ng lo\u1ea1t d\u1ef1 \u00e1n h\u1ea1 t\u1ea7ng giao th\u00f4ng tr\u1ecdng \u0111i\u1ec3m \u0111\u01b0\u1ee3c kh\u1edfi \u0111\u1ed9ng t\u1ea1o c\u01a1 h\u1ed9i l\u1edbn cho c\u00e1c doanh nghi\u1ec7p x\u00e2y l\u1eafp v\u00e0 v\u1eadt li\u1ec7u.", "Nhi\u1ec1u d\u1ef1 \u00e1n h\u1ea1 t\u1ea7ng giao th\u00f4ng tr\u1ecdng \u0111i\u1ec3m \u0111\u01b0\u1ee3c kh\u1edfi \u0111\u1ed9ng trong giai \u0111o\u1ea1n n\u00e0y, m\u1edf ra c\u01a1 h\u1ed9i l\u1edbn cho nh\u00f3m doanh nghi\u1ec7p x\u00e2y l\u1eafp, v\u1eadt li\u1ec7u x\u00e2y d\u1ef1ng v\u00e0 d\u1ecbch v\u1ee5 logistics.\n\nC\u00e1c d\u1ef1 \u00e1n \u0111\u01b0\u1ee3c k\u1ef3 v\u1ecdng th\u00f4ng qua nhanh gi\u00fap gi\u1ea3i ng\u00e2n v\u1ed1n \u0111\u1ea7u t\u01b0 c\u00f4ng hi\u1ec7u qu\u1ea3 v\u00e0 th\u00fac \u0111\u1ea9y t\u0103ng tr\u01b0\u1edfng kinh t\u1ebf.\n\nNh\u00f3m c\u1ed5 phi\u1ebfu n\u00e0y th\u01b0\u1eddng nh\u1ea1y c\u1ea3m v\u1edbi d\u00f2ng v\u1ed1n gi\u1ea3i ng\u00e2n, do \u0111\u00f3 nh\u00e0 \u0111\u1ea7u t\u01b0 c\u1ea7n theo d\u00f5i ti\u1ebfn \u0111\u1ed9 gi\u1ea3i ng\u00e2n th\u1ef1c t\u1ebf thay v\u00ec ch\u1ec9 tin v\u00e0o k\u1ebf ho\u1ea1ch \u0111\u01b0\u1ee3c c\u00f4ng b\u1ed1.", "ng\u00e0nh", "positive", 1.7, "c-indusb-17", 9, 85],
+    ["n-x10", "T\u00edn d\u1ee5ng ng\u00e2n h\u00e0ng t\u0103ng t\u1ed1c t\u1ea1i c\u00e1c tr\u1ee5 \u0111\u1ed3ng kinh t\u1ebf", "T\u0103ng tr\u01b0\u1edfng t\u00edn d\u1ee5ng c\u1ea3i thi\u1ec7n r\u00f5 r\u1ec7t, h\u1ed7 tr\u1ee3 cho nh\u00f3m c\u1ed5 phi\u1ebfu ng\u00e2n h\u00e0ng trong trung h\u1ea1n.", "T\u0103ng tr\u01b0\u1edfng t\u00edn d\u1ee5ng t\u0103ng t\u1ed1c \u0111\u00e1ng k\u1ec3 t\u1ea1i c\u00e1c tr\u1ee5 \u0111\u1ed3ng kinh t\u1ebf l\u1edbn nh\u1edd nhu c\u1ea7u vay v\u1ed1n ph\u1ee5c v\u1ee5 s\u1ea3n xu\u1ea5t v\u00e0 ti\u00eau d\u00f9ng c\u1ea3i thi\u1ec7n.\n\nBi\u00ean l\u00e3i r\u00f2ng c\u1ee7a c\u00e1c ng\u00e2n h\u00e0ng \u0111\u01b0\u1ee3c duy tr\u00ec \u1ed5n \u0111\u1ecbnh v\u00e0 ch\u1ea5t l\u01b0\u1ee3ng t\u00e0i s\u1ea3n kh\u00f4ng c\u00f3 d\u1ea5u hi\u1ec7u x\u1ea5u \u0111i.\n\nGi\u1edbi ph\u00e2n t\u00edch \u0111\u00e1nh gi\u00e1 nh\u00f3m ng\u00e2n h\u00e0ng v\u1eabn l\u00e0 tr\u1ee5 \u0111\u1ee1 c\u1ee7a th\u1ecb tr\u01b0\u1eddng, nh\u01b0ng l\u01b0u \u00fd \u00e1p l\u1ef1c t\u1eeb chi ph\u00ed v\u1ed1n v\u00e0 n\u1ee3 x\u1ea5u ti\u1ec1m \u1ea9n c\u1ea7n theo d\u00f5i.", "ng\u00e0nh", "positive", 1.6, "c-fina-4", 10, 95],
+    ["n-x11", "Nh\u00e0 \u0111\u1ea7u t\u01b0 c\u00e1 nh\u00e2n t\u0103ng c\u01b0\u1eddng nh\u1eadn di\u1ec7n th\u01b0\u01a1ng hi\u1ec7u t\u00e0i ch\u00ednh", "Kh\u1ea3o s\u00e1t m\u1edbi cho th\u1ea5y s\u1ed1 l\u01b0\u1ee3ng nh\u00e0 \u0111\u1ea7u t\u01b0 c\u00e1 nh\u00e2n ch\u1ee7 \u0111\u1ed9ng h\u1ecdc h\u1ecfi v\u00e0 ph\u00e2n t\u00edch c\u01a1 b\u1ea3n t\u0103ng nhanh.", "Kh\u1ea3o s\u00e1t m\u1edbi \u0111\u00e2y cho th\u1ea5y nh\u00e0 \u0111\u1ea7u t\u01b0 c\u00e1 nh\u00e2n ng\u00e0y c\u00e0ng ch\u1ee7 \u0111\u1ed9ng trau d\u1ed3i ki\u1ebfn th\u1ee9c n\u1ec1n t\u1ea3ng v\u00e0 c\u00e2n nh\u1eafc r\u1ee7i ro tr\u01b0\u1edbc m\u1ed7i quy\u1ebft \u0111\u1ecbnh giao d\u1ecbch.\n\n\u0110i\u1ec1u n\u00e0y ph\u1ea3n \u00e1nh s\u1ef1 tr\u01b0\u1edfng th\u00e0nh c\u1ee7a th\u1ecb tr\u01b0\u1eddng, t\u1eeb vi\u1ec7c ch\u1ea1y theo c\u1ea3m x\u00fac sang t\u1ed1i \u01b0u h\u00f3a danh m\u1ee5c d\u00e0i h\u1ea1n.\n\nT\u00e2m l\u00fd n\u00e0y gi\u00fap th\u1ecb tr\u01b0\u1eddng b\u1edbt d\u1ecb bi\u1ebfn trong ng\u1eafn h\u1ea1n v\u00e0 h\u1ed7 tr\u1ee3 xu h\u01b0\u1edbng t\u0103ng b\u1ec1n \u0111\u1ec3 c\u00e1c c\u1ed5 phi\u1ebfu c\u01a1 b\u1ea3n t\u1ed1t.", "th\u1ecb tr\u01b0\u1eddng", "positive", 0.9, null, 11, 105],
+    ["n-x12", "R\u00e0o c\u1ea3n th\u01b0\u01a1ng m\u1ea1i ti\u1ebfp t\u1ee5c l\u00e0 \u1ea9n s\u1ed1 cho doanh nghi\u1ec7p xu\u1ea5t kh\u1ea9u", "C\u00e1c doanh nghi\u1ec7p xu\u1ea5t kh\u1ea9u \u0111ang theo d\u00f5i s\u00e1t di\u1ec5n bi\u1ebfn ch\u00ednh s\u00e1ch th\u01b0\u01a1ng m\u1ea1i qu\u1ed1c t\u1ebf tr\u01b0\u1edbc nguy c\u01a1 thay \u0111\u1ed5i quy \u0111\u1ecbnh b\u1ea5t ng\u1edd.", "R\u00e0o c\u1ea3n th\u01b0\u01a1ng m\u1ea1i ti\u1ebfp t\u1ee5c l\u00e0 \u1ea9n s\u1ed1 l\u1edbn v\u1edbi c\u00e1c doanh nghi\u1ec7p xu\u1ea5t kh\u1ea9u khi nhi\u1ec1u th\u1ecb tr\u01b0\u1eddng l\u1edbn c\u00f3 th\u1ec3 \u00e1p d\u1ee5ng quy \u0111\u1ecbnh m\u1edbi \u1ea3nh h\u01b0\u1edfng \u0111\u1ebfn chu\u1ed7i cung \u1ee9ng.\n\nC\u00e1c c\u00f4ng ty \u0111\u00e3 ch\u1ee7 \u0111\u1ed9ng \u0111a d\u1ea1ng h\u00f3a th\u1ecb tr\u01b0\u1eddng \u0111\u1ec3 gi\u1ea3m thi\u1ec3u ph\u1ee5 thu\u1ed9c v\u00e0o b\u1ea5t k\u1ef3 khu v\u1ef1c n\u00e0o.\n\nNh\u00e0 \u0111\u1ea7u t\u01b0 theo d\u00f5i nh\u00f3m n\u00e0y c\u1ea7n \u0111\u00e1nh gi\u00e1 c\u1ea3 kh\u1ea3 n\u0103ng ch\u1ed1ng ch\u1ecbu r\u1ee7i ro l\u1eabn c\u01a1 h\u1ed9i khi ch\u00ednh s\u00e1ch tr\u1edf n\u00ean thu\u1eadn l\u1ee3i h\u01a1n d\u1ef1 ki\u1ebfn.", "v\u0129 m\u00f4", "negative", 1.9, null, 12, 115]
+  ];
+
+  for (var i = 0; i < extraRows.length; i++) {
+    var r = extraRows[i];
+    if (have[r[0]]) continue;
+    news.appendRow([
+      r[0], r[1], r[2], r[3], 'Capia News', r[4], r[5], String(r[6]), r[7],
+      true, agoISO_(r[8], r[9]), now
+    ]);
+  }
+}
+
+/** B\u1ed5 sung th\u00eam b\u00e0i x\u00e3 h\u1ed9i m\u1edbi (idempotent). */
+function augmentSocialSeed_() {
+  var social = getSheet_('social');
+  var existing = readAll_(social);
+  var have = {};
+  existing.forEach(function (s) { have[s.id] = true; });
+  var now = isoNow();
+  var extraRows = [
+    ["s-x1", "Nh\u00e0 \u0111\u1ea7u t\u01b0 c\u00e1 nh\u00e2n gi\u00e0u kinh nghi\u1ec7m", null, "pro_trader", "Theo d\u00f5i d\u00f2ng ti\u1ec1n ngo\u1ea1i c\u1ea3 tu\u1ea7n, m\u1ea5y phi\u00ean g\u1ea7n \u0111\u00e2y kh\u1ed1i ngo\u1ea1i quay l\u1ea1i gom TECHA kh\u00e1 r\u00f5. M\u00ecnh v\u1eabn gi\u1eef danh m\u1ee5c hi\u1ec7n t\u1ea1i, kh\u00f4ng v\u1ed9i b\u1eaft \u0111\u00e1y \u2014 ch\u1edd x\u00e1c nh\u1eadn \u0111\u1ec9nh r\u1ed3i m\u1edbi gi\u1ea3i ng\u00e2n th\u00eam.", "positive", "1.4", "28", "6", "1", "c-techa-1", agoISO_(0, 12), now],
+    ["s-x2", "Tin \u0111\u1ed3n t\u1eeb c\u1ed9ng \u0111\u1ed3ng", null, "rumor_birds", "Nghe tin BlueRock Financial s\u1eafp tung g\u00f3i d\u1ecbch v\u1ee5 m\u1edbi cho kh\u1ed1i kh\u00e1ch h\u00e0ng t\u1ed5 ch\u1ee9c. N\u1ebfu \u0111\u00fang th\u00ec FINA c\u00f3 th\u1ec3 \u0111\u01b0\u1ee3c h\u01b0\u1edfng l\u1ee3i \u0111\u00e1ng k\u1ec3 trong qu\u00fd t\u1edbi. Ai c\u00f3 th\u00f4ng tin n\u1ed9i b\u1ed9 s\u1ecdc h\u01a1n chia s\u1ebb v\u1edbi m\u00ecnh nh\u00e9!", "positive", "1.9", "131", "22", "5", "c-fina-4", agoISO_(1, 30), now],
+    ["s-x3", "Chuy\u00ean gia ph\u00e2n t\u00edch k\u1ef9 thu\u1eadt", null, "ta_fa_kol", "L\u01b0u \u00fd c\u1ea3 nh\u00e0: NEWS v\u1eeba ra ng\u00e0y h\u00f4m nay ph\u00e1t t\u00edn hi\u1ec7u c\u1ea3nh b\u00e1o ng\u1eafn h\u1ea1n cho nh\u00f3m n\u0103ng l\u01b0\u1ee3ng. \u0110\u1ecbnh gi\u00e1 hi\u1ec7n t\u1ea1i ph\u1ea3n \u00e1nh nhi\u1ec1u k\u1ef3 v\u1ecdng t\u1ed1t, ch\u01b0a ph\u1ea3n \u00e1nh chi ph\u00ed \u0111\u1ea7u v\u00e0o t\u0103ng. \u0110\u1eebng \u00f4m to\u00e0n b\u1ed9 v\u00e0o v\u00f9ng kh\u00e1ng c\u1ef1!", "negative", "1.7", "204", "31", "7", "c-energc-12", agoISO_(2, 5), now],
+    ["s-x4", "F0 m\u1edbi t\u1eadp t\u00e0nh \u0111\u1ea7u t\u01b0", null, "f0_newbie", "M\u1ecdi ng\u01b0\u1eddi \u01a1i, m\u00ecnh m\u1edbi b\u1eaft \u0111\u1ea7u t\u00ecm hi\u1ec3u c\u1ed5 phi\u1ebfu h\u00e0ng ti\u00eau d\u00f9ng. \u0110\u1ecdc tin th\u00ec th\u1ea5y nh\u00f3m n\u00e0y ph\u1ee5c h\u1ed3i kh\u00e1 \u1ed5n \u0111\u1ecbnh, b\u00e1c n\u00e0o cho e xin \u00fd ki\u1ebfn v\u1edbi CONSM? E kh\u00f4ng mu\u1ed1n \u1ea5u t\u00edm nh\u01b0 tr\u01b0\u1edbc \u0111\u00e2y n\u1eefa.", "neutral", "1.0", "77", "12", "3", "c-consma-13", agoISO_(3, 20), now]
+  ];
+  for (var j = 0; j < extraRows.length; j++) {
+    var row = extraRows[j];
+    if (have[row[0]]) continue;
+    social.appendRow([
+      row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
+      row[10], null, row[11], now
+    ]);
   }
 }
 
@@ -383,7 +596,7 @@ function simulatePriceTick_() {
     var vol = parseFloat(rows[r][volCol - 1] || 0.01);
     var drift = (Math.random() - 0.5) * 2 * price * vol;
     var newPrice = Math.max(price + drift, price * 0.9);
-    sheet.getRange(r + 2, priceCol).setValue(newPrice.toFixed(0));
+    sheet.getRange(r + 2, priceCol).setValue(String(Math.round(newPrice * 100) / 100));
   }
 }
 

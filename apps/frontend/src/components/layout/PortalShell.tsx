@@ -34,7 +34,7 @@ export function PortalShell({ groups, homeHref, label, children }: PortalShellPr
         homeHref={homeHref}
       />
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-line bg-[#FFFDF8]/90 px-4 backdrop-blur dark:border-granite-700 dark:bg-granite-900/90 sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-line bg-paper/90 px-4 backdrop-blur dark:border-granite-700 dark:bg-granite-900/90 sm:px-6">
           <button
             type="button"
             className="btn-ghost p-2 lg:hidden"

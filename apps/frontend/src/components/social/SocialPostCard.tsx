@@ -12,26 +12,31 @@ import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/common/Badge";
 import { Avatar } from "@/components/common/Avatar";
-import { IconChat, IconHeart } from "@/components/common/Icon";
+import { BookmarkButton } from "@/components/common/BookmarkButton";
+import { IconChat, IconHeart, IconTrendDown, IconTrendUp } from "@/components/common/Icon";
 import { Spinner } from "@/components/common/Spinner";
 import { toRequestError } from "@/services/api";
 import { createSocialComment, listSocialComments } from "@/services/social";
 import { useAuthStore } from "@/store/useAuthStore";
-import { personaLabel, sentimentLabel, sentimentVariant, viralityTone } from "@/utils/domain";
-import { formatRelativeTime } from "@/utils/format";
+import { personaLabel, sentimentLabel, sentimentVariant } from "@/utils/domain";
+import { formatNumber, formatRelativeTime, formatViral, parseDecimal } from "@/utils/format";
 import { cn } from "@/utils/cn";
 import type {
+  CompanyResponse,
   SocialCommentResponse,
   SocialPostResponse,
 } from "@finsim/shared-types/generated/api-types";
 
 interface SocialPostCardProps {
   post: SocialPostResponse;
+  companies: CompanyResponse[];
   onToggleLike: (post: SocialPostResponse) => void;
   onCommentAdded: (postId: string) => void;
+  /** Gọi khi bỏ lưu — dùng trong danh sách "Đã lưu" để xoá item. */
+  onRemove?: (postId: string) => void;
 }
 
-export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPostCardProps) {
+export function SocialPostCard({ post, companies, onToggleLike, onCommentAdded, onRemove }: SocialPostCardProps) {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -44,6 +49,10 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
   const loadedRef = useRef(false);
 
   const initial = post.author_name.trim().charAt(0).toUpperCase();
+  const linkedCompany =
+    post.company_id !== null
+      ? companies.find((company) => company.id === post.company_id) ?? null
+      : null;
 
   const requireAuth = () => {
     if (!user) {
@@ -101,7 +110,7 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
   };
 
   return (
-    <article className="rounded-xl border border-line bg-[#FFFDF8] transition-shadow hover:shadow-sm dark:border-granite-700 dark:bg-granite-900">
+    <article className="rounded-xl border border-line bg-paper transition-shadow hover:shadow-sm dark:border-granite-700 dark:bg-granite-900">
       <div className="flex items-center gap-3 p-4 pb-3">
         <Avatar
           src={post.author_avatar}
@@ -119,14 +128,46 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
             <span>{formatRelativeTime(post.simulated_at)}</span>
           </div>
         </div>
-        <Badge variant={viralityTone(post.virality_score)}>
-          Viral {post.virality_score}%
+        <Badge variant="info">
+          Viral {formatViral(post.virality_score)}
         </Badge>
       </div>
 
       <p className="px-4 pb-3 whitespace-pre-line text-sm leading-relaxed text-ink-800 dark:text-slip">
         {post.content}
       </p>
+
+      {linkedCompany && (
+        <div className="mx-4 mb-3 rounded-xl border border-brand-500/30 bg-brand-500/5 p-3 dark:border-brand-500/40 dark:bg-brand-500/10">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className={post.sentiment === "negative" ? "text-mkt-down" : "text-mkt-up"}>
+                {post.sentiment === "negative" ? (
+                  <IconTrendDown className="h-4 w-4" />
+                ) : (
+                  <IconTrendUp className="h-4 w-4" />
+                )}
+              </span>
+              <div>
+                <p className="text-sm font-black text-ink-900 dark:text-slip">
+                  {linkedCompany.symbol}
+                </p>
+                <p className="truncate text-xs text-ink-500 dark:text-granite-400">
+                  {linkedCompany.name}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="board-num text-sm font-bold text-ink-900 dark:text-slip">
+                {formatNumber(parseDecimal(linkedCompany.current_price))} ₫
+              </p>
+              <p className="board-label text-xs text-ink-500 dark:text-granite-400">
+                Cổ phiếu liên quan
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="border-t border-line px-2 py-1 dark:border-granite-800">
         <div className="flex items-center">
@@ -159,6 +200,13 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
             <IconShare className="h-4 w-4" />
             {post.shares_count > 0 ? `${post.shares_count} chia sẻ` : "Chia sẻ"}
           </span>
+          <BookmarkButton
+            contentId={post.id}
+            contentType="social"
+            saved={post.is_saved ?? false}
+            onRemove={onRemove}
+            className="flex flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium"
+          />
         </div>
       </div>
 
@@ -222,7 +270,7 @@ export function SocialPostCard({ post, onToggleLike, onCommentAdded }: SocialPos
         <Badge variant={sentimentVariant(post.sentiment)}>
           {sentimentLabel(post.sentiment)}
         </Badge>
-        {post.company_id !== null && (
+        {post.company_id !== null && !linkedCompany && (
           <span className="rounded-full bg-brand-500/10 px-2 py-0.5 font-medium text-brand-700 ring-1 ring-inset ring-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300 dark:ring-brand-500/30">
             Nhắc tới doanh nghiệp
           </span>

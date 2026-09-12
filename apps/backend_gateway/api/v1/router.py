@@ -13,6 +13,7 @@ from api.v1.mentor_history import router as mentor_history_router
 from api.v1.news import router as news_router
 from api.v1.reports import router as reports_router
 from api.v1.risk import router as risk_router
+from api.v1.saves import router as saves_router
 from api.v1.social import router as social_router
 from api.v1.tasks import admin_router as tasks_admin_router
 from api.v1.tasks import router as tasks_router
@@ -32,6 +33,7 @@ api_router.include_router(mentor_history_router)
 api_router.include_router(news_router)
 api_router.include_router(risk_router)
 api_router.include_router(social_router)
+api_router.include_router(saves_router)
 api_router.include_router(contests_router)
 api_router.include_router(tasks_router)
 api_router.include_router(discipline_router)

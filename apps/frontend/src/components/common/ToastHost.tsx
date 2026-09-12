@@ -36,7 +36,7 @@ export function ToastHost() {
           <div
             key={toast.id}
             className={cn(
-              "pointer-events-auto flex items-start gap-2.5 rounded-lg border bg-[#FFFDF8] p-3 shadow-lg dark:bg-granite-900",
+              "pointer-events-auto flex items-start gap-2.5 rounded-lg border bg-paper p-3 shadow-lg dark:bg-granite-900",
               style.ring,
             )}
           >

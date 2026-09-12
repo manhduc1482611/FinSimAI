@@ -94,7 +94,7 @@ export default function ContestLandingPage() {
     <div>
       {/* Hero theo theme config */}
       <div
-        className="rounded-xl border border-line bg-[#FFFDF8] p-6 dark:border-granite-700 dark:bg-granite-800"
+        className="rounded-xl border border-line bg-paper p-6 dark:border-granite-700 dark:bg-granite-800"
         style={{ borderTop: `4px solid ${accent}` }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">

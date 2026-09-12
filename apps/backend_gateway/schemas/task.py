@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 TaskCategory = Literal["onboarding", "learning", "daily", "streak", "contest"]
 TaskResetFrequency = Literal["none", "daily"]
+TaskGroup = Literal["daily", "achievement"]
 
 
 class TaskResponse(BaseModel):
@@ -24,6 +25,9 @@ class TaskResponse(BaseModel):
     reward_amount: Decimal
     target_count: int
     reset_frequency: TaskResetFrequency
+    # Nhóm hiển thị: "daily" cho nhiệm vụ reset hằng ngày, "achievement" cho
+    # thành tựu tích lũy (1 lần / nhiều bậc).
+    group: TaskGroup
 
 
 class TaskProgressResponse(BaseModel):
@@ -34,6 +38,8 @@ class TaskProgressResponse(BaseModel):
     target_count: int
     completed: bool
     claimable: bool = False
+    # Đã nhận thưởng thủ công chưa (claimable = completed && !claimed).
+    claimed: bool = False
     completed_at: datetime | None = None
 
 
@@ -41,6 +47,8 @@ class TaskListResponse(BaseModel):
     streak_current: int
     streak_longest: int
     total_reward_earned: Decimal
+    # Thời điểm reset nhiệm vụ hằng ngày (00:00 Asia/Ho_Chi_Minh) — ISO-8601.
+    next_reset_at: datetime | None = None
     tasks: list[TaskProgressResponse]
 
 
@@ -67,6 +75,7 @@ class TaskClaimResponse(BaseModel):
     progress_count: int
     target_count: int
     completed: bool
+    claimed: bool = True
     reward_earned: Decimal
 
 

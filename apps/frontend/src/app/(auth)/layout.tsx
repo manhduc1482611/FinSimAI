@@ -6,14 +6,9 @@ export default function AuthLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className="flex min-h-screen flex-col bg-slip dark:bg-granite-950">
-      <header className="flex h-16 items-center border-b border-line bg-[#FFFDF8] px-6 dark:border-granite-700 dark:bg-granite-900">
+      <header className="flex h-16 items-center border-b border-line bg-paper px-6 dark:border-granite-700 dark:bg-granite-900">
         <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-500 text-sm font-black text-granite-950 shadow-board">
-            C
-          </span>
-          <span className="text-base font-black text-ink-900 dark:text-slip">
-            Capia
-          </span>
+          <img src="/logo.png" alt="Capia" className="h-8 w-auto hover:opacity-80" />
         </Link>
       </header>
       <main className="flex flex-1 items-center justify-center px-4 py-12">
