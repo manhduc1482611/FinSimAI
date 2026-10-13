@@ -1,7 +1,7 @@
 from models.base import Base
+from models.challenge import DailyChallenge, UserDailyChallenge
 from models.company import Company
 from models.contest import Contest, ContestMember
-from models.challenge import DailyChallenge, UserDailyChallenge
 from models.corporate_action import CorporateAction
 from models.discipline import DisciplineScoreHistory
 from models.knowledge import KnowledgeBase

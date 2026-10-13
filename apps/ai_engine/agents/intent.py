@@ -17,14 +17,14 @@ mua/bán cụ thể ('nên mua cổ X không') KHÔNG được rơi vào ``plan`
 
 from __future__ import annotations
 
-import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal
 
+from pydantic import BaseModel, Field
+
 from agents.base import BaseAgent
 from agents.policy import normalize_text
-from pydantic import BaseModel, Field
 
 MentorMode = Literal["concept", "plan", "trade_now", "socratic"]
 

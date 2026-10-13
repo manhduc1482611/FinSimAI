@@ -93,11 +93,10 @@ class Company(Base):
         khớp tối đa mỗi lượt. Là thuộc tính dẫn xuất (không lưu DB) để tự cập
         nhật khi shares_outstanding đổi (vd stock split).
         """
-        from decimal import Decimal as _D
         from core.config import settings
 
-        ratio = _D(str(settings.liquidity_ratio))
-        return (self.shares_outstanding or _D("0")) * _D(str(ratio)).quantize(_D("1"))
+        ratio = Decimal(str(settings.liquidity_ratio))
+        return (self.shares_outstanding or Decimal("0")) * ratio.quantize(Decimal("1"))
 
     portfolios = relationship("Portfolio", back_populates="company")
     orders = relationship("Order", back_populates="company")

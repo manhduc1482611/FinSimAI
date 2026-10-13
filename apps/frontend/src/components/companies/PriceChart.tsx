@@ -26,7 +26,6 @@ import type { PriceTick } from "@/types/websocket";
 import type { TimedPriceTick } from "@/utils/candles";
 import { buildCandles } from "@/utils/candles";
 import { formatNumber } from "@/utils/format";
-import { generateHistoricalPrices } from "@/utils/priceSimulator";
 import { cn } from "@/utils/cn";
 
 export interface PriceChartProps {
@@ -36,6 +35,11 @@ export interface PriceChartProps {
   ticks: TimedPriceTick[];
   /** Cửa sổ thời gian (giây thực) gom một cây nến. */
   bucketSeconds?: number;
+  /**
+   * Thông báo khi đã có giá (snapshot) nhưng chưa có nến nào (chưa đủ tick).
+   * Mặc định dành cho live; demo mode có thể truyền lời dặn riêng.
+   */
+  noCandlesNotice?: string;
   className?: string;
 }
 
@@ -55,6 +59,7 @@ export function PriceChart({
   snapshot,
   ticks,
   bucketSeconds = 10,
+  noCandlesNotice,
   className,
 }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -63,23 +68,9 @@ export function PriceChart({
   const fittedRef = useRef(false);
   const { theme } = useTheme();
 
-  const candles = useMemo(() => {
-    if (ticks.length > 0) {
-      return buildCandles(ticks, bucketSeconds);
-    }
-    if (snapshot !== null) {
-      const base = Number.isFinite(snapshot.price) && snapshot.price > 0 ? snapshot.price : 100;
-      return generateHistoricalPrices(symbol, base, 90, 0.02).map((c) => ({
-        ...c,
-        time: c.time,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }));
-    }
-    return [];
-  }, [ticks, bucketSeconds, snapshot, symbol]);
+  // Nến chỉ dựng từ tick THẬT nhận qua WS — không bao giờ sinh lịch sử giả
+  // (review P0 #8: trước đây fallback vẽ 90 ngày OHLC giả bằng generateHistoricalPrices).
+  const candles = useMemo(() => buildCandles(ticks, bucketSeconds), [ticks, bucketSeconds]);
 
   const change = snapshot !== null ? snapshot.change : null;
   const changePct = snapshot !== null ? snapshot.change_pct : null;
@@ -207,6 +198,13 @@ export function PriceChart({
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <p className="rounded-lg bg-ink-50/80 px-4 py-2 text-sm text-ink-500 dark:bg-granite-900/80 dark:text-granite-300">
               Chờ dữ liệu giá real-time…
+            </p>
+          </div>
+        )}
+        {snapshot !== null && candles.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <p className="rounded-lg bg-ink-50/80 px-4 py-2 text-sm text-ink-500 dark:bg-granite-900/80 dark:text-granite-300">
+              {noCandlesNotice ?? "Đang chờ tick giá để vẽ nến…"}
             </p>
           </div>
         )}

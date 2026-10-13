@@ -16,12 +16,12 @@ Nguyên tắc an toàn:
   analytics; khi gỡ phạt, trap chưa resolved sẽ được đánh dấu đã xử lý.
 """
 
+import logging
 import math
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_UP, Decimal
 from typing import Any
-import logging
 
 from clients.math_client import math_client
 from models.trade import Order

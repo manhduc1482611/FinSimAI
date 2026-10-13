@@ -10,9 +10,10 @@ from api.v1.router import api_router
 from clients.math_client import math_client
 from core.config import settings
 from core.database import dispose_engine, engine
+from core.dependencies import require_internal_api_key
 from core.metrics import collect as collect_metrics
 from core.middleware import setup_middleware
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from realtime.router import (
     register_websocket_routes,
@@ -144,9 +145,18 @@ def create_app() -> FastAPI:
             content={"detail": "Internal server error"},
         )
 
-    @app.get("/metrics", tags=["observability"], response_class=PlainTextResponse)
+    @app.get(
+        "/metrics",
+        tags=["observability"],
+        response_class=PlainTextResponse,
+        dependencies=[Depends(require_internal_api_key)],
+    )
     async def metrics() -> PlainTextResponse:
-        """Metrics Prometheus text format — dùng cho scrape/alert (không nhạy cảm)."""
+        """Metrics Prometheus text format — yêu cầu ``X-Internal-Api-Key`` (fail-closed).
+
+        Trước đây mở công khai; nay chỉ scraper/alert nội bộ có shared-secret mới
+        đọc được, tránh lộ đường dẫn + lưu lượng (bề mặt dò quét) ra internet.
+        """
         return PlainTextResponse(collect_metrics())
 
     @app.get("/health/live", tags=["health"])

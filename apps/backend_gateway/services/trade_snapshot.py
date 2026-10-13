@@ -44,7 +44,10 @@ class TradeSnapshot:
         if self.total_nav is not None:
             lines.append(f"- Tổng giá trị danh mục (NAV): {self.total_nav:,.0f}")
         if self.selected_symbol and self.current_price is not None:
-            lines.append(f"- Cổ phiếu đang chọn: {self.selected_symbol} (giá {self.current_price:,.2f})")
+            lines.append(
+                f"- Cổ phiếu đang chọn: {self.selected_symbol} "
+                f"(giá {self.current_price:,.2f})"
+            )
         if self.holdings:
             h_lines = []
             for h in self.holdings:
@@ -52,7 +55,8 @@ class TradeSnapshot:
                 pnl = h.get("pnl_pct")
                 h_lines.append(
                     f"  * {h.get('symbol')}: SL {h.get('quantity', 0):,.0f} cổ, "
-                    f"giá TB {h.get('avg_price', 0):,.2f}, giá hiện tại {h.get('current_price', 0):,.2f}"
+                    f"giá TB {h.get('avg_price', 0):,.2f}, "
+                    f"giá hiện tại {h.get('current_price', 0):,.2f}"
                     + (f", tỷ trọng {alloc:.1f}%" if alloc is not None else "")
                     + (f", lời/lỗ {pnl:+.1f}%" if pnl is not None else "")
                 )
@@ -171,8 +175,6 @@ class TradeSnapshotService:
             ).scalar_one_or_none()
             if comp is not None:
                 current_price = comp.current_price
-                # Bỏ symbol chọn nếu không sở hữu (chỉ đang xem, chưa có vị thế).
-                has_position = any(h["symbol"] == valid_symbol for h in holdings)
 
         risk_flags = self._detect_risk_flags(holdings, open_orders, u)
 

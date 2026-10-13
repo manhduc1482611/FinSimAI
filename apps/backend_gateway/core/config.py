@@ -1,8 +1,11 @@
 from pathlib import Path
 from typing import Annotated, Union, cast
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+DEFAULT_JWT_SECRET = "dev-secret-change-me"
+MIN_JWT_SECRET_LENGTH = 32
 
 
 def _find_project_root() -> Path:
@@ -22,7 +25,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://finsim:finsim_secret@localhost:5432/finsimai"
     database_url_sync: str = "postgresql://finsim:finsim_secret@localhost:5432/finsimai"
     redis_url: str = "redis://localhost:6379/0"
-    jwt_secret: str = "dev-secret-change-me"
+    jwt_secret: str = DEFAULT_JWT_SECRET
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     # Refresh token: số ngày hiệu lực. Access token ngắn (60m) + refresh dài ngày
@@ -59,10 +62,20 @@ class Settings(BaseSettings):
     # chứng khoán Việt Nam. Tỷ lệ nhân vào giá trị khớp (qty × price).
     trading_fee_rate: float = 0.0015
     sell_tax_rate: float = 0.001
+    # Biên độ giá trần/sàn của lệnh limit so với giá tham chiếu (giá hiện tại):
+    # ±7% theo quy định HOSE. Lệnh limit đặt ngoài biên độ bị từ chối — chặn
+    # thao túng giá qua lệnh treo phi lý và giữ mô phỏng bám luật thật.
+    price_band_pct: float = 0.07
+    # Trần khối lượng một lệnh (cổ phiếu). Chặn giá trị phi thực tế và tràn cột
+    # Numeric(20,4): 10^9 cp vẫn thừa sức cho mọi công ty mô phỏng.
+    max_order_quantity: int = 1_000_000_000
 
     # ─── Thanh toán T+2 ──────────────────────────────────────────────────
-    # Số ngày (thực, vì simulated_at dùng đồng hồ thực) chờ tiền bán hàng
-    # về tài khoản khả dụng — mô phỏng chu kỳ thanh toán bù trừ T+2.
+    # Số NGÀY GIAO DỊCH MÔ PHỎNG chờ tiền bán hàng về tài khoản khả dụng — mô
+    # phỏng chu kỳ thanh toán bù trừ T+2. Quy đổi sang đồng hồ thực theo tỉ lệ
+    # nén (1 phút thực = 1 ngày ảo, ratio 1440): mặc định 2 ngày ảo = 120 giây
+    # thực. KHÔNG phải ngày thực — nếu tính theo ngày thực, tiền không bao giờ
+    # về trong một phiên mô phỏng.
     settlement_days: int = 2
 
     # ─── Slippage & thanh khoản ─────────────────────────────────────────
@@ -73,6 +86,10 @@ class Settings(BaseSettings):
     # Tỷ lệ khối lượng cổ phiếu được coi là "độ sâu" khớp được trong 1 nhịp —
     # liquidity_depth = liquidity_ratio × shares_outstanding.
     liquidity_ratio: float = 0.05
+    # Trần tác động thị trường (slippage) cho một lượt khớp: mua trượt lên / bán
+    # trượt xuống tối đa tỷ lệ này. Đồng thời là buffer đóng băng cho lệnh
+    # market buy — đóng băng dư để giá khớp trượt lên vẫn không làm âm số dư.
+    max_slippage_impact: float = 0.02
 
     # ─── Mentor ────────────────────────────────────────────────────────────
     # AI Engine (ai-engine-api). Mentor mặc định chạy deterministic question-bank
@@ -159,6 +176,28 @@ class Settings(BaseSettings):
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip().lower() for i in v.split(",") if i.strip()]
         return cast(list[str], v)
+
+    @model_validator(mode="after")
+    def _validate_production_secrets(self) -> "Settings":
+        """Fail-fast: production không được chạy với JWT secret mặc định/yếu.
+
+        Nếu để lọt, ai biết giá trị mặc định ``dev-secret-change-me`` đều ký được
+        token hợp lệ cho bất kỳ user nào. Vì vậy app **từ chối khởi động** khi
+        ``environment == production`` mà ``JWT_SECRET`` còn là mặc định hoặc ngắn
+        hơn 32 ký tự (không đủ entropy). Dev/test không bị ảnh hưởng.
+        """
+        if self.environment.lower() != "production":
+            return self
+        if self.jwt_secret == DEFAULT_JWT_SECRET:
+            raise ValueError(
+                "JWT_SECRET vẫn là giá trị mặc định trong production — "
+                "hãy đặt một secret ngẫu nhiên >= 32 ký tự."
+            )
+        if len(self.jwt_secret) < MIN_JWT_SECRET_LENGTH:
+            raise ValueError(
+                f"JWT_SECRET quá ngắn trong production (< {MIN_JWT_SECRET_LENGTH} ký tự)."
+            )
+        return self
 
     model_config = SettingsConfigDict(
         env_file=_find_project_root() / ".env",

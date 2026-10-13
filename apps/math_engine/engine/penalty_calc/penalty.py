@@ -37,7 +37,7 @@ class PenaltyConfig:
         default_factory=lambda: dict(SEVERITY_POINTS_MAP)
     )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.cooldown_tiers.sort(key=lambda x: x[0])
 
 

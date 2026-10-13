@@ -15,6 +15,7 @@ import { Portfolio } from "@/components/trade/Portfolio";
 import { TradePanel } from "@/components/trade/TradePanel";
 import { PriceChart } from "@/components/companies/PriceChart";
 import { listCompanies } from "@/services/companies";
+import { isDemoMode } from "@/services/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useTrade } from "@/hooks/useTrade";
 import { parseDecimal } from "@/utils/format";
@@ -29,7 +30,7 @@ export default function TradePage() {
   const [companies, setCompanies] = useState<CompanyResponse[]>([]);
   const [companiesStatus, setCompaniesStatus] = useState<AsyncStatus>("idle");
   const [companiesError, setCompaniesError] = useState<string | null>(null);
-const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
 
   const loadCompanies = async () => {
     setCompaniesStatus("loading");
@@ -60,6 +61,7 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   );
 
   const priceStream = usePriceStream(selectedSymbol ?? "");
+  const isDemo = isDemoMode();
 
   const livePrices = useMemo(() => {
     if (priceStream.snapshot === null) {
@@ -133,12 +135,13 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
                 );
               })}
             </div>
-            {priceStream.snapshot !== null && (
+            {priceStream.source === "live" && (
               <span className="stamp stamp-success animate-flicker-on">
                 <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-mkt-up" />
                 Live
               </span>
             )}
+            {priceStream.source === "poll" && <span className="stamp">Demo</span>}
           </>
         )}
       </div>
@@ -152,6 +155,11 @@ const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
               companyName={selectedCompany.name}
               snapshot={priceStream.snapshot}
               ticks={priceStream.ticks}
+              noCandlesNotice={
+                isDemo
+                  ? "Backend demo không có luồng tick — hiển thị giá theo phiên, không có nến."
+                  : "Đang chờ tick giá thật để vẽ nến…"
+              }
             />
           )}
         </div>

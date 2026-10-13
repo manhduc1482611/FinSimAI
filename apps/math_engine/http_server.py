@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 
 import numpy as np
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from engine.penalty_calc.penalty import (
@@ -34,6 +35,41 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Capia Math Engine", version="0.1.0")
 
+# ─── Giới hạn tham số (chống DoS cấp phát bộ nhớ / vòng lặp Python) ──────────
+# `n_steps=10**9` sẽ cấp mảng numpy khổng lồ rồi chạy vòng lặp Python trên một
+# instance free → treo/OOM dễ dàng. Gateway thực tế chỉ gọi `n_steps=1`; các giá
+# trị dùng cho test/batch vẫn nằm dưới trần này.
+MAX_N_STEPS = 10_000
+MAX_NAV_POINTS = 100_000
+MAX_HOLDINGS = 1_000
+
+# ─── Auth nội bộ (shared secret) ─────────────────────────────────────────────
+# Math Engine chỉ nên được Backend Gateway gọi tới, không phục vụ người dùng
+# cuối. Khi `INTERNAL_API_KEY` được cấu hình (production), mọi endpoint /api/v1/*
+# yêu cầu header `X-Internal-Api-Key` khớp. Ở production mà CHƯA cấu hình key thì
+# từ chối (fail-closed); ở dev/test để mở cho tiện phát triển.
+INTERNAL_KEY_HEADER = "X-Internal-Api-Key"
+_ENV_PRODUCTION = "production"
+
+
+def require_internal_key(
+    api_key: str = Header(default="", alias=INTERNAL_KEY_HEADER),
+) -> None:
+    expected = os.environ.get("INTERNAL_API_KEY", "")
+    if not expected:
+        if os.environ.get("ENVIRONMENT", "development").lower() == _ENV_PRODUCTION:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="INTERNAL_API_KEY chưa được cấu hình trên Math Engine",
+            )
+        return
+    if not api_key or not secrets.compare_digest(api_key, expected):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or missing internal API key",
+        )
+
+
 
 class HoldingIn(BaseModel):
     quantity: float
@@ -43,7 +79,7 @@ class HoldingIn(BaseModel):
 
 class CalculatePortfolioRequest(BaseModel):
     cash: float
-    holdings: list[HoldingIn] = Field(default_factory=list)
+    holdings: list[HoldingIn] = Field(default_factory=list, max_length=MAX_HOLDINGS)
 
 
 class CalculatePortfolioResponse(BaseModel):
@@ -54,10 +90,13 @@ class CalculatePortfolioResponse(BaseModel):
 
 class GenerateNextPricesRequest(BaseModel):
     current_price: float
+    # Giá tham chiếu để neo biên trần/sàn (giá đóng cửa phiên trước). Không cung
+    # cấp → dùng ``current_price`` (tương thích ngược nhưng biên sẽ trôi theo giá).
+    reference_price: float | None = None
     mu: float = 0.10
     sigma: float = 0.25
-    dt_years: float
-    n_steps: int
+    dt_years: float = Field(ge=0)
+    n_steps: int = Field(ge=1, le=MAX_N_STEPS)
     seed: int | None = None
     # Biên giá VN (7%) — bằng default của MarketConfig. Không để 0.0: clip với
     # floor = ceil = start sẽ khoá path về đúng giá hiện tại, thị trường đứng yên.
@@ -73,7 +112,7 @@ class GenerateNextPricesResponse(BaseModel):
 
 
 class CalculateRiskMetricsRequest(BaseModel):
-    nav_history: list[float]
+    nav_history: list[float] = Field(max_length=MAX_NAV_POINTS)
     risk_free_rate: float = 0.05
 
 
@@ -98,11 +137,15 @@ class CheckPenaltyStatusResponse(BaseModel):
 
 
 @app.get("/health/live")
-async def health_live() -> dict:
+async def health_live() -> dict[str, str]:
     return {"status": "ok", "service": "math_engine"}
 
 
-@app.post("/api/v1/portfolio/calculate", response_model=CalculatePortfolioResponse)
+@app.post(
+    "/api/v1/portfolio/calculate",
+    response_model=CalculatePortfolioResponse,
+    dependencies=[Depends(require_internal_key)],
+)
 async def calculate_portfolio(req: CalculatePortfolioRequest) -> CalculatePortfolioResponse:
     try:
         holdings = [
@@ -121,7 +164,11 @@ async def calculate_portfolio(req: CalculatePortfolioRequest) -> CalculatePortfo
         return CalculatePortfolioResponse(nav=0.0, unrealized_pnl=0.0, success=False)
 
 
-@app.post("/api/v1/prices/generate", response_model=GenerateNextPricesResponse)
+@app.post(
+    "/api/v1/prices/generate",
+    response_model=GenerateNextPricesResponse,
+    dependencies=[Depends(require_internal_key)],
+)
 async def generate_next_prices(req: GenerateNextPricesRequest) -> GenerateNextPricesResponse:
     try:
         config = MarketConfig(
@@ -137,6 +184,7 @@ async def generate_next_prices(req: GenerateNextPricesRequest) -> GenerateNextPr
             start_price=req.current_price,
             dt_simulated_years=req.dt_years,
             steps=req.n_steps,
+            reference_price=req.reference_price,
         )
         return GenerateNextPricesResponse(prices=path.tolist(), success=True)
     except Exception as e:  # noqa: BLE001
@@ -144,7 +192,11 @@ async def generate_next_prices(req: GenerateNextPricesRequest) -> GenerateNextPr
         return GenerateNextPricesResponse(prices=[], success=False)
 
 
-@app.post("/api/v1/risk/calculate", response_model=CalculateRiskMetricsResponse)
+@app.post(
+    "/api/v1/risk/calculate",
+    response_model=CalculateRiskMetricsResponse,
+    dependencies=[Depends(require_internal_key)],
+)
 async def calculate_risk_metrics(req: CalculateRiskMetricsRequest) -> CalculateRiskMetricsResponse:
     try:
         nav_array = np.array(req.nav_history, dtype=np.float64)
@@ -175,7 +227,11 @@ async def calculate_risk_metrics(req: CalculateRiskMetricsRequest) -> CalculateR
         )
 
 
-@app.post("/api/v1/penalty/check", response_model=CheckPenaltyStatusResponse)
+@app.post(
+    "/api/v1/penalty/check",
+    response_model=CheckPenaltyStatusResponse,
+    dependencies=[Depends(require_internal_key)],
+)
 async def check_penalty_status(req: CheckPenaltyStatusRequest) -> CheckPenaltyStatusResponse:
     try:
         risk_score = req.risk_score

@@ -91,6 +91,7 @@ class PriceGenerator:
         start_price: float,
         dt_simulated_years: float,
         steps: int,
+        reference_price: float | None = None,
     ) -> np.ndarray:
         config = self.config
         n = steps + 1
@@ -104,8 +105,13 @@ class PriceGenerator:
 
         returns = drift + diffusion + jumps
 
-        floor_px = S[0] * (1.0 - config.price_limit_pct)
-        ceil_px = S[0] * (1.0 + config.price_limit_pct)
+        # Biên trần/sàn neo vào GIÁ THAM CHIẾU (giá đóng cửa phiên trước), không
+        # phải giá bắt đầu/kết thúc. Nếu neo vào giá đang chạy, trần/sàn trôi theo
+        # giá và biên ±7% mất tác dụng như giới hạn trong ngày. Mặc định lấy
+        # ``start_price`` để tương thích ngược khi không có tham chiếu riêng.
+        anchor = start_price if reference_price is None else reference_price
+        floor_px = anchor * (1.0 - config.price_limit_pct)
+        ceil_px = anchor * (1.0 + config.price_limit_pct)
 
         for i in range(1, n):
             raw = S[i - 1] * np.exp(returns[i - 1])
@@ -119,6 +125,7 @@ class PriceGenerator:
         start_prices: np.ndarray,
         dt_simulated_years: float,
         steps: int,
+        reference_prices: np.ndarray | None = None,
     ) -> np.ndarray:
         config = self.config
         n_assets = len(start_prices)
@@ -133,8 +140,14 @@ class PriceGenerator:
 
         returns = drift + diffusion + jumps
 
-        floor_px = S[:, 0:1] * (1.0 - config.price_limit_pct)
-        ceil_px = S[:, 0:1] * (1.0 + config.price_limit_pct)
+        # Mỗi tài sản neo vào giá tham chiếu riêng (mặc định = giá bắt đầu).
+        anchor = (
+            S[:, 0:1]
+            if reference_prices is None
+            else np.asarray(reference_prices, dtype=np.float64).reshape(n_assets, 1)
+        )
+        floor_px = anchor * (1.0 - config.price_limit_pct)
+        ceil_px = anchor * (1.0 + config.price_limit_pct)
 
         for t in range(1, n):
             raw = S[:, t - 1:t] * np.exp(returns[:, t - 1:t])

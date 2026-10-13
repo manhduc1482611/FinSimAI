@@ -17,9 +17,15 @@ class MathClient:
 
     async def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
+            headers = (
+                {"X-Internal-Api-Key": settings.internal_api_key}
+                if settings.internal_api_key
+                else {}
+            )
             self._client = httpx.AsyncClient(
                 base_url=settings.math_engine_url.rstrip("/"),
                 timeout=_TIMEOUTS,
+                headers=headers,
             )
         return self._client
 
@@ -78,6 +84,7 @@ class MathClient:
         jump_lambda: float = 0.0,
         jump_mu: float = 0.0,
         jump_sigma: float = 0.0,
+        reference_price: float | None = None,
         timeout: int = 10,
     ) -> dict[str, Any]:
         payload = {
@@ -91,6 +98,8 @@ class MathClient:
             "jump_mu": jump_mu,
             "jump_sigma": jump_sigma,
         }
+        if reference_price is not None:
+            payload["reference_price"] = reference_price
         if seed is not None:
             payload["seed"] = seed
         try:

@@ -101,6 +101,11 @@ async def _resolve_user(
         payload = decode_access_token(
             token, settings.jwt_secret, [settings.jwt_algorithm]
         )
+        # Chỉ access token được xác thực tại đây. Refresh token (type=refresh,
+        # sống 30 ngày) KHÔNG bao giờ dùng được như access token — nếu thiếu
+        # kiểm tra này, một refresh token bị lộ sẽ mở được mọi API trong 30 ngày.
+        if payload.get("type") != "access":
+            return None
         user_id_raw: str | None = payload.get("sub")
         if user_id_raw is None:
             return None

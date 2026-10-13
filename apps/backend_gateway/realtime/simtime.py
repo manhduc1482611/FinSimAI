@@ -22,6 +22,11 @@ SIM_SECONDS_PER_DAY = 86400
 DEFAULT_COMPRESSION_RATIO = 1440.0
 DEFAULT_BASE_YEAR = 2026
 
+# Số giây THỰC tương ứng một ngày mô phỏng với tỉ lệ nén mặc định (1:1440):
+# 86400 / 1440 = 60 giây — đúng một phút thực. Dùng để quy đổi các hạn mốc
+# tính bằng "ngày giao dịch ảo" (vd T+2) sang đồng hồ thực UTC mà DB lưu.
+REAL_SECONDS_PER_SIM_DAY = SIM_SECONDS_PER_DAY / DEFAULT_COMPRESSION_RATIO
+
 
 def sim_now() -> datetime:
     """Thời điểm hiện tại của thế giới mô phỏng (UTC) — ranh giới as-of.
@@ -51,6 +56,19 @@ def real_to_sim_epoch(
 
 def sim_day_of(sim_epoch: float) -> int:
     return int(sim_epoch // SIM_SECONDS_PER_DAY)
+
+
+def real_seconds_for_sim_days(
+    sim_days: float,
+    ratio: float = DEFAULT_COMPRESSION_RATIO,
+) -> float:
+    """Số giây THỰC tương ứng ``sim_days`` ngày giao dịch mô phỏng.
+
+    Nghịch đảo của ``real_to_sim_epoch``: ``sim_epoch = real_seconds × ratio``,
+    nên ``real_seconds = sim_days × SIM_SECONDS_PER_DAY / ratio``. Với tỉ lệ nén
+    mặc định 1440, một ngày mô phỏng = 60 giây thực.
+    """
+    return sim_days * SIM_SECONDS_PER_DAY / ratio
 
 
 def format_sim_label(

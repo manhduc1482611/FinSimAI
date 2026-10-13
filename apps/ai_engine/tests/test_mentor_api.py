@@ -132,3 +132,59 @@ async def test_mentor_api_falls_back_on_rate_limit(
 async def test_mentor_api_rejects_empty_message() -> None:
     resp = await _post({"user_id": "u1", "message": "   "})
     assert resp.status_code == 422
+
+
+async def test_mentor_api_rejects_overlong_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("INTERNAL_API_KEY", raising=False)
+    resp = await _post({"user_id": "u1", "message": "x" * 2001})
+    assert resp.status_code == 422
+
+
+# ─── Auth nội bộ (shared secret): route mentor đốt quota Gemini ─────────────
+async def _post_with_headers(
+    payload: dict[str, Any], headers: dict[str, str]
+) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.post("/api/v1/mentor", json=payload, headers=headers)
+
+
+async def test_mentor_api_requires_key_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("INTERNAL_API_KEY", "s3cret-internal")
+    resp = await _post({"user_id": "u1", "message": "Tôi muốn kiểm tra quy trình"})
+    assert resp.status_code == 403
+
+
+async def test_mentor_api_accepts_correct_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("INTERNAL_API_KEY", "s3cret-internal")
+    resp = await _post_with_headers(
+        {"user_id": "u1", "message": "Tôi muốn kiểm tra quy trình"},
+        {"X-Internal-Api-Key": "s3cret-internal"},
+    )
+    assert resp.status_code == 200
+
+
+async def test_mentor_api_rejects_wrong_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("INTERNAL_API_KEY", "s3cret-internal")
+    resp = await _post_with_headers(
+        {"user_id": "u1", "message": "Tôi muốn kiểm tra quy trình"},
+        {"X-Internal-Api-Key": "wrong"},
+    )
+    assert resp.status_code == 403
+
+
+async def test_mentor_api_production_without_key_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.delenv("INTERNAL_API_KEY", raising=False)
+    resp = await _post({"user_id": "u1", "message": "Tôi muốn kiểm tra quy trình"})
+    assert resp.status_code == 503

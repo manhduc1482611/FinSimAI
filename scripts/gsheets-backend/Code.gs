@@ -245,6 +245,109 @@ function sendText_(str) {
 }
 
 // ------------------------------------------------------------------
+// Security helpers — băm mật khẩu (salted SHA-256)
+//
+// LƯU Ý: đây là backend DEMO chạy trên Google Apps Script (không có bcrypt/scrypt).
+// Mục tiêu là KHÔNG lưu mật khẩu dạng plaintext trong Google Sheet nữa. Mật khẩu
+// được băm kèm salt riêng từng người dùng, định dạng `sha256$<salt>$<hex>`.
+// ------------------------------------------------------------------
+
+/** Băm mật khẩu kèm salt ngẫu nhiên riêng → `sha256$<salt>$<hex>`. */
+function hashPassword_(password) {
+  var salt = Utilities.getUuid().replace(/-/g, '');
+  return 'sha256$' + salt + '$' + sha256Hex_(salt + ':' + String(password));
+}
+
+/** So khớp mật khẩu với giá trị đã lưu. Hỗ trợ plaintext cũ để migration băm lại. */
+function verifyPassword_(password, stored) {
+  stored = String(stored);
+  var parts = stored.split('$');
+  if (parts.length === 3 && parts[0] === 'sha256') {
+    return timingSafeEqual_(parts[2], sha256Hex_(parts[1] + ':' + String(password)));
+  }
+  // Legacy plaintext (DB seed cũ) — chấp nhận tạm; migration sẽ băm lại.
+  return stored === String(password);
+}
+
+/** True nếu giá trị đã ở dạng băm mới. */
+function isHashedPassword_(stored) {
+  return String(stored).indexOf('sha256$') === 0;
+}
+
+function sha256Hex_(input) {
+  var raw = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    input,
+    Utilities.Charset.UTF_8
+  );
+  return raw
+    .map(function (b) {
+      return ('0' + (b & 0xff).toString(16)).slice(-2);
+    })
+    .join('');
+}
+
+/** So sánh chuỗi chống dò thời gian (độ dài bằng nhau). */
+function timingSafeEqual_(a, b) {
+  if (a.length !== b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/**
+ * Mật khẩu demo dùng khi seed lần đầu. Đọc từ Script Property
+ * `DEMO_USER_PASSWORD`; nếu chưa cấu hình thì sinh ngẫu nhiên và ghi lại vào
+ * Script Properties (kèm log) — người vận hành đọc log để lấy mật khẩu.
+ * KHÔNG hard-code mật khẩu trong mã nguồn.
+ */
+function demoUserPassword_() {
+  var props = PropertiesService.getScriptProperties();
+  var pw = props.getProperty('DEMO_USER_PASSWORD');
+  if (!pw) {
+    pw = 'demo-' + Utilities.getUuid().slice(0, 12);
+    props.setProperty('DEMO_USER_PASSWORD', pw);
+    Logger.log('DEMO_USER_PASSWORD chưa được đặt — đã sinh mật khẩu demo: ' + pw);
+  }
+  return pw;
+}
+
+/**
+ * Migration bảo mật (idempotent):
+ *  - Xóa các tài khoản seed mặc định cũ (admin/host với mật khẩu công khai).
+ *  - Băm lại mọi mật khẩu còn ở dạng plaintext.
+ * Chạy mỗi request (rẻ: bỏ qua ngay nếu không cần thay đổi).
+ */
+function migrateUserSecurity_() {
+  var sheet = getSheet_('users');
+  var headers = getHeaders_(sheet);
+  if (headers.length === 0 || sheet.getLastRow() < 2) return;
+  var idIdx = headers.indexOf('id');
+  var emailIdx = headers.indexOf('email');
+  var pwIdx = headers.indexOf('password');
+  if (idIdx < 0 || pwIdx < 0) return;
+
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+  // Xóa từ dưới lên để không lệch chỉ số dòng.
+  for (var r = values.length - 1; r >= 0; r--) {
+    var uid = String(values[r][idIdx]);
+    var email = emailIdx >= 0 ? String(values[r][emailIdx]) : '';
+    var isSeededAdmin = uid === 'u-admin' && email === 'admin@finsim.ai';
+    var isSeededHost = uid === 'u-host-1' && email === 'host@finsim.ai';
+    if (isSeededAdmin || isSeededHost) {
+      sheet.deleteRow(r + 2);
+      continue;
+    }
+    var pw = values[r][pwIdx];
+    if (pw !== '' && !isHashedPassword_(pw)) {
+      sheet.getRange(r + 2, pwIdx + 1).setValue(hashPassword_(pw));
+    }
+  }
+}
+
+// ------------------------------------------------------------------
 // Seed data (first run) - realistic Vietnamese stock sim content
 // ------------------------------------------------------------------
 function seedIfEmpty_() {
@@ -315,10 +418,11 @@ function seedIfEmpty_() {
   if (users.getLastRow() <= 1) {
     var uHeaders = ['id', 'email', 'username', 'display_name', 'avatar_url', 'role', 'cash_balance', 'frozen_cash', 'risk_score', 'cooldown_until', 'is_active', 'created_at', 'password'];
     users.getRange(1, 1, 1, uHeaders.length).setValues([uHeaders]);
+    // Chỉ seed DUY NHẤT người dùng demo (role thường). KHÔNG seed admin/host:
+    // admin/host qua demo mode (không có xác thực thật) là backdoor công khai.
+    // Mật khẩu băm từ Script Property hoặc sinh ngẫu nhiên (không hard-code).
     var uRows = [
-      ['u-demo', 'demo@finsim.ai', 'demo', 'Nh\u00e0 \u0111\u1ea7u t\u01b0 demo', null, 'user', '100000000', '0', 50, null, true, now, 'demo123'],
-      ['u-admin', 'admin@finsim.ai', 'admin', 'Qu\u1ea3n tr\u1ecb vi\u00ean', null, 'admin', '100000000', '0', 50, null, true, now, 'admin123'],
-      ['u-host-1', 'host@finsim.ai', 'host', 'Ban t\u1ed5 ch\u1ee9c', null, 'host', '100000000', '0', 50, null, true, now, 'host123']
+      ['u-demo', 'demo@finsim.ai', 'demo', 'Nh\u00e0 \u0111\u1ea7u t\u01b0 demo', null, 'user', '100000000', '0', 50, null, true, isoNow(), hashPassword_(demoUserPassword_())]
     ];
     for (var i = 0; i < uRows.length; i++) users.appendRow(uRows[i]);
   }
@@ -418,7 +522,7 @@ function seedIfEmpty_() {
     var startAt = new Date(now2.getTime() - 86400000).toISOString();
     var endAt = new Date(now2.getTime() + 6 * 86400000).toISOString();
     var ccRows = [
-      ['co-1', 'vn30-challenge', 'Th\u1eed th\u00e1ch VN30', 'Giao d\u1ecbch c\u1ed5 phi\u1ebfu tr\u1ee5 c\u1ed9t v\u00e0 t\u0103ng tr\u01b0\u1edfng NAV.', 'active', JSON.stringify({ template: 'classic', industry: 'vn30', difficulty: 'normal', company_count: 6, rules: { start_cash: '100000000' } }), 'u-host-1', startAt, endAt, true, now, now, 1]
+      ['co-1', 'vn30-challenge', 'Th\u1eed th\u00e1ch VN30', 'Giao d\u1ecbch c\u1ed5 phi\u1ebfu tr\u1ee5 c\u1ed9t v\u00e0 t\u0103ng tr\u01b0\u1edfng NAV.', 'active', JSON.stringify({ template: 'classic', industry: 'vn30', difficulty: 'normal', company_count: 6, rules: { start_cash: '100000000' } }), 'u-demo', startAt, endAt, true, now, now, 1]
     ];
     for (var i = 0; i < ccRows.length; i++) contests.appendRow(ccRows[i]);
   }
@@ -462,6 +566,9 @@ for (var i = 0; i < kRows.length; i++) knowledge.appendRow(kRows[i]);
 
   // Đồng bộ mức thưởng mới theo code (idempotent) cho DB đã seed từ trước.
   patchTaskRewards_();
+
+  // Migration bảo mật (idempotent): xóa seed admin/host cũ, băm plaintext.
+  migrateUserSecurity_();
 }
 
 /**

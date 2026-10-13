@@ -13,11 +13,9 @@ toàn bộ danh sách. Tính NAV bằng SQL (JOIN + GROUP BY) — pattern đã c
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
 from decimal import Decimal
 
 from models.company import Company
-from models.contest import ContestMember
 from models.trade import Portfolio
 from models.user import User
 from sqlalchemy import func, select
@@ -40,7 +38,9 @@ async def _nav_rankings(
         Portfolio.contest_id == contest_id
     )
 
-    cash_rows = await db.execute(select(User.id, User.cash_balance, User.frozen_cash, User.settling_cash))
+    cash_rows = await db.execute(
+        select(User.id, User.cash_balance, User.frozen_cash, User.settling_cash)
+    )
     cash_map: dict[object, Decimal] = {}
     for uid, cash, frozen, settling in cash_rows.all():
         cash_map[uid] = (

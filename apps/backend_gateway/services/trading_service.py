@@ -6,16 +6,26 @@ from typing import Any
 
 from core.config import settings
 from models.company import Company
-from services.settlement_service import settlement_deadline
-from services.slippage import compute_fill_price
 from models.trade import Order, Portfolio, Transaction
 from models.user import User
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from services.settlement_service import settlement_deadline
+from services.slippage import compute_fill_price, round_down_to_tick, vn_tick_size
+
 logger = logging.getLogger(__name__)
 
 _CENT = Decimal("0.01")
+
+
+class InsufficientHoldingError(Exception):
+    """Lệnh BÁN không thể khớp vì portfolio thiếu cổ phần để bán.
+
+    Xảy ra khi dữ liệu lệch (không có dòng Portfolio, hoặc số lượng khả dụng thấp
+    hơn khối lượng khớp). Ném lỗi để caller hủy lượt khớp thay vì ghi tiền bán vào
+    ``settling_cash`` — tránh "sinh tiền từ hư không" khi user không nắm giữ CP.
+    """
 
 
 def _trade_costs(side: str, quantity: Decimal, price: Decimal) -> tuple[Decimal, Decimal]:
@@ -41,6 +51,36 @@ def _price_crosses(
     if buy_price is None or sell_price is None:
         return True
     return buy_price >= sell_price
+
+
+def price_band_bounds(
+    reference_price: Decimal, band_pct: Decimal | float
+) -> tuple[Decimal, Decimal]:
+    """Biên độ giá trần/sàn quanh ``reference_price`` (đã làm tròn tới cent).
+
+    Trả về ``(lower, upper)`` — giá sàn và giá trần. Làm tròn tới cent để khớp
+    cột DB ``Numeric(20,2)`` và khớp giá trị hiển thị cho người dùng.
+    """
+    band = Decimal(str(band_pct))
+    ref = Decimal(str(reference_price))
+    lower = (ref * (Decimal("1") - band)).quantize(_CENT, ROUND_HALF_UP)
+    upper = (ref * (Decimal("1") + band)).quantize(_CENT, ROUND_HALF_UP)
+    return lower, upper
+
+
+def is_price_within_band(
+    price: Decimal, reference_price: Decimal, band_pct: Decimal | float
+) -> bool:
+    """Giá ``price`` có nằm trong biên độ trần/sàn quanh giá tham chiếu không.
+
+    Fail-open khi ``reference_price <= 0`` (chưa có giá tham chiếu hợp lệ) — không
+    đủ dữ liệu để xác định trần/sàn. Các kiểm tra khác (vốn, số dư CP) vẫn bảo vệ.
+    """
+    ref = Decimal(str(reference_price))
+    if ref <= 0:
+        return True
+    lower, upper = price_band_bounds(ref, band_pct)
+    return lower <= Decimal(str(price)) <= upper
 
 
 def _is_marketable(order: Order, market_price: Decimal) -> bool:
@@ -140,12 +180,33 @@ async def _lock_orders_sorted(
 
 
 def _buy_freeze_price(buy: Order) -> Decimal:
-    if buy.type == "limit" and buy.price:
-        return buy.price
+    """Số tiền đã đóng băng trên MỘT cổ phiếu (đã gồm buffer phí/slippage).
+
+    Đây là đơn giá hoàn tiền khi khớp một phần — luôn dùng phần ``frozen_cash``
+    thực tế còn lại chia cho khối lượng chưa khớp, cho mọi loại lệnh. Với lệnh
+    limit, giá trị này **cao hơn** ``buy.price`` một chút (buffer phí) nên khớp
+    một phần không còn rò rỉ phí làm âm số dư.
+    """
     remaining_qty = buy.quantity - buy.filled_quantity
     if remaining_qty > 0 and buy.frozen_cash > Decimal("0"):
         return buy.frozen_cash / remaining_qty
     return buy.price if buy.price else Decimal("0")
+
+
+def _buy_max_fill_price(buy: Order) -> Decimal:
+    """Giá khớp tối đa để KHÔNG tiêu quá tiền đã đóng băng của lệnh mua.
+
+    - Lệnh limit: đúng bằng giá limit (trần người dùng đặt).
+    - Lệnh market: suy từ tiền đã đóng băng chia cho buffer phí — tức giá hiện
+      tại lúc đặt × (1 + ``max_slippage_impact``). Vượt mức này sẽ làm âm số dư.
+    """
+    if buy.type == "limit" and buy.price is not None:
+        return buy.price
+    reserved = _buy_freeze_price(buy)
+    if reserved <= Decimal("0"):
+        return Decimal("0")
+    fee_multiplier = Decimal("1") + Decimal(str(settings.trading_fee_rate))
+    return reserved / fee_multiplier
 
 
 async def _apply_buy_fill(
@@ -214,20 +275,28 @@ async def _apply_sell_fill(
     đóng dấu ``settles_at`` lên Transaction để worker giải phóng tiền sau này.
 
     Trả về ``(fee, tax)`` để caller đóng dấu lên Transaction.
-    """
-    revenue = fill_qty * fill_price
-    fee, tax = _trade_costs("sell", fill_qty, fill_price)
-    net_proceeds = revenue - fee - tax
-    user.settling_cash += net_proceeds
 
+    Ném ``InsufficientHoldingError`` nếu user không (đủ) nắm giữ cổ phần — caller
+    phải hủy lượt khớp (rollback), KHÔNG ghi tiền bán.
+    """
+    # Kiểm tra portfolio TRƯỚC khi ghi tiền: thiếu cổ phần ⇒ không khớp, ném lỗi
+    # để caller hủy lượt khớp (tránh ghi tiền bán không có CP đối ứng).
     pf_stmt = (
         select(Portfolio)
         .where(Portfolio.user_id == sell.user_id, Portfolio.company_id == sell.company_id)
         .with_for_update()
     )
     pf = (await db.execute(pf_stmt)).scalar_one_or_none()
-    if not pf:
-        return fee, tax
+    if pf is None or pf.frozen_quantity < fill_qty or pf.quantity < fill_qty:
+        raise InsufficientHoldingError(
+            f"Không đủ cổ phần để khớp lệnh BÁN {sell.id} "
+            f"(khối lượng khớp {fill_qty})."
+        )
+
+    revenue = fill_qty * fill_price
+    fee, tax = _trade_costs("sell", fill_qty, fill_price)
+    net_proceeds = revenue - fee - tax
+    user.settling_cash += net_proceeds
 
     pf.frozen_quantity -= fill_qty
     pf.quantity -= fill_qty
@@ -282,10 +351,16 @@ async def _fill_against_market(
             liquidity_depth=liquidity_depth,
             impact_factor=Decimal(str(settings.slippage_impact_factor)),
         )
-        # Mua trượt lên — không vượt quá limit của chính lệnh (chống fill với giá
-        # "ăn qua" mức limit khiến lệnh bị xoá bất hợp lý).
-        if locked.type == "limit" and locked.price is not None:
-            fill_price = min(fill_price, locked.price)
+        # Mua trượt lên — không vượt quá giá tối đa lệnh có thể trả mà không âm
+        # số dư: limit = giá limit; market = giá đóng băng đã gồm buffer trượt giá.
+        max_fill = _buy_max_fill_price(locked)
+        if max_fill > Decimal("0") and fill_price > max_fill:
+            if locked.type == "limit" and locked.price is not None:
+                fill_price = locked.price
+            else:
+                # Chặn trên do giá thị trường đã trôi lên; làm tròn xuống tick để
+                # giữ giá hợp lệ và không vượt tiền đã đóng băng.
+                fill_price = round_down_to_tick(max_fill, vn_tick_size(market_price))
     else:
         fill_price = compute_fill_price(
             side="sell",
@@ -300,7 +375,18 @@ async def _fill_against_market(
     if locked.side == "buy":
         fee, tax = await _apply_buy_fill(locked, fill_qty, fill_price, market_price, user, db)
     else:
-        fee, tax = await _apply_sell_fill(locked, fill_qty, fill_price, user, db)
+        try:
+            fee, tax = await _apply_sell_fill(locked, fill_qty, fill_price, user, db)
+        except InsufficientHoldingError:
+            # Dữ liệu lệch: user không (đủ) nắm giữ CP để bán. Hủy lượt khớp này
+            # (rollback gỡ mọi thay đổi) thay vì ghi tiền bán vào settling_cash.
+            logger.warning(
+                "Hủy khớp market-maker: lệnh BÁN %s thiếu cổ phần (user=%s)",
+                locked.id,
+                locked.user_id,
+            )
+            await db.rollback()
+            return None
 
     tx = Transaction(
         order_id=locked.id,
@@ -451,10 +537,33 @@ async def match_orders(
         if fill_price is None:
             fill_price = market_price
 
+        # Lệnh mua không được khớp ở giá vượt quá tiền đã đóng băng (market buy
+        # gặp lệnh bán limit treo quá cao sau khi giá trôi). Không khớp trong sổ;
+        # để pass market-maker xử lý ở giá thị trường — tránh âm số dư / hỏng tick.
+        buy_cap = _buy_max_fill_price(locked_buy)
+        if buy_cap > Decimal("0") and fill_price > buy_cap:
+            await db.rollback()
+            break
+
         buy_fee, buy_tax = await _apply_buy_fill(
             locked_buy, fill_qty, fill_price, market_price, buyer, db
         )
-        sell_fee, sell_tax = await _apply_sell_fill(locked_sell, fill_qty, fill_price, seller, db)
+        try:
+            sell_fee, sell_tax = await _apply_sell_fill(
+                locked_sell, fill_qty, fill_price, seller, db
+            )
+        except InsufficientHoldingError:
+            # Người bán không (đủ) nắm giữ CP: bỏ qua cặp lệnh này. Rollback gỡ cả
+            # phần mua vừa ghi; đánh dấu skip để không lặp vô hạn ở nhịp này.
+            logger.warning(
+                "Bỏ qua cặp khớp user↔user: lệnh BÁN %s thiếu cổ phần (user=%s)",
+                locked_sell.id,
+                locked_sell.user_id,
+            )
+            skip_buy_ids.add(buy.id)
+            skip_sell_ids.add(sell.id)
+            await db.rollback()
+            continue
 
         tx = Transaction(
             order_id=locked_buy.id,

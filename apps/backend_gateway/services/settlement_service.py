@@ -2,11 +2,15 @@
 
 Khi một lệnh BÁN được khớp với thị trường (market maker) hoặc với user khác,
 tiền ròng (revenue − phí − thuế) được ghi vào ``users.settling_cash`` kèm mốc
-``transactions.settles_at = simulated_at + settlement_days``. Tiền này KHÔNG
-dùng được để đặt lệnh (tách khỏi cash_balance). Worker gọi ``release_due()``
-mỗi nhịp (leader) để chuyển ``settling_cash`` → ``cash_balance`` cho mọi giao
-dịch đã đủ hạn, một cách **idempotent** (chỉ các dòng còn ``settles_at != NULL``
-mới được xử lý; sau khi release đặt NULL để không trừ lại lần nữa).
+``transactions.settles_at = simulated_at + 2 ngày giao dịch MÔ PHỎNG``. "Ngày
+giao dịch mô phỏng" tuân theo đồng hồ nén của hệ thống (1 phút thực = 1 ngày
+ảo, tỉ lệ 1440) nên T+2 tương ứng **120 giây thực** chứ không phải 2 ngày thực
+— nếu dùng ngày thực, user sẽ không bao giờ thấy tiền về trong một phiên.
+Tiền này KHÔNG dùng được để đặt lệnh (tách khỏi cash_balance). Worker gọi
+``release_due()`` mỗi nhịp (leader) để chuyển ``settling_cash`` → ``cash_balance``
+cho mọi giao dịch đã đủ hạn, một cách **idempotent** (chỉ các dòng còn
+``settles_at != NULL`` mới được xử lý; sau khi release đặt NULL để không trừ lại
+lần nữa).
 
 Bất biến được giữ suốt quá trình:
     cash_balance >= frozen_cash
@@ -25,7 +29,8 @@ from decimal import Decimal
 from core.config import settings
 from models.trade import Transaction
 from models.user import User
-from sqlalchemy import select, update
+from realtime.simtime import real_seconds_for_sim_days
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -36,14 +41,18 @@ def _now_utc() -> datetime:
 
 
 def settlement_deadline(simulated_at: datetime) -> datetime:
-    """Mốc giải phóng tiền: ``simulated_at`` + ``settlement_days`` ngày thực.
+    """Mốc giải phóng tiền: ``simulated_at`` + ``settlement_days`` NGÀY MÔ PHỎNG.
 
-    ``simulated_at`` là đồng hồ thực (timezone-aware); ``settlement_days`` mặc
-    định 2 theo `settings.settlement_days`. Giao dịch khớp T0 → tiền về T+2.
+    ``simulated_at`` là đồng hồ thực UTC (timezone-aware); ``settlement_days``
+    mặc định 2 theo `settings.settlement_days`. Số ngày đó là **ngày giao dịch
+    mô phỏng**, quy đổi sang giây thực qua đồng hồ nén (1 ngày ảo = 60 giây
+    thực với tỉ lệ 1440) — giao dịch khớp T0 → tiền về sau 2 ngày ảo (= 120
+    giây thực). Nếu cộng 2 ngày THỰC, tiền sẽ không bao giờ về trong một phiên.
     """
     if simulated_at.tzinfo is None:
         simulated_at = simulated_at.replace(tzinfo=timezone.utc)
-    return simulated_at + timedelta(days=settings.settlement_days)
+    real_seconds = real_seconds_for_sim_days(settings.settlement_days)
+    return simulated_at + timedelta(seconds=real_seconds)
 
 
 async def _unfreeze_buy_orders_if_possible(db: AsyncSession, user: User) -> None:

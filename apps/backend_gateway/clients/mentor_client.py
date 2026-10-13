@@ -24,6 +24,11 @@ class MentorClient:
 
     async def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
+            headers = (
+                {"X-Internal-Api-Key": settings.internal_api_key}
+                if settings.internal_api_key
+                else {}
+            )
             self._client = httpx.AsyncClient(
                 base_url=settings.ai_engine_url.rstrip("/"),
                 timeout=httpx.Timeout(
@@ -32,6 +37,7 @@ class MentorClient:
                     write=10.0,
                     pool=2.0,
                 ),
+                headers=headers,
             )
         return self._client
 

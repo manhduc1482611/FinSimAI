@@ -1,11 +1,21 @@
 """Test phí giao dịch (0.15%) + thuế bán hàng (0.1%) — realism engine B1."""
 
+import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from core.config import settings
 from models.trade import Order, Portfolio
-from services.trading_service import _apply_buy_fill, _apply_sell_fill, _trade_costs
+from services.trading_service import (
+    InsufficientHoldingError,
+    _apply_buy_fill,
+    _apply_sell_fill,
+    _buy_max_fill_price,
+    _fill_against_market,
+    _trade_costs,
+)
 
 
 class _FakeDB:
@@ -20,7 +30,9 @@ class _FakeDB:
         return SimpleNamespace(scalar_one_or_none=lambda: self._portfolio)
 
 
-def _user(cash: str = "1000000.00", frozen: str = "0.00", settling: str = "0.00") -> SimpleNamespace:
+def _user(
+    cash: str = "1000000.00", frozen: str = "0.00", settling: str = "0.00"
+) -> SimpleNamespace:
     return SimpleNamespace(
         cash_balance=Decimal(cash),
         frozen_cash=Decimal(frozen),
@@ -91,6 +103,52 @@ async def test_buy_fill_average_price_includes_fee() -> None:
 
 
 @pytest.mark.asyncio
+async def test_buy_partial_fill_does_not_leak_fee_from_cash() -> None:
+    """Khớp MỘT PHẦN trả về đúng phần tiền đóng băng (gồm buffer phí).
+
+    Trước đây đơn giá hoàn tiền của lệnh limit bỏ buffer phí → mỗi lượt khớp
+    một phần rò rỉ đúng phần phí, có thể đẩy cash_balance xuống âm.
+    """
+    order = Order(
+        side="buy", type="limit", price=Decimal("100"), quantity=Decimal("2"),
+        filled_quantity=Decimal("0"), frozen_cash=Decimal("200.30"),
+    )
+    # Đã đặt lệnh: toàn bộ tiền nằm trong frozen, cash khả dụng = 0.
+    user = _user(cash="0.00", frozen="200.30")
+    db = _FakeDB(portfolio=None)
+
+    await _apply_buy_fill(order, Decimal("1"), Decimal("100"), Decimal("100"), user, db)
+
+    assert user.cash_balance == Decimal("0.00")  # không âm, không rò phí
+    assert user.frozen_cash == Decimal("100.15")
+    assert order.frozen_cash == Decimal("100.15")
+
+
+@pytest.mark.asyncio
+async def test_buy_fill_at_max_price_keeps_cash_non_negative() -> None:
+    """Khớp market ở đúng giá tối đa cho phép (buffer trượt giá) không âm số dư."""
+    current = Decimal("100")
+    slip = Decimal(str(settings.max_slippage_impact))
+    fee = Decimal(str(settings.trading_fee_rate))
+    qty = Decimal("100")
+    frozen = qty * current * (Decimal("1") + slip) * (Decimal("1") + fee)
+
+    order = Order(
+        side="buy", type="market", price=None, quantity=qty,
+        filled_quantity=Decimal("0"), frozen_cash=frozen,
+    )
+    user = _user(cash="0.00", frozen=str(frozen))
+    db = _FakeDB(portfolio=None)
+
+    max_fill = _buy_max_fill_price(order)
+    await _apply_buy_fill(order, qty, max_fill, current, user, db)
+
+    assert user.cash_balance >= Decimal("0")
+    assert user.frozen_cash == Decimal("0.00")
+    assert order.frozen_cash == Decimal("0.00")
+
+
+@pytest.mark.asyncio
 async def test_sell_fill_credits_settling_cash_net_of_fee_and_tax() -> None:
     """T+2: tiền bán về settling_cash (chưa dùng được), không vào cash_balance."""
     pf = Portfolio(
@@ -113,13 +171,89 @@ async def test_sell_fill_credits_settling_cash_net_of_fee_and_tax() -> None:
 
 
 @pytest.mark.asyncio
-async def test_sell_fill_without_portfolio_still_credits_settling_cash() -> None:
-    """Portfolio thiếu (dữ liệu lệch) không được mất tiền của user."""
+async def test_sell_fill_without_portfolio_raises_and_mints_no_cash() -> None:
+    """Thiếu portfolio (dữ liệu lệch): ném lỗi, KHÔNG ghi tiền bán từ hư không."""
     order = Order(side="sell", type="market", quantity=Decimal("10"))
     user = _user(cash="0.00")
 
-    await _apply_sell_fill(order, Decimal("10"), Decimal("50"), user, _FakeDB(None))
+    with pytest.raises(InsufficientHoldingError):
+        await _apply_sell_fill(order, Decimal("10"), Decimal("50"), user, _FakeDB(None))
 
-    expected_net = Decimal("500") - Decimal("0.75") - Decimal("0.50")
-    assert user.settling_cash == expected_net
+    assert user.settling_cash == Decimal("0.00")
     assert user.cash_balance == Decimal("0.00")
+
+
+@pytest.mark.asyncio
+async def test_sell_fill_with_insufficient_frozen_raises() -> None:
+    """Portfolio có CP nhưng chưa đủ số đóng băng cho khối lượng khớp → ném lỗi."""
+    pf = Portfolio(
+        quantity=Decimal("100"),
+        frozen_quantity=Decimal("5"),
+        average_buy_price=Decimal("40.00"),
+        realized_pnl=Decimal("0.00"),
+    )
+    order = Order(side="sell", type="market", quantity=Decimal("10"))
+    user = _user(cash="0.00")
+
+    with pytest.raises(InsufficientHoldingError):
+        await _apply_sell_fill(order, Decimal("10"), Decimal("50"), user, _FakeDB(pf))
+
+    assert user.settling_cash == Decimal("0.00")
+    assert pf.quantity == Decimal("100")
+    assert pf.frozen_quantity == Decimal("5")
+
+
+class _QueueDB:
+    """Fake AsyncSession trả kết quả execute theo thứ tự; đếm rollback/commit."""
+
+    def __init__(self, results: list[object]) -> None:
+        self._results = list(results)
+        self.rollbacks = 0
+        self.commits = 0
+        self.added: list[object] = []
+
+    async def execute(self, stmt: object) -> SimpleNamespace:
+        value = self._results.pop(0)
+        return SimpleNamespace(
+            scalar_one=lambda: value, scalar_one_or_none=lambda: value
+        )
+
+    async def rollback(self) -> None:
+        self.rollbacks += 1
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+    async def refresh(self, obj: object) -> None:
+        return None
+
+    def add(self, obj: object) -> None:
+        self.added.append(obj)
+
+
+@pytest.mark.asyncio
+async def test_market_maker_skips_sell_without_holding() -> None:
+    """Market-maker: lệnh BÁN thiếu CP → trả None, rollback, KHÔNG tạo Transaction."""
+    order = Order(side="sell", type="market", quantity=Decimal("10"))
+    order.id = uuid.uuid4()
+    order.user_id = uuid.uuid4()
+    order.company_id = uuid.uuid4()
+    order.status = "pending"
+    order.filled_quantity = Decimal("0")
+    user = _user(cash="0.00")
+    db = _QueueDB([order, user, None])
+
+    fill = await _fill_against_market(
+        order,
+        market_price=Decimal("50"),
+        simulated_at=datetime.now(timezone.utc),
+        db=db,
+        liquidity_depth=Decimal("1000"),
+        remaining_liquidity=Decimal("1000"),
+    )
+
+    assert fill is None
+    assert db.rollbacks == 1
+    assert db.commits == 0
+    assert db.added == []
+    assert user.settling_cash == Decimal("0.00")

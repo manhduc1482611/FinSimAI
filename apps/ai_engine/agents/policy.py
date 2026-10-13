@@ -17,6 +17,11 @@ pattern cũng viết ở dạng không dấu — nhờ vậy "nên mua", "nen mu
 "kém"→"kem") chỉ được quét kèm TÂN NGỮ hoặc CHỦ NGỮ cảnh báo để hạn chế báo
 nhầm với văn thuần giáo dục.
 
+Bộ pattern phủ CẢ tiếng Việt (kể cả slang: lên/xuống tàu, lướt sóng, tất tay,
+full hàng) LẪN tiếng Anh ("you should buy", "I recommend selling", "a good time
+to buy", "you were right") — chặn lách luật khi user hỏi tiếng Anh khiến LLM trả
+lời tiếng Anh, hoặc trộn hai ngôn ngữ.
+
 Đây là lá chắn HEURISTIC (không hoàn hảo). Vì vậy khi phát hiện vi phạm, Agent
 sẽ retry có feedback; nếu hết retry vẫn vi phạm → rơi về fallback deterministic
 vốn luôn an toàn.
@@ -74,7 +79,7 @@ _ADVICE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bthoi\s*diem\s+(?:mua|ban|vao|gom)\b", re.IGNORECASE),
     re.compile(r"\bco\s*hoi\s+(?:de\s+)?(?:mua|ban|vao|gom)\b", re.IGNORECASE),
     # Tiền slang VN: kèo tốt, giải ngân, đánh vào, all-in, rót/bỏ vốn.
-    re.compile(r"\bkeo\s+(?:tot|dep|hot|xinh)\b", re.IGNORECASE),
+    re.compile(r"\bkeo\s+(?:tot|dep|hot|xinh|thom)\b", re.IGNORECASE),
     re.compile(r"\bkeo\s+nay[^?!]*\b(?:tot|dep|hot)\b", re.IGNORECASE),
     re.compile(r"\bgiai\s+ngan\b", re.IGNORECASE),
     re.compile(
@@ -100,7 +105,65 @@ _ADVICE_PATTERNS: list[re.Pattern[str]] = [
     # Mệnh lệnh suồng sã: mua ngay/mua vô/mua đi, bán đi/bán tháo/vào lệnh.
     re.compile(r"\bmua\s+(?:ngay|luon|vo|vo\s*di|di|thoi|bay\s*gio)\b", re.IGNORECASE),
     re.compile(r"\bban\s+(?:ngay|luon|di|thao|het|bot|thoi|bay\s*gio)\b", re.IGNORECASE),
-    re.compile(r"\b(?:vao|mo)\s+lenh\b", re.IGNORECASE),
+    re.compile(r"\b(?:vao|mo)\s+(?:lenh|hang)\b", re.IGNORECASE),
+    # "Khuyên [ai đó] nên mua/bán/xả/gom" — "khuyến nghị" đã có, đây là biến thể
+    # động từ "khuyên". Loại trừ "lời khuyên" (danh từ, thường xuất hiện trong
+    # disclaimer "không đưa ra lời khuyên mua bán" — KHÔNG phải khuyến nghị).
+    re.compile(r"(?<!loi\s)\bkhuyen[^?!]*\b(?:mua|ban|gom|xa|vao|ra)\b", re.IGNORECASE),
+    # Slang lướt sóng / lên-xuống tàu / tất tay / full hàng.
+    re.compile(r"\b(?:len|xuong)\s+tau\b", re.IGNORECASE),
+    re.compile(r"\bluot\s+song\b", re.IGNORECASE),
+    re.compile(r"\btat\s+tay\b", re.IGNORECASE),
+    re.compile(r"\bfull\s+(?:co\s*phieu|hang|von|margin|tien)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:mua|ban|gom)\s+(?:sach|het|toan\s*bo|toan\s*bo\s+vi\s*the)\b",
+        re.IGNORECASE,
+    ),
+    # ─── Tiếng Anh (LLM có thể trả lời tiếng Anh khi user hỏi tiếng Anh) ──────
+    re.compile(
+        r"\bshould\s+(?:buy|sell|invest|hold|dump|exit|short|long|go\s+long|go\s+short)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:i|we)\s+(?:would\s+|strongly\s+|highly\s+)?"
+        r"(?:recommend|suggest|advise|urge)\b[^?!]*\b(?:buy|sell|hold|invest|exit|dump)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:recommend|suggest|advise|recommending|suggesting|advising)\s+"
+        r"(?:buying|selling|holding|to\s+buy|to\s+sell|a\s+buy|a\s+sell)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:good|great|perfect|ideal|excellent|best)\s+"
+        r"(?:time|moment|opportunity|chance|entry|point)\s+to\s+"
+        r"(?:buy|sell|invest|enter|exit)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(?:this|it)\s+is\s+(?:a\s+|the\s+)?(?:good|great|strong)\s+(?:buy|sell)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:buy|sell)\s+(?:now|today|immediately|right\s+away|the\s+dip|"
+        r"ngay|luon|di|thoi)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(?:time|moment)\s+to\s+(?:buy|sell|invest|enter|exit)\b", re.IGNORECASE),
+    re.compile(r"\bworth\s+(?:buying|selling|investing)\b", re.IGNORECASE),
+    re.compile(r"\bgo(?:ing)?\s+(?:long|short)\b", re.IGNORECASE),
+    re.compile(r"\b(?:all[\s-]*in|load\s+up)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:put|pour|dump|throw)\s+(?:your\s+|all\s+your\s+)?"
+        r"(?:money|capital|cash|funds|savings)\s+into\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:take|lock\s+in|secure)\s+(?:the\s+|your\s+|my\s+|our\s+)?"
+        r"(?:profit|profits|gain|gains)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bcut\s+(?:your\s+)?(?:loss|losses)\b", re.IGNORECASE),
+    re.compile(r"\b(?:definitely|certainly|absolutely|surely)\s+(?:buy|sell)\b", re.IGNORECASE),
+    re.compile(r"\bbuy\s+the\s+dip\b", re.IGNORECASE),
+    re.compile(r"\b(?:strong|clear|good)\s+(?:buy|sell)\s+signal\b", re.IGNORECASE),
 ]
 
 # ─── Phán xét ĐÚNG/SAI về quyết định của người chơi (câu khẳng định) ────────
@@ -135,6 +198,23 @@ _JUDGMENT_PATTERNS: list[re.Pattern[str]] = [
         re.IGNORECASE,
     ),
     re.compile(r"\bban[^?!]*\bvi\s*pham\s+ky\s*luat\b", re.IGNORECASE),
+    # "Bạn làm đúng/sai", "bạn đã làm đúng" — "làm" chen giữa được phép.
+    re.compile(
+        r"\bban\s+(?:da\s+)?(?:lam|nghi|chon)\s+(?:hoan\s+toan\s+)?(?:dung|sai)\b",
+        re.IGNORECASE,
+    ),
+    # ─── Tiếng Anh ────────────────────────────────────────────────────────────
+    re.compile(r"\byou\s+(?:are|were|'?re)\s+(?:totally\s+|completely\s+|absolutely\s+)?(?:right|wrong|correct|incorrect|mistaken)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:your|that|this|the)\s+(?:decision|choice|call|move|pick)\s+"
+        r"(?:is|was|were|'?s)\s+"
+        r"(?:right|wrong|correct|incorrect|good|bad|great|terrible|smart|dumb|mistaken|wise|foolish)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(?:good|bad|great|terrible|smart|dumb|wise|foolish)\s+(?:decision|choice|call|move)\b", re.IGNORECASE),
+    re.compile(r"\b(?:right|wrong|correct|incorrect)\s+(?:decision|choice|call|move)\b", re.IGNORECASE),
+    re.compile(r"\bthat\s+was\s+a\s+(?:good|bad|great|smart|dumb|terrible)\s+(?:move|call|decision|choice)\b", re.IGNORECASE),
+    re.compile(r"\bi\s+(?:agree|disagree)\s+with\s+(?:your|that|this)\b", re.IGNORECASE),
 ]
 
 

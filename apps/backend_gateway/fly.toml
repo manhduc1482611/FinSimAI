@@ -17,6 +17,9 @@ primary_region = "sin"
   PORT = "8000"
   ENVIRONMENT = "production"
   DEBUG = "false"
+  # Tin X-Forwarded-For từ fly-proxy (IP không cố định) để request.client.host là
+  # IP thật của client — rate-limit đăng nhập theo IP chính xác.
+  FORWARDED_ALLOW_IPS = "*"
   PYTHONPATH = "/app/apps/backend_gateway"
   APP_TIMEZONE = "Asia/Ho_Chi_Minh"
   JWT_ALGORITHM = "HS256"

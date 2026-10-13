@@ -16,19 +16,19 @@ import type { RequestError } from "@/types/api";
 const DEFAULT_API_URL = "http://localhost:8000";
 
 /**
- * Demo mode (KHÔNG cần backend):
- * - NEXT_PUBLIC_DEMO_MODE=true : bật chế độ dùng Google Apps Script làm backend.
- * - NEXT_PUBLIC_SS_API_URL      : URL web app của Apps Script (doApp/doPost).
+ * Demo mode (KHÔNG cần backend) — chỉ bật khi khai báo tường minh:
+ * - NEXT_PUBLIC_DEMO_MODE=true        : dùng Google Apps Script làm backend.
+ * - NEXT_PUBLIC_SS_API_URL (BẮT BUỘC) : URL web app của Apps Script (doGet/doPost).
+ *
+ * KHÔNG có URL mặc định: thiếu NEXT_PUBLIC_SS_API_URL thì mọi request demo báo
+ * lỗi rõ ràng thay vì âm thầm gọi một backend công khai ngoài dự án.
  */
 export function isDemoMode(): boolean {
   return process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 }
 
 export function getSsApiBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_SS_API_URL ||
-    "https://script.google.com/macros/s/AKfycbyAEVQs2vpckQpdaswI5sTZo-p5EvStLHkexidWe44B-VP8vGWjej47ij_Nfv6jfIT_/exec"
-  );
+  return process.env.NEXT_PUBLIC_SS_API_URL?.trim() ?? "";
 }
 
 /**
@@ -295,6 +295,12 @@ class ApiClient {
     // CORS preflight; pack toàn bộ path (kèm query) vào param `path` trên webapp.
     if (isDemoMode()) {
       const base = this.resolveBaseUrl().replace(/\/+$/, "");
+      if (!base) {
+        throw new ApiClientError(
+          0,
+          "Demo mode đang bật nhưng thiếu NEXT_PUBLIC_SS_API_URL. Hãy khai báo URL Apps Script hoặc tắt NEXT_PUBLIC_DEMO_MODE.",
+        );
+      }
       const body = init.body;
       const originalMethod = init.method ?? "GET";
       // Apps Script web app chỉ nhận GET/POST. Các method khác (PATCH/DELETE/…)

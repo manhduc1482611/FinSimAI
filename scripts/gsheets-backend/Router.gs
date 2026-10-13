@@ -161,6 +161,8 @@ function handleRequest_(method, path, q, body) {
 
     // ADMIN (quản trị hệ thống — FR-9, FR-10)
     if (res === 'admin') {
+      var denied = requireAdmin_(q);
+      if (denied) return denied;
       // Users
       if (id === 'users') {
         if (sub && deep === 'role') return adminUserRole_(sub, body, q);
@@ -191,6 +193,19 @@ function currentUserId_(q) {
   return u;
 }
 
+/**
+ * Chặn truy cập `/admin/*` khi người gọi không phải admin.
+ * Trả response lỗi (403) hoặc `null` nếu hợp lệ. Ở demo mode, seed đã bỏ
+ * tài khoản admin nên mặc định không có ai vượt qua được cửa này.
+ */
+function requireAdmin_(q) {
+  var u = findRow_(getSheet_('users'), 'id', currentUserId_(q));
+  if (!u || String(u.role) !== 'admin') {
+    return sendJson_({ detail: 'Kh\u00f4ng c\u00f3 quy\u1ec1n truy c\u1eadp' }, 403);
+  }
+  return null;
+}
+
 function publicUser_(u) {
   return {
     id: u.id, email: u.email, username: u.username, display_name: u.display_name,
@@ -206,7 +221,14 @@ function authLogin_(body, q) {
   var password = body.password || '';
   for (var i = 0; i < users.length; i++) {
     var u = users[i];
-    if ((u.username === username || u.email === username) && String(u.password) === String(password)) {
+    if (u.username === username || u.email === username) {
+      if (!verifyPassword_(password, u.password)) {
+        break;
+      }
+      // Nâng cấp tại chỗ: plaintext cũ → băm lại sau lần đăng nhập đầu tiên.
+      if (!isHashedPassword_(u.password)) {
+        updateRowByKey_(getSheet_('users'), { id: u.id, password: hashPassword_(password) }, 'id');
+      }
       var token = 'demo.' + Utilities.getUuid();
       return sendJson_({ access_token: token, refresh_token: token, token_type: 'bearer', expires_in: 3600 });
     }
@@ -229,7 +251,7 @@ function authRegister_(body, q) {
     id: newId('u'), email: body.email, username: username,
     display_name: body.display_name || username, avatar_url: null, role: 'user',
     cash_balance: '100000000', frozen_cash: '0', risk_score: 50, cooldown_until: null,
-    is_active: 'true', created_at: now, password: body.password
+    is_active: 'true', created_at: now, password: hashPassword_(body.password)
   };
   appendRow_(users, user);
   return sendJson_(publicUser_(user));

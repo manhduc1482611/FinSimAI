@@ -3,8 +3,10 @@
 from decimal import Decimal
 
 import pytest
+from core.config import settings
 from services.slippage import (
     compute_fill_price,
+    round_down_to_tick,
     round_to_tick,
     vn_tick_size,
 )
@@ -25,6 +27,12 @@ def test_vn_tick_size_bands() -> None:
 def test_round_to_tick_rounds_to_nearest() -> None:
     assert round_to_tick(Decimal("42.137"), Decimal("0.01")) == Decimal("42.14")
     assert round_to_tick(Decimal("42.103"), Decimal("0.01")) == Decimal("42.10")
+
+
+def test_round_down_to_tick_never_exceeds_value() -> None:
+    assert round_down_to_tick(Decimal("42.137"), Decimal("0.01")) == Decimal("42.13")
+    assert round_down_to_tick(Decimal("1020.00"), Decimal("10")) == Decimal("1020.00")
+    assert round_down_to_tick(Decimal("1029.99"), Decimal("10")) == Decimal("1020.00")
 
 
 # ── Slippage ───────────────────────────────────────────────────────────────
@@ -84,6 +92,17 @@ def test_fill_price_always_multiple_of_tick() -> None:
             )
             tick = vn_tick_size(Decimal("12345.00"))
             assert (price % tick) == 0 or abs((price % tick) - tick) < Decimal("0.0001")
+
+
+def test_max_slippage_impact_is_configurable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "max_slippage_impact", 0.0)
+    fill = compute_fill_price(
+        side="buy",
+        quantity=Decimal("500000"),
+        market_price=Decimal("42.10"),
+        liquidity_depth=Decimal("500000"),
+    )
+    assert fill == Decimal("42.10")
 
 
 def test_invalid_side_raises() -> None:

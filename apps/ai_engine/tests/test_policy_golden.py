@@ -58,6 +58,38 @@ EVASION_SENTENCES: list[str] = [
     "Bạn đã sai rồi còn cãi.",
     "Nhận định của bạn chính xác tuyệt đối.",
     "Tôi đồng ý với quyết định đó của bạn.",
+    # 37-45: slang lướt sóng / lên-xuống tàu / tất tay / full hàng + "khuyên"
+    "Tôi khuyên bạn nên mua cổ phiếu này.",
+    "Lên tàu FINA thôi anh em.",
+    "Xuống tàu sớm cho an toàn.",
+    "Đánh lướt sóng con này kiếm lời.",
+    "Tất tay vào đi, cơ hội ngàn năm.",
+    "Full cổ phiếu luôn cho máu.",
+    "Mua sạch hàng đi bạn.",
+    "Bạn làm đúng rồi.",
+    "Bạn đã làm sai rồi.",
+]
+
+# Câu lách luật TIẾNG ANH — LLM trả lời tiếng Anh khi user hỏi tiếng Anh.
+ENGLISH_EVASION_SENTENCES: list[str] = [
+    "You should buy this stock now.",
+    "I recommend selling all your shares.",
+    "This is a great time to buy.",
+    "It is a good buy signal.",
+    "Buy now before it is too late.",
+    "The stock is worth buying at this price.",
+    "Go long on FINA today.",
+    "Put all your money into this company.",
+    "Take profit immediately.",
+    "Lock in your gains right now.",
+    "Cut your losses and move on.",
+    "Buy the dip, it is a clear buy signal.",
+    "You were right about that decision.",
+    "That was a bad decision.",
+    "I agree with your choice.",
+    # Trộn Việt–Anh
+    "Buy ngay đi, kèo thơm đó.",
+    "Nên go long con này.",
 ]
 
 # Câu Socratic HỢP LỆ — lá chắn KHÔNG được chặn (chống báo nhầm).
@@ -86,6 +118,15 @@ LEGITIMATE_TEXTS: list[str] = [
     ),
 ]
 
+# Câu Socratic HỢP LỆ bằng TIẾNG ANH — không được báo nhầm khi bổ sung pattern EN.
+LEGITIMATE_ENGLISH_TEXTS: list[str] = [
+    "If the price rises for three more sessions, what would change in your criteria?",
+    "Before entering a trade, did you define your loss limit?",
+    "Capia is a simulation environment. I do not give buy or sell advice.",
+    "Write down three scenarios and your reaction to each of them.",
+    "What evidence would make you change your mind?",
+]
+
 
 def test_evasion_golden_set_all_blocked() -> None:
     assert len(EVASION_SENTENCES) >= 30, "Golden-set phải có ít nhất 30 câu lách luật"
@@ -109,10 +150,25 @@ def test_evasion_blocked_even_without_diacritics() -> None:
         assert scan_policy(without), without
 
 
+def test_english_evasion_golden_set_all_blocked() -> None:
+    assert len(ENGLISH_EVASION_SENTENCES) >= 12, "Golden-set EN phải có ít nhất 12 câu"
+    for sentence in ENGLISH_EVASION_SENTENCES:
+        violations = scan_policy(sentence)
+        kinds = {v.kind for v in violations}
+        assert kinds, f"BỊ LỚT (EN): câu lách luật không bị chặn → {sentence!r}"
+        assert kinds <= {"advice", "judgment"}, f"{sentence!r} → {kinds}"
+
+
 def test_legitimate_socratic_text_passes() -> None:
     for text in LEGITIMATE_TEXTS:
         violations = scan_policy(text)
         assert not violations, f"BÁO NHẦM: câu hợp lệ bị chặn → {text!r}: {violations}"
+
+
+def test_legitimate_english_text_passes() -> None:
+    for text in LEGITIMATE_ENGLISH_TEXTS:
+        violations = scan_policy(text)
+        assert not violations, f"BÁO NHẦM (EN): câu hợp lệ bị chặn → {text!r}: {violations}"
 
 
 def test_assert_policy_raises_on_evasion() -> None:

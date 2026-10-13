@@ -21,7 +21,12 @@ from realtime.connection_manager import (  # noqa: I001, E402
     build_message,
     connection_manager,
 )
-from realtime.simtime import format_sim_label, real_to_sim_epoch, sim_day_of  # noqa: I001, E402
+from realtime.simtime import (  # noqa: I001, E402
+    format_sim_label,
+    real_seconds_for_sim_days,
+    real_to_sim_epoch,
+    sim_day_of,
+)
 
 __all__ = [
     "ClientConnection",
@@ -29,6 +34,7 @@ __all__ = [
     "build_message",
     "connection_manager",
     "format_sim_label",
+    "real_seconds_for_sim_days",
     "real_to_sim_epoch",
     "sim_day_of",
 ]

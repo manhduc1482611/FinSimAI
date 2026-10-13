@@ -96,7 +96,9 @@ async def complete_challenge(
     locked_user = (
         await db.execute(select(User).where(User.id == user.id).with_for_update())
     ).scalar_one()
-    locked_user.cash_balance = (locked_user.cash_balance or Decimal("0.00")) + challenge.reward_amount
+    locked_user.cash_balance = (
+        locked_user.cash_balance or Decimal("0.00")
+    ) + challenge.reward_amount
 
     try:
         from services.discipline_service import apply_discipline

@@ -19,6 +19,14 @@ services:
     dockerContext: .
     healthCheckPath: /health/live
     autoDeploy: true
+    envVars:
+      # Shared secret giữa Backend Gateway và Math Engine. Đặt CÙNG giá trị ở cả
+      # 3 service (backend-gateway, math-engine, ai-engine-api). Production thiếu
+      # biến này → Math Engine từ chối mọi request /api/v1 (fail-closed).
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: ENVIRONMENT
+        value: production
 
   # ── 2. AI Engine API + Worker — Web Service ─────────────────────────────
   # FastAPI web server (main_ai.py) + ARQ background worker (tasks.worker)
@@ -38,6 +46,14 @@ services:
       - key: REDIS_URL
         sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      # URL công khai của Backend Gateway để AI Engine đẩy nội dung về
+      # /api/v1/ai/content (kèm X-Internal-Api-Key).
+      - key: BACKEND_GATEWAY_URL
         sync: false
       - key: GEMINI_RATE_LIMIT_RPM
         value: "15"
@@ -95,6 +111,11 @@ services:
       - key: MATH_ENGINE_URL
         sync: false
 
+      # Shared secret để gateway gọi Math Engine & AI Engine, và để AI Engine
+      # đẩy nội dung về /api/v1/ai/content. CÙNG giá trị ở cả 3 service.
+      - key: INTERNAL_API_KEY
+        sync: false
+
       # --- Mentor (mặc định deterministic 0 token; bật LLM mới tốn lượt Gemini) ---
       - key: MENTOR_LLM_MODE
         value: "off"
@@ -106,6 +127,12 @@ services:
         value: production
       - key: DEBUG
         value: "false"
+      # Uvicorn chỉ tin X-Forwarded-For từ các IP trong danh sách này. Render chèn
+      # proxy ở biên với IP không cố định → phải tin mọi peer nội bộ (service chỉ
+      # truy cập được qua proxy Render). Nhờ vậy `request.client.host` là IP thật
+      # của người dùng, rate-limit theo IP mới chính xác (mặc định chỉ 127.0.0.1).
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"
       - key: PYTHONPATH
         value: /app/apps/backend_gateway
       - key: APP_TIMEZONE

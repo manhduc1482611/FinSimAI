@@ -11,13 +11,14 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 from typing import Any, Literal
 
 import redis.asyncio as redis_ai
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
-from agents.intent import IntentClassifier, IntentResult
+from agents.intent import IntentClassifier
 from agents.socratic_mentor import (
     ConceptReply,
     MentorContext,
@@ -29,7 +30,36 @@ from integrations.rate_limiter import RedisRateLimiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1", tags=["mentor"])
+# ─── Auth nội bộ (shared secret) ─────────────────────────────────────────────
+# Route mentor đốt quota Gemini, nên chỉ Backend Gateway được gọi. Khi
+# `INTERNAL_API_KEY` được cấu hình → bắt buộc header `X-Internal-Api-Key` khớp.
+# Production thiếu key → fail-closed (503); dev/test để mở.
+INTERNAL_KEY_HEADER = "X-Internal-Api-Key"
+
+
+def require_internal_key(
+    api_key: str = Header(default="", alias=INTERNAL_KEY_HEADER),
+) -> None:
+    expected = os.environ.get("INTERNAL_API_KEY", "")
+    if not expected:
+        if os.environ.get("ENVIRONMENT", "development").lower() == "production":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="INTERNAL_API_KEY chưa được cấu hình trên AI Engine",
+            )
+        return
+    if not api_key or not secrets.compare_digest(api_key, expected):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or missing internal API key",
+        )
+
+
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["mentor"],
+    dependencies=[Depends(require_internal_key)],
+)
 
 
 class MentorContextPayload(BaseModel):
@@ -56,10 +86,10 @@ class TradeSnapshotPayload(BaseModel):
 
 class MentorRequest(BaseModel):
     user_id: str = Field(min_length=1)
-    message: str = Field(min_length=1)
+    message: str = Field(min_length=1, max_length=2000)
     session_id: str = ""
     context: MentorContextPayload | None = None
-    history: list[dict[str, Any]] | None = None
+    history: list[dict[str, Any]] | None = Field(default=None, max_length=20)
     mode: Literal["concept", "plan", "trade_now", "socratic"] = "socratic"
     selected_symbol: str | None = None
     trade_snapshot: TradeSnapshotPayload | None = None

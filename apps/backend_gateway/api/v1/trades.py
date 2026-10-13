@@ -15,6 +15,7 @@ from schemas.trade import (
     PortfolioResponse,
 )
 from services import penalty_service, task_service
+from services.trading_service import is_price_within_band, price_band_bounds
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -97,6 +98,28 @@ async def create_order(
     if not company or not company.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
 
+    # Biên độ trần/sàn ±7% (HOSE): lệnh limit phải nằm trong biên độ quanh giá
+    # tham chiếu. Chặn lệnh treo giá phi lý để thao túng giá / tự khớp chuyển tiền.
+    if body.type == "limit" and body.price is not None and not is_price_within_band(
+        body.price, company.current_price, settings.price_band_pct
+    ):
+        lower, upper = price_band_bounds(company.current_price, settings.price_band_pct)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "price_out_of_band",
+                "message": (
+                    "Giá đặt ngoài biên độ trần/sàn "
+                    f"±{settings.price_band_pct:.0%} so với giá tham chiếu. "
+                    f"Giá hợp lệ từ {lower} đến {upper}."
+                ),
+                "reference_price": str(company.current_price),
+                "lower": str(lower),
+                "upper": str(upper),
+                "band_pct": settings.price_band_pct,
+            },
+        )
+
     frozen_cash = Decimal("0.00")
     frozen_quantity = Decimal("0.0000")
 
@@ -111,6 +134,10 @@ async def create_order(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Price is required for limit orders",
             )
+        # Lệnh market có thể khớp CAO HƠN giá hiện tại (slippage tới
+        # max_slippage_impact) → đóng băng dư một buffer để không âm số dư.
+        if body.type == "market":
+            effective_price *= Decimal("1") + Decimal(str(settings.max_slippage_impact))
         # Đóng băng gồm cả buffer phí mua (0.15%) để lệnh khớp không đẩy
         # cash_balance xuống âm khi user dùng chính xác toàn bộ số dư khả dụng.
         fee_multiplier = Decimal("1") + Decimal(str(settings.trading_fee_rate))

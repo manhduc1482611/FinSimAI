@@ -430,9 +430,7 @@ class SocraticMentorAgent(BaseAgent):
         """Bảng matrix khóa cứng: nội dung khung phải thuộc bank đã duyệt."""
         bank = self._require_prompt("strategy_bank")
         names = [f["name"] for f in bank["frameworks"].values()]
-        if reply.framework_name not in names:
-            return False
-        return True
+        return reply.framework_name in names
 
     def _strategy_validator(self):
         def _validate(reply: StrategyReply) -> None:

@@ -99,6 +99,34 @@ async def test_ratelimit_memory_window_expires(monkeypatch: pytest.MonkeyPatch) 
     ) is True
 
 
+@pytest.mark.asyncio
+async def test_peek_rate_does_not_increment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``peek_rate`` chỉ đọc: gọi nhiều lần liên tiếp vẫn còn hạn mức."""
+
+    def boom() -> Any:
+        raise ConnectionError("redis down")
+
+    monkeypatch.setattr(ratelimit, "get_cache", boom)
+    for _ in range(5):
+        assert await ratelimit.peek_rate("u1", max_attempts=2) is True
+
+
+@pytest.mark.asyncio
+async def test_record_then_peek_blocks_and_reset_clears(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def boom() -> Any:
+        raise ConnectionError("redis down")
+
+    monkeypatch.setattr(ratelimit, "get_cache", boom)
+    assert await ratelimit.record_rate("u1", window_seconds=60) == 1
+    assert await ratelimit.record_rate("u1", window_seconds=60) == 2
+    # Đã đủ 2 lượt → hết hạn mức.
+    assert await ratelimit.peek_rate("u1", max_attempts=2) is False
+    await ratelimit.reset_rate("u1")
+    assert await ratelimit.peek_rate("u1", max_attempts=2) is True
+
+
 # ────────────────────────────────────────────────────────────────────────────
 # /auth/refresh contract
 # ────────────────────────────────────────────────────────────────────────────
@@ -274,3 +302,75 @@ async def test_login_returns_refresh_token(monkeypatch: pytest.MonkeyPatch) -> N
     assert body["access_token"]
     assert body["refresh_token"]
     assert body["expires_in"] > 0
+
+
+@pytest.mark.asyncio
+async def test_login_success_does_not_consume_rate_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Đăng nhập THÀNH CÔNG không tính vào ngưỡng brute-force (sửa 'đếm sai')."""
+    monkeypatch.setattr(settings, "jwt_secret", "test-secret-for-auth-tests-0123456789abcdef")
+    monkeypatch.setattr(settings, "login_rate_limit_max", 1)
+    monkeypatch.setattr(settings, "login_rate_limit_window_seconds", 60)
+
+    def boom() -> Any:
+        raise ConnectionError("redis down")
+
+    monkeypatch.setattr(ratelimit, "get_cache", boom)
+
+    user = _make_user()
+    app = _make_app()
+    _install(app, user)
+    payload = {"email": "user@example.com", "password": "secret123"}
+    for _ in range(5):
+        resp = await _post(app, "/auth/login", payload)
+        assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_login_success_resets_account_counter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """1 lần sai ghi bộ đếm tài khoản; đăng nhập đúng cùng tài khoản → xoá bộ đếm."""
+    monkeypatch.setattr(settings, "jwt_secret", "test-secret-for-auth-tests-0123456789abcdef")
+    monkeypatch.setattr(settings, "login_rate_limit_max", 3)
+    monkeypatch.setattr(settings, "login_rate_limit_window_seconds", 60)
+
+    def boom() -> Any:
+        raise ConnectionError("redis down")
+
+    monkeypatch.setattr(ratelimit, "get_cache", boom)
+
+    user = _make_user()
+    app = _make_app()
+    _install(app, user)
+    id_key = "finsim:ratelimit:login:identifier:user@example.com"
+
+    # Sai mật khẩu → 401 + ghi bộ đếm tài khoản.
+    bad = await _post(app, "/auth/login", {"email": "user@example.com", "password": "wrong"})
+    assert bad.status_code == 401
+    assert ratelimit._memory.get(id_key) is not None
+
+    # Đúng mật khẩu → 200 + xoá bộ đếm tài khoản (nhưng giữ bộ đếm IP).
+    ok = await _post(app, "/auth/login", {"email": "user@example.com", "password": "secret123"})
+    assert ok.status_code == 200
+    assert ratelimit._memory.get(id_key) is None
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Chuẩn hoá email (hoa/thường) ở schema
+# ────────────────────────────────────────────────────────────────────────────
+def test_register_request_lowercases_email() -> None:
+    from schemas.user import RegisterRequest
+
+    body = RegisterRequest(
+        email="User@Example.COM", username="user", password="secret123"
+    )
+    assert body.email == "user@example.com"
+
+
+def test_login_request_lowercases_email() -> None:
+    from schemas.user import LoginRequest
+
+    assert LoginRequest(email="User@Example.COM", password="x").email == "user@example.com"
+    assert LoginRequest(username="user", password="x").email is None

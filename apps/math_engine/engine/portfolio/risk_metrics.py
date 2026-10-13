@@ -41,4 +41,4 @@ def calc_volatility(returns: np.ndarray) -> float:
 def calc_daily_returns(prices: np.ndarray) -> np.ndarray:
     if len(prices) < 2:
         return np.array([], dtype=np.float64)
-    return (prices[1:] / prices[:-1]) - 1.0
+    return np.asarray((prices[1:] / prices[:-1]) - 1.0, dtype=np.float64)

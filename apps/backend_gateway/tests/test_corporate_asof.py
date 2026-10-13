@@ -13,11 +13,10 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from sqlalchemy import BinaryExpression
-
 from models.corporate_action import CorporateAction
 from services import corporate_events
 from services.corporate_events import apply_due_events
+from sqlalchemy import BinaryExpression
 
 
 def _make_event(**overrides: Any) -> CorporateAction:
@@ -110,7 +109,6 @@ class _FakeDB:
 def test_due_event_query_has_ex_date_guard() -> None:
     """Query gốc phải giữ ranh giới as-of (ex_date) để không chạm event tương lai."""
     db = _FakeDB([])
-    event = _make_event()
     corporate_events.select(CorporateAction)  # no-op, chỉ khẳng định import
     db.execute(
         corporate_events._FutureGuardStub()  # type: ignore[attr-defined]
@@ -166,7 +164,6 @@ async def test_apply_due_does_not_touch_future_event() -> None:
 async def test_apply_due_is_idempotent() -> None:
     """Event đã applied không bị chạy lại (guard applied_at IS NULL)."""
     now = datetime.now(timezone.utc)
-    applied_once = _make_event(applied_at=now - timedelta(hours=1))
     db = _FakeDB([])  # event đã applied → không lọt vào danh sách đủ hạn
 
     count = await apply_due_events(db, now=now)

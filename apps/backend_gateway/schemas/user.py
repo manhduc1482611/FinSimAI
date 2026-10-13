@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class RegisterRequest(BaseModel):
@@ -14,6 +14,13 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     display_name: str | None = Field(None, max_length=200)
 
+    @field_validator("email", mode="after")
+    @classmethod
+    def _normalize_email(cls, value: str) -> str:
+        # Hạ chữ thường toàn bộ email (kể cả phần local) — tránh tạo tài khoản trùng
+        # chỉ khác hoa/thường và đảm bảo đăng nhập không phân biệt case.
+        return value.lower()
+
 
 class LoginRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
@@ -21,6 +28,11 @@ class LoginRequest(BaseModel):
     username: str | None = Field(None, max_length=100)
     email: str | None = Field(None, max_length=255)
     password: str = Field(min_length=1)
+
+    @field_validator("email", mode="after")
+    @classmethod
+    def _normalize_email(cls, value: str | None) -> str | None:
+        return value.lower() if value else value
 
     @model_validator(mode="after")
     def check_identifier(self) -> Self:

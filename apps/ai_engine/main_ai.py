@@ -17,13 +17,17 @@ from routers.mentor import router as mentor_router
 
 logger = logging.getLogger("ai_engine_api")
 
+_is_production = os.environ.get("ENVIRONMENT", "development").lower() == "production"
+
 app = FastAPI(
     title="Capia AI Engine API",
     description="AI Engine Web API — mentors, news intelligence & social agents",
     version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    # Không phơi /docs, /redoc, /openapi.json ở production — tránh lộ bề mặt API
+    # nội bộ (route mentor tiêu tốn quota Gemini) cho người ngoài.
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
 )
 
 app.include_router(mentor_router)

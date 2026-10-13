@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -28,6 +30,20 @@ jobs:
       # ── Ruff ──
       - name: Ruff lint
         run: uv run ruff check apps/backend_gateway apps/math_engine apps/ai_engine scripts --exclude apps/backend_gateway/clients/proto --exclude apps/math_engine/grpc_services/math_engine_pb2.py --exclude apps/math_engine/grpc_services/math_engine_pb2_grpc.py
+
+      # ── Mypy strict (chạy TỪNG app để tránh trùng tên module `conftest`) ──
+      # Cấu hình strict + baseline module nợ cũ ở `[tool.mypy]` (pyproject gốc).
+      - name: Mypy (strict) — packages/database
+        run: uv run mypy packages/database
+
+      - name: Mypy (strict) — backend_gateway
+        run: uv run mypy apps/backend_gateway
+
+      - name: Mypy (strict) — math_engine
+        run: uv run mypy apps/math_engine
+
+      - name: Mypy (strict) — ai_engine
+        run: uv run mypy apps/ai_engine
 
       # ── Pytest (all 3 Python apps) ──
       - name: Pytest — backend_gateway
@@ -73,3 +89,21 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+
+  # ─── Frontend unit tests (node:test, không cần dependency) ────────────────
+  # Node 22.6+ tự bóc type khỏi `.ts` nên chạy trực tiếp; dùng Node 24 (LTS).
+  # Không cần `npm ci` vì các hàm được test là thuần, không import package nào.
+  frontend-unit:
+    name: Frontend (unit tests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Unit tests (node:test)
+        working-directory: apps/frontend
+        run: npm run test:unit

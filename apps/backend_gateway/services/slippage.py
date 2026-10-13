@@ -11,7 +11,9 @@ Tất cả hàm ở đây là **thuần**, không đụng DB — dễ unit-test 
 
 from __future__ import annotations
 
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
+
+from core.config import settings
 
 _CENT = Decimal("0.01")
 
@@ -37,6 +39,12 @@ def vn_tick_size(price: Decimal) -> Decimal:
 def round_to_tick(value: Decimal, tick: Decimal) -> Decimal:
     """Làm tròn giá về bội số nguyên lần tick (ROUND_HALF_UP)."""
     steps = (value / tick).quantize(Decimal("1"), ROUND_HALF_UP)
+    return (steps * tick).quantize(_CENT)
+
+
+def round_down_to_tick(value: Decimal, tick: Decimal) -> Decimal:
+    """Làm tròn xuống bội số tick (ROUND_DOWN) — dùng khi giá bị chặn trên."""
+    steps = (value / tick).to_integral_value(rounding=ROUND_DOWN)
     return (steps * tick).quantize(_CENT)
 
 
@@ -72,7 +80,7 @@ def compute_fill_price(
     # tạo fill giá phi lý. Lệnh nhỏ (tham gia thấp) gần như không trượt.
     participation = min(participation, Decimal("1"))
     k = Decimal(str(impact_factor if impact_factor is not None else Decimal("0.5")))
-    impact = min(participation * k, Decimal("0.02"))
+    impact = min(participation * k, Decimal(str(settings.max_slippage_impact)))
 
     direction = Decimal("1") if side == "buy" else Decimal("-1")
     raw = market * (Decimal("1") + direction * impact)

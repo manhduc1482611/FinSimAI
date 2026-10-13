@@ -5,8 +5,10 @@ request ngẫu nhiên trọng số hóa vào các endpoint đọc chính (news, 
 social, knowledge), báo cáo RPS + phân vị latency + phân bố status.
 
 Ví dụ:
-    python scripts/load_test/loadtest.py --url http://localhost:8000 --users 25 --duration 30
-    python scripts/load_test/loadtest.py --login admin --password secret --users 10 --duration 20 --json result.json
+    python scripts/load_test/loadtest.py --url http://localhost:8000 \
+        --users 25 --duration 30
+    python scripts/load_test/loadtest.py --login admin --password secret \
+        --users 10 --duration 20 --json result.json
 
 Không cần thư viện ngoài stdlib ngoài httpx (đã là dependency của gateway).
 """
@@ -101,7 +103,9 @@ async def _fetch_id_pools(client: httpx.AsyncClient, base: str) -> dict[str, lis
         try:
             resp = await client.get(base + list_path, params={"limit": 50})
             resp.raise_for_status()
-            pools[detail_path] = [item[key] for item in resp.json().get("items", []) if item.get(key)]
+            pools[detail_path] = [
+                item[key] for item in resp.json().get("items", []) if item.get(key)
+            ]
         except Exception as exc:  # noqa: BLE001
             print(f"  [warn] không lấy được danh sách id cho {detail_path}: {exc}")
             pools[detail_path] = []
@@ -122,7 +126,10 @@ async def _run_worker(
     if login:
         username, password = login
         try:
-            resp = await client.post(base + "/api/v1/auth/login", json={"username": username, "password": password})
+            resp = await client.post(
+                base + "/api/v1/auth/login",
+                json={"username": username, "password": password},
+            )
             if resp.status_code == 200:
                 token = resp.json().get("access_token")
                 stats.record(resp.elapsed.total_seconds(), resp.status_code)
@@ -140,7 +147,9 @@ async def _run_worker(
         elif path in id_pools:
             continue
         try:
-            resp = await client.get(base + path, params={"limit": rng.randint(5, 20)}, headers=headers)
+            resp = await client.get(
+                base + path, params={"limit": rng.randint(5, 20)}, headers=headers
+            )
             stats.record(resp.elapsed.total_seconds(), resp.status_code)
         except httpx.HTTPError as exc:
             stats.statuses[0] += 1

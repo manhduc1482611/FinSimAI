@@ -4,7 +4,7 @@ from uuid import UUID
 
 from core.config import settings
 from core.dependencies import get_current_user, get_db
-from core.ratelimit import check_rate
+from core.ratelimit import peek_rate, record_rate, reset_rate
 from core.security import (
     create_access_token,
     create_refresh_token,
@@ -24,7 +24,7 @@ from schemas.user import (
     UserResponse,
     WsTicketResponse,
 )
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = getLogger(__name__)
@@ -34,9 +34,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> User:
+    # Email đã được chuẩn hoá chữ thường ở schema → so khớp không phân biệt hoa/thường
+    # (chống tạo trùng tài khoản chỉ khác case).
     existing = await db.execute(
         select(User).where(
-            (User.email == body.email) | (User.username == body.username)
+            (func.lower(User.email) == body.email) | (User.username == body.username)
         )
     )
     if existing.scalar_one_or_none():
@@ -60,30 +62,36 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) ->
 _DUMMY_HASH = "$2b$12$oRZIijyiNHKS1aZ.BJMOvOge5Z.K8TRfasYgpSTF4qaovKvOpSnxe"
 
 
+def _login_keys(request: Request, identifier: str) -> list[str]:
+    """Khoá đếm cho một lượt login: theo tài khoản VÀ theo IP nguồn."""
+    client_ip = request.client.host if request.client else "unknown"
+    return [f"login:identifier:{identifier}", f"login:ip:{client_ip}"]
+
+
 async def _rate_limit_or_429(
     request: Request,
     identifier: str,
     retry_after: str,
 ) -> None:
-    """Kiểm tra giới hạn theo identifier VÀ theo IP; quá ngưỡng → 429."""
-    keys = [f"login:identifier:{identifier}"]
-    client_ip = request.client.host if request.client else "unknown"
-    keys.append(f"login:ip:{client_ip}")
-
+    """Chặn 429 nếu tài khoản hoặc IP đã vượt ngưỡng (chỉ ĐỌC, không tăng)."""
     allowed = True
-    for key in keys:
-        ok = await check_rate(
-            key,
-            max_attempts=settings.login_rate_limit_max,
-            window_seconds=settings.login_rate_limit_window_seconds,
-        )
-        if not ok:
+    for key in _login_keys(request, identifier):
+        if not await peek_rate(key, max_attempts=settings.login_rate_limit_max):
             allowed = False
     if not allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Quá nhiều lần thử đăng nhập — thử lại sau ít phút",
             headers={"Retry-After": retry_after},
+        )
+
+
+async def _record_login_failure(request: Request, identifier: str) -> None:
+    """Chỉ ghi nhận lượt ĐĂNG NHẬP THẤT BẠI vào bộ đếm (tài khoản + IP)."""
+    for key in _login_keys(request, identifier):
+        await record_rate(
+            key,
+            window_seconds=settings.login_rate_limit_window_seconds,
         )
 
 
@@ -122,7 +130,8 @@ async def login(
     )
 
     if body.email:
-        stmt = select(User).where(User.email == body.email)
+        # So khớp email không phân biệt hoa/thường (schema đã hạ chữ body.email).
+        stmt = select(User).where(func.lower(User.email) == body.email)
     elif body.username:
         stmt = select(User).where(User.username == body.username)
     else:
@@ -138,11 +147,15 @@ async def login(
         verify_password(body.password, _DUMMY_HASH)
 
     if not user or not verify_password(body.password, user.password_hash):
+        await _record_login_failure(request, identifier)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
 
+    # Đăng nhập thành công → xoá bộ đếm thất bại của tài khoản (không xoá theo IP,
+    # để vẫn chặn kẻ spam dùng 1 tài khoản hợp lệ "rửa" hạn mức IP).
+    await reset_rate(f"login:identifier:{identifier}")
     return _issue_tokens(user.id)
 
 

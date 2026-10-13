@@ -71,6 +71,37 @@ class TestPricePath:
         assert np.all(path > 0)
 
 
+class TestReferenceAnchor:
+    def test_path_band_anchors_to_reference_not_start(self):
+        # start=100, reference=50, biên 7% → kẹp mọi bước trong [46.5, 53.5],
+        # dù giá bắt đầu là 100 (nếu neo sai vào start sẽ không kẹp).
+        config = MarketConfig(mu=0.0, sigma=0.0, price_limit_pct=0.07)
+        gen = PriceGenerator(config, seed=42)
+        path = gen.generate_price_path(100.0, 1.0 / 252, 5, reference_price=50.0)
+        assert path[0] == 100.0
+        assert np.all(path[1:] <= 53.5)
+        assert np.all(path[1:] >= 46.5)
+
+    def test_path_reference_none_defaults_to_start(self):
+        config = MarketConfig(mu=0.0, sigma=0.0, price_limit_pct=0.07)
+        gen = PriceGenerator(config, seed=42)
+        path = gen.generate_price_path(100.0, 1.0 / 252, 5)
+        assert np.all(path == 100.0)
+
+    def test_batch_anchors_band_per_asset_reference(self):
+        config = MarketConfig(mu=0.0, sigma=0.0, price_limit_pct=0.10)
+        gen = PriceGenerator(config, seed=42)
+        starts = np.array([100.0, 100.0])
+        refs = np.array([100.0, 200.0])
+        paths = gen.generate_price_path_batch(
+            starts, 1.0 / 252, 3, reference_prices=refs
+        )
+        # asset 0: biên [90, 110] quanh chính nó → giữ 100.
+        assert paths[0, -1] == 100.0
+        # asset 1: biên [180, 220] quanh 200 → start 100 bị kéo lên sàn 180.
+        assert paths[1, -1] == 180.0
+
+
 class TestPricePathBatch:
     def test_shape(self):
         config = MarketConfig(sigma=0.2, price_limit_pct=0.07)

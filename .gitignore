@@ -30,6 +30,9 @@ out/
 .DS_Store
 Thumbs.db
 
+# AI tooling (chỉ dùng cục bộ, không commit vào repo sản phẩm)
+.opencode/
+
 # Temp / Debug
 tmp_*.py
 *.log

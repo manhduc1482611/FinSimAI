@@ -8,7 +8,7 @@ mở khoá thử thách và giữ người dùng quay lại đều đặn.
 from __future__ import annotations
 
 from core.dependencies import get_current_user, get_db
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from models.discipline import DisciplineScoreHistory
 from models.user import User
 from sqlalchemy import select

@@ -10,7 +10,7 @@ TRADING_DAYS_PER_YEAR = 252
 class TimeCompressionConfig:
     real_seconds_per_simulated_day: float = SECONDS_PER_REAL_MINUTE
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.real_seconds_per_simulated_day <= 0:
             raise ValueError("real_seconds_per_simulated_day must be strictly positive")
 

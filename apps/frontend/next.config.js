@@ -9,14 +9,6 @@ const nextConfig = {
     outputFileTracingRoot: path.join(__dirname, "../../"),
   },
   transpilePackages: ["@finsim/shared-types"],
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
-    ],
-  },
 };
 
 module.exports = nextConfig;
