@@ -738,10 +738,31 @@ cd apps/frontend; npm run test:unit     # 13 passed (bỏ 3 test priceSimulator)
 
 ---
 
+## 🔧 CI — sửa cổng kiểm thử khi chạy thật (2026-10-13)
+
+Lần đẩy đầu tiên lên GitHub, CI chạy thật và lộ các vấn đề cấu hình (chưa từng chạy trước đó):
+
+- **`uv sync --dev` không cài dependency của workspace member.** Package gốc `finsimai`
+  không khai báo dependency, nên mặc định chỉ có `ruff`/`mypy`. Sửa thành
+  `uv sync --dev --all-packages` (cài backend/math/ai/database + group `dev` của từng member)
+  → `mypy packages/database` hết lỗi thiếu `alembic`/`sqlalchemy`, và pytest có `pytest`/`httpx`.
+- **Thiếu stub `yaml`** (`import-untyped` ở `seed_db.py`, `contest_service.py`). Thêm
+  `types-PyYAML>=6.0.12` vào dev group của `backend_gateway` (kèm `uv.lock`).
+
+---
+
 ## Ghi chú kiểm thử (quan trọng, tránh nhầm nhân quả)
 
-Tại thời điểm 2026-10-13, chạy toàn bộ suite backend có **2 test đỏ sẵn có** (không liên quan
-đến các sửa lỗi trong file này — đã xác nhận bằng `git stash`):
+**Đã dọn (2026-10-13, sau khi đẩy lên GitHub — CI thật chạy lần đầu):** 2 test "đỏ sẵn có" ở
+trên đã được **sửa tận gốc**:
+- `test_apply_due_does_not_touch_future_event`: fake DB dò bảng đích qua `_from_obj` (rỗng với
+  `select(Model)` trong SQLAlchemy 2.0) → trả về danh sách rỗng. Sửa fake DB dùng
+  `stmt.column_descriptions` để nhận đúng `corporate_actions`/`portfolios`/`users`.
+- `test_list_tasks_contract`: schema `TaskListResponse` đã thêm `next_reset_at` (00:00
+  Asia/Ho_Chi_Minh) — cập nhật payload kỳ vọng.
+
+Tại thời điểm 2026-10-13 (trước khi dọn), chạy toàn bộ suite backend có **2 test đỏ sẵn có** (không liên quan
+đến các sửa lỗi giá/token/... — đã xác nhận bằng `git stash`):
 
 - `tests/test_corporate_asof.py::test_apply_due_does_not_touch_future_event`
 - `tests/test_tasks_api.py::test_list_tasks_contract` (schema task trả thêm `next_reset_at`,
@@ -756,6 +777,7 @@ Kết quả toàn suite backend sau #4: **301 passed, 2 failed (đỏ sẵn có)
 Sau #11: **306 passed, 2 failed (đỏ sẵn có)**. Sau #12: **312 passed, 2 failed (đỏ sẵn có)**.
 Sau #14: **319 passed, 2 failed (đỏ sẵn có)**. Sau #15: **324 passed, 2 failed (đỏ sẵn có)**.
 Sau #16: **326 passed, 2 failed (đỏ sẵn có)**. Sau #3: **339 passed, 2 failed (đỏ sẵn có)**.
+Sau khi sửa 2 test trên (2026-10-13): **341 passed, 0 failed**.
 Math Engine: **110 passed** (sau #6 là 106). AI Engine: **178 passed** (sau #13 là 178).
 Frontend: **13 unit test passed** (node:test) — sau #8 là 13 (sau #15 là 16; bỏ 3 test priceSimulator).
 mypy strict: 4/4 target xanh (đã baseline nợ cũ).

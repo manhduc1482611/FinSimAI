@@ -25,7 +25,10 @@ jobs:
           enable-cache: true
 
       - name: Install dev dependencies
-        run: uv sync --dev
+        # Workspace: gốc `finsimai` không khai báo dependency → `uv sync` mặc định
+        # chỉ cài ruff/mypy. `--all-packages` cài mọi member (backend/math/ai/
+        # database) kèm dependency group `dev` (pytest, ...) của từng member.
+        run: uv sync --dev --all-packages
 
       # ── Ruff ──
       - name: Ruff lint

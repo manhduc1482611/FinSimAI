@@ -14,7 +14,6 @@ from typing import Any
 
 import pytest
 from models.corporate_action import CorporateAction
-from services import corporate_events
 from services.corporate_events import apply_due_events
 from sqlalchemy import BinaryExpression
 
@@ -84,19 +83,28 @@ class _FakeDB:
         self.user_rows[user.id] = user
 
     async def execute(self, stmt: Any) -> _ScalarResult:
-        from_ = getattr(stmt, "_from_obj", ())
-        names = [getattr(t, "name", "") for t in from_]
+        tables = self._stmt_tables(stmt)
         # CorporateAction query → ghi cột WHERE + trả duy nhất event đã ĐỦ hạn.
-        if "corporate_actions" in names or "corporateaction" in " ".join(
-            map(str, names)
-        ):
+        if "corporate_actions" in tables:
             self.ca_where_cols = _capture_where_columns(stmt)
             return _ScalarResult(self.due_events)
-        if "portfolio" in "".join(names).lower():
+        if "portfolios" in tables:
             return _ScalarResult(self.portfolio_rows)
-        if "users" in "".join(names).lower():
+        if "users" in tables:
             return _ScalarResult(list(self.user_rows.values()))
         return _ScalarResult([])
+
+    @staticmethod
+    def _stmt_tables(stmt: Any) -> set[str]:
+        """Tên bảng đích của câu SELECT (SQLAlchemy 2.0: ``_from_obj`` rỗng với
+        ``select(Model)`` đơn giản, nên dò qua ``column_descriptions``)."""
+        tables: set[str] = set()
+        for desc in getattr(stmt, "column_descriptions", ()) or ():
+            entity = desc.get("entity")
+            name = getattr(entity, "__tablename__", None)
+            if name is not None:
+                tables.add(name)
+        return tables
 
     async def get(self, model: Any, key: Any) -> Any:
         return SimpleNamespace(id=key, current_price=Decimal("50.00"),
@@ -108,14 +116,6 @@ class _FakeDB:
 
 def test_due_event_query_has_ex_date_guard() -> None:
     """Query gốc phải giữ ranh giới as-of (ex_date) để không chạm event tương lai."""
-    db = _FakeDB([])
-    corporate_events.select(CorporateAction)  # no-op, chỉ khẳng định import
-    db.execute(
-        corporate_events._FutureGuardStub()  # type: ignore[attr-defined]
-        if hasattr(corporate_events, "_FutureGuardStub")
-        else _null_stmt()
-    )
-    # Trực tiếp chạy lệnh chọn trong service = bộ lọc ex_date đã nằm trong service.
     stmt = _build_due_stmt()
     cols = _capture_where_columns(stmt)
     assert "ex_date" in cols, "WHERE phải gồm ex_date (ranh giới as-of)"
@@ -133,12 +133,6 @@ def _build_due_stmt() -> Any:
         )
         .order_by(CorporateAction.ex_date)
     )
-
-
-def _null_stmt() -> Any:
-    from sqlalchemy import select
-    from sqlalchemy.sql import null
-    return select(null())
 
 
 @pytest.mark.asyncio

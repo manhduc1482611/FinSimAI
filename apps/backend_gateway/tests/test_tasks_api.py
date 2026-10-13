@@ -150,6 +150,7 @@ async def test_list_tasks_contract(monkeypatch: pytest.MonkeyPatch) -> None:
         "streak_current": 3,
         "streak_longest": 5,
         "total_reward_earned": "10000.00",
+        "next_reset_at": None,
         "tasks": [],
     }
     monkeypatch.setattr(task_service, "list_tasks", _async_return(payload))
