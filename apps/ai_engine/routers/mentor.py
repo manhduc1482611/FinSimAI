@@ -143,14 +143,30 @@ def _get_redis() -> Any:
     return _redis_client
 
 
-def _get_limiter() -> RedisRateLimiter:
+def _get_limiter_pro() -> RedisRateLimiter:
+    """Limiter riêng cho model Pro (Socratic Mentor) — RPM thấp hơn Flash."""
     redis = _get_redis()
-    capacity = int(os.environ.get("GEMINI_RATE_LIMIT_BURST", "5"))
-    rpm = float(os.environ.get("GEMINI_RATE_LIMIT_RPM", "15"))
+    capacity = int(os.environ.get("GEMINI_PRO_RATE_LIMIT_BURST", "3"))
+    rpm = float(os.environ.get("GEMINI_PRO_RATE_LIMIT_RPM", "5"))
     max_wait = float(os.environ.get("GEMINI_RATE_LIMIT_MAX_WAIT_SECONDS", "90"))
     return RedisRateLimiter(
         redis,
-        name="gemini",
+        name="gemini-pro",
+        capacity=capacity,
+        refill_per_sec=rpm / 60.0,
+        max_wait_seconds=max_wait,
+    )
+
+
+def _get_limiter_flash() -> RedisRateLimiter:
+    """Limiter riêng cho model Flash (concept, strategy, intent) — RPM cao hơn."""
+    redis = _get_redis()
+    capacity = int(os.environ.get("GEMINI_FLASH_RATE_LIMIT_BURST", "10"))
+    rpm = float(os.environ.get("GEMINI_FLASH_RATE_LIMIT_RPM", "30"))
+    max_wait = float(os.environ.get("GEMINI_RATE_LIMIT_MAX_WAIT_SECONDS", "90"))
+    return RedisRateLimiter(
+        redis,
+        name="gemini-flash",
         capacity=capacity,
         refill_per_sec=rpm / 60.0,
         max_wait_seconds=max_wait,
@@ -175,7 +191,7 @@ async def mentor(payload: MentorRequest) -> MentorResponse:
 
     if agent.gemini.available:
         try:
-            await _get_limiter().acquire()
+            await _get_limiter_pro().acquire()
             reply = agent.llm_reply(payload.message, ctx, payload.history)
             return MentorResponse(**reply.model_dump(), source="llm")
         except Exception as exc:  # noqa: BLE001 - quota/mạng/judge → deterministic
@@ -194,7 +210,7 @@ async def mentor_concept(payload: MentorRequest) -> ConceptResponse:
     source: Literal["llm", "deterministic"] = "deterministic"
     if agent.gemini.available:
         try:
-            await _get_limiter().acquire()
+            await _get_limiter_flash().acquire()
             reply = agent.llm_concept(payload.message, ctx)
             source = "llm"
         except Exception as exc:  # noqa: BLE001 - fallback deterministic
@@ -214,7 +230,7 @@ async def mentor_strategy(payload: MentorRequest) -> StrategyResponse:
     source: Literal["llm", "deterministic"] = "deterministic"
     if agent.gemini.available:
         try:
-            await _get_limiter().acquire()
+            await _get_limiter_flash().acquire()
             llm = agent.llm_strategy(payload.message, ctx)
         except Exception as exc:  # noqa: BLE001 - fallback deterministic
             logger.warning("Strategy LLM thất bại, dùng bank: %s", exc)

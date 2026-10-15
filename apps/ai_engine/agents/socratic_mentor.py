@@ -260,17 +260,22 @@ class SocraticMentorAgent(BaseAgent):
         độc lập (A2.2) → vi phạm thì retry ĐÚNG MỘT LẦN với feedback → vẫn lỗi
         thì ném lỗi để caller rơi về fallback deterministic.
         ``extra_rule``: quy tắc bổ sung do caller/judge chèn vào prompt.
+
+        Model: ``gemini.mentor_model`` (Pro) — hội thoại Socratic cần context dài
+        và suy luận tinh tế để không vi phạm policy trong câu hỏi phản biện.
         """
         ctx = ctx or MentorContext()
         prompt = self._render_prompt(message, ctx, history, extra_rule)
         system_prompt = self._require_prompt("system_prompt")
         grounding_validator = self._grounding_validator(prompt)
 
+        # Dùng Pro model cho Socratic Mentor (context dài, suy luận giáo dục).
         reply = self.gemini.generate_structured(
             SocraticReply,
             system_instruction=system_prompt,
             user_content=prompt,
             validator=grounding_validator,
+            model_override=self.gemini.mentor_model,
         )
 
         verdict = self._judge(reply, prompt)
@@ -282,6 +287,7 @@ class SocraticMentorAgent(BaseAgent):
                 system_instruction=system_prompt,
                 user_content=self._render_prompt(message, ctx, history, feedback),
                 validator=grounding_validator,
+                model_override=self.gemini.mentor_model,
             )
             second_verdict = self._judge(retried, prompt)
             if second_verdict is not None and second_verdict.violation:
@@ -311,7 +317,11 @@ class SocraticMentorAgent(BaseAgent):
         return self._concept_unknown(message, suggestion)
 
     def llm_concept(self, message: str, ctx: MentorContext) -> ConceptReply:
-        """Sinh ConceptReply qua LLM (5 lớp bảo vệ + grounding bắt buộc)."""
+        """Sinh ConceptReply qua LLM (5 lớp bảo vệ + grounding bắt buộc).
+
+        Model: ``gemini.fast_model`` (Flash) — giải thích khái niệm từ từ điển
+        không cần suy luận sâu, tốc độ phản hồi quan trọng hơn.
+        """
         prompt = self._render_prompt(message, ctx, None, "")
         system_prompt = self._require_prompt("concept_system_prompt")
         grounding_validator = self._grounding_validator(prompt)
@@ -320,6 +330,7 @@ class SocraticMentorAgent(BaseAgent):
             system_instruction=system_prompt,
             user_content=prompt,
             validator=grounding_validator,
+            model_override=self.gemini.fast_model,
         )
         return reply.model_copy(update={"disclaimer": self._disclaimer})
 
@@ -411,7 +422,11 @@ class SocraticMentorAgent(BaseAgent):
         return base
 
     def llm_strategy(self, message: str, ctx: MentorContext) -> StrategyReply | None:
-        """LLM CHỈ chọn framework trong bank + sinh câu hỏi phản biện."""
+        """LLM CHỈ chọn framework trong bank + sinh câu hỏi phản biện.
+
+        Model: ``gemini.fast_model`` (Flash) — output cấu trúc cứng (enum +
+        danh sách câu hỏi), không cần suy luận sâu, ưu tiên latency thấp.
+        """
         prompt = self._render_prompt(message, ctx, None, "")
         system_prompt = self._require_prompt("strategy_system_prompt")
         validator = self._strategy_validator()
@@ -421,6 +436,7 @@ class SocraticMentorAgent(BaseAgent):
                 system_instruction=system_prompt,
                 user_content=prompt,
                 validator=validator,
+                model_override=self.gemini.fast_model,
             )
         except Exception as exc:  # noqa: BLE001 - validate lách → None → base
             logger.warning("Strategy LLM không hợp lệ: %s", exc)

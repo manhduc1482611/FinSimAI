@@ -51,13 +51,21 @@ def _find_env_file() -> Path:
 
 class GeminiConfig(BaseSettings):
     gemini_api_key: str = ""
+    # ── Model routing ────────────────────────────────────────────────────────
+    # Default model cho tác vụ nhẹ (intent LLM, judge, grounding).
     gemini_model: str = "gemini-2.5-flash"
-    gemini_max_retries: int = 2
+    # Model nặng cho Socratic Mentor: context dài, suy luận tinh tế, hội thoại
+    # giáo dục. Đặt thành "" để fallback về gemini_model.
+    gemini_mentor_model: str = "gemini-2.5-pro"
+    # Model siêu nhẹ cho routing/NER (intent LLM layer, latency < 1s).
+    gemini_fast_model: str = "gemini-2.5-flash"
+    # ── Tham số sinh text ────────────────────────────────────────────────────
     # Mentor cần NHẤT QUÁN, không cần sáng tạo: temp thấp giảm biến động câu chữ
     # giữa các lần hỏi cùng một nội dung (improvement_plan A3.1).
     gemini_temperature: float = 0.3
     gemini_max_output_tokens: int = 2048
     gemini_timeout_seconds: float = 120.0
+    gemini_max_retries: int = 2
 
     model_config = SettingsConfigDict(
         env_file=_find_env_file(),
@@ -116,6 +124,17 @@ class GeminiClient:
             self._client = _genai.Client(api_key=self.config.gemini_api_key)
         return self._client
 
+    # ── Model helpers ─────────────────────────────────────────────────────
+    @property
+    def mentor_model(self) -> str:
+        """Model nặng dành cho Socratic Mentor (Pro). Fallback về default model."""
+        return self.config.gemini_mentor_model or self.config.gemini_model
+
+    @property
+    def fast_model(self) -> str:
+        """Model nhẹ cho routing/NER/judge (Flash)."""
+        return self.config.gemini_fast_model or self.config.gemini_model
+
     # ── API chính ──────────────────────────────────────────────────────────
     def generate_structured(
         self,
@@ -126,15 +145,22 @@ class GeminiClient:
         temperature: float | None = None,
         max_output_tokens: int | None = None,
         validator: Callable[[BaseModel], None] | None = None,
+        model_override: str | None = None,
     ) -> ModelT:
         """Sinh output ép đúng schema ``model_type``.
 
         ``validator`` (tuỳ chọn): hàm kiểm tra chính sách sau khi parse — ném
         :class:`PolicyViolationError` nếu nội dung vi phạm (vd: khuyên mua/bán).
         Vi phạm sẽ được đưa vào vòng retry feedback.
+
+        ``model_override`` (tuỳ chọn): chỉ định model cụ thể cho lời gọi này,
+        ghi đè ``gemini_model`` trong config. Dùng ``self.mentor_model`` cho
+        Socratic Mentor (Pro), ``self.fast_model`` cho intent/judge (Flash).
         """
         client = self._ensure_client()
         cfg = self.config
+        # Chọn model: caller override > config default (Flash).
+        active_model = model_override if model_override else cfg.gemini_model
         max_retries = cfg.gemini_max_retries
         content = user_content
         last_error: Exception | None = None
@@ -142,7 +168,7 @@ class GeminiClient:
         for attempt in range(max_retries + 1):
             try:
                 response = client.models.generate_content(
-                    model=cfg.gemini_model,
+                    model=active_model,
                     contents=content,
                     config=_genai_types.GenerateContentConfig(
                         system_instruction=system_instruction,

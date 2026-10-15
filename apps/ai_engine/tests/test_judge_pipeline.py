@@ -24,6 +24,9 @@ class FakeGemini:
         self.error = error
         self.calls: list[str] = []
         self.available = True
+        # Tương thích với GeminiClient.mentor_model / fast_model (model routing).
+        self.mentor_model = "fake-pro"
+        self.fast_model = "fake-flash"
 
     def generate_structured(self, model_type, *, user_content, validator=None, **_):
         self.calls.append(user_content)
@@ -163,6 +166,9 @@ class TestGenerateFallback:
 
 class GeminiUnavailableLike:
     available = False
+    # Tương thích với GeminiClient.mentor_model / fast_model (model routing).
+    mentor_model = "unavailable-pro"
+    fast_model = "unavailable-flash"
 
     def generate_structured(self, *args: Any, **kwargs: Any):
         raise GeminiError("no key")

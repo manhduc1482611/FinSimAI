@@ -49,13 +49,13 @@ def _redis_settings() -> RedisSettings:
     return RedisSettings.from_dsn(url)
 
 
-def _rate_limiter(redis: Any) -> RedisRateLimiter:
-    capacity = int(os.environ.get("GEMINI_RATE_LIMIT_BURST", "5"))
-    rpm = float(os.environ.get("GEMINI_RATE_LIMIT_RPM", "15"))
+def _rate_limiter(redis: Any, *, name: str, burst_env: str, rpm_env: str) -> RedisRateLimiter:
+    capacity = int(os.environ.get(burst_env, "5"))
+    rpm = float(os.environ.get(rpm_env, "15"))
     max_wait = float(os.environ.get("GEMINI_RATE_LIMIT_MAX_WAIT_SECONDS", "90"))
     return RedisRateLimiter(
         redis,
-        name="gemini",
+        name=name,
         capacity=capacity,
         refill_per_sec=rpm / 60.0,
         max_wait_seconds=max_wait,
@@ -65,7 +65,18 @@ def _rate_limiter(redis: Any) -> RedisRateLimiter:
 async def _startup(ctx: dict[str, Any]) -> None:
     ctx["store"] = PromptStore()
     ctx["gemini"] = GeminiClient()
-    ctx["rate_limiter"] = _rate_limiter(ctx["redis"])
+    ctx["rate_limiter"] = _rate_limiter(
+        ctx["redis"],
+        name="gemini-flash",
+        burst_env="GEMINI_FLASH_RATE_LIMIT_BURST",
+        rpm_env="GEMINI_FLASH_RATE_LIMIT_RPM",
+    )
+    ctx["rate_limiter_pro"] = _rate_limiter(
+        ctx["redis"],
+        name="gemini-pro",
+        burst_env="GEMINI_PRO_RATE_LIMIT_BURST",
+        rpm_env="GEMINI_PRO_RATE_LIMIT_RPM",
+    )
     ctx["feed_config"] = default_feed_config()
     logger.info(
         "Worker khởi động: Gemini available=%s, rate limit=%s",

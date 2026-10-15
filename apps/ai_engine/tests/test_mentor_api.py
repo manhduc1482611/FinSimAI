@@ -17,6 +17,9 @@ from main_ai import app
 
 class FakeGemini:
     available = True
+    # Tương thích với GeminiClient.mentor_model / fast_model (model routing).
+    mentor_model = "fake-pro"
+    fast_model = "fake-flash"
 
     def __init__(self, reply: SocraticReply) -> None:
         self.reply = reply
@@ -86,7 +89,7 @@ async def test_mentor_api_llm_path_used_when_available(
     agent = mentor_router._get_agent()
     monkeypatch.setattr(mentor_router, "_get_agent", lambda: agent)
     agent.gemini = FakeGemini(reply)  # type: ignore[assignment]
-    monkeypatch.setattr(mentor_router, "_get_limiter", lambda: FakeLimiter())
+    monkeypatch.setattr(mentor_router, "_get_limiter_pro", lambda: FakeLimiter())
 
     resp = await _post({"user_id": "u1", "message": "Tôi muốn kiểm tra quy trình của mình"})
     assert resp.status_code == 200
@@ -119,7 +122,7 @@ async def test_mentor_api_falls_back_on_rate_limit(
     )
     monkeypatch.setattr(
         mentor_router,
-        "_get_limiter",
+        "_get_limiter_pro",
         lambda: FakeLimiter(error=RateLimitExceeded("gemini", 10)),
     )
 

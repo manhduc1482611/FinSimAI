@@ -58,7 +58,12 @@ def run_judge(
     reply_texts: list[str],
     source_content: str,
 ) -> JudgeVerdict | None:
-    """Phán xét reply; trả None khi judge không chạy nổi (fail-open)."""
+    """Phán xét reply; trả None khi judge không chạy nổi (fail-open).
+
+    Model: ``gemini.fast_model`` (Flash) với temp=0, max_output_tokens=256 —
+    tác vụ phán xét binary (violation: true/false) không cần reasoning sâu;
+    Flash đủ chính xác cho JSON schema cứng và rẻ hơn đáng kể so với Pro.
+    """
     if not gemini.available:
         return None
     reply_block = "\n".join(reply_texts)
@@ -74,6 +79,8 @@ def run_judge(
             user_content=user_content,
             temperature=0.0,
             max_output_tokens=256,
+            # Flash đủ tốt cho binary classification, tiết kiệm quota Pro cho Mentor.
+            model_override=gemini.fast_model,
         )
     except Exception:  # judge lỗi không được làm sập mentor
         logger.warning("Mentor judge lỗi — bỏ qua lớp judge", exc_info=True)

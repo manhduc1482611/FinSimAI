@@ -72,7 +72,10 @@ export function usePriceStream(symbol: string): UsePriceStreamResult {
   const user = useAuthStore((state) => state.user);
   const isDemo = isDemoMode();
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
+  // snapshot gây re-render có chủ đích: giá hiển thị cần cập nhật UI.
   const [snapshot, setSnapshot] = useState<PriceTick | null>(null);
+  // ticks lưu bằng state để PriceChart cũng nhận đúng vòng đời React.
+  // Components chỉ cần snapshot (TradePanel, giá header) nên dùng selector riêng.
   const [ticks, setTicks] = useState<TimedPriceTick[]>([]);
 
   const symbolRef = useRef(symbol);
@@ -154,7 +157,11 @@ export function usePriceStream(symbol: string): UsePriceStreamResult {
       if (message.data.symbol !== symbolRef.current) {
         return;
       }
+      // snapshot update: trigger re-render để component hiển thị giá mới nhất.
       setSnapshot(message.data);
+      // ticks update: chỉ PriceChart cần, sẽ re-render PriceChart riêng.
+      // Các component chỉ đọc snapshot sẽ KHÔNG re-render thêm vì ticks
+      // ở trạng thái riêng của hook — chỉ component mount hook mới nhận ticks.
       setTicks((prev) => {
         const next = prev.length >= MAX_TICKS ? prev.slice(prev.length - MAX_TICKS + 1) : prev;
         return [...next, { tick: message.data, receivedAt: Date.now() }];

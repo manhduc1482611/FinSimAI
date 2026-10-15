@@ -118,6 +118,117 @@ Giai đoạn 3.1 + 3.2 hoàn thành (chạy thử trên Redis portable + Gemini 
 
 ---
 
-## Giai đoạn 5 — Chưa bắt đầu
+## Giai đoạn 5 — Tối ưu hóa Hệ thống & Scale-out (Kế hoạch)
 
-*(Chưa thực hiện.)*
+### 5.1 — Math Engine: Viết lại lõi tính toán bằng Rust / Go
+
+**Bối cảnh và vấn đề**
+
+Python (CPython) bị giới hạn bởi **GIL (Global Interpreter Lock)**: ngay cả khi sử dụng nhiều thread, chỉ một thread Python có thể chạy bytecode tại một thời điểm. Điều này ảnh hưởng trực tiếp đến các tác vụ **CPU-bound** trong `math_engine`:
+
+- `price_generator.py` — vòng lặp GBM tích lũy (sequential, không fully vectorize được)
+- `portfolio_calc.py` — `calc_nav()`, `calc_unrealized_pnl()` với portfolio lớn
+- `risk_metrics.py` — Sharpe, Max Drawdown, rolling volatility trên chuỗi thời gian dài
+- `penalty.py` — tính tier + cooldown theo từng user
+
+Ở quy mô nhỏ (< 1.000 lệnh mô phỏng/giây), NumPy vectorization và Numba JIT đã đủ (đã triển khai ở Giai đoạn 3+). **Ngưỡng kích hoạt nâng cấp: > 10.000 lệnh mô phỏng/giây hoặc > 500 user đồng thời.**
+
+---
+
+**Lộ trình ngắn hạn (P2 — đã áp dụng một phần)**
+
+- [x] Thay vòng lặp `for` bằng NumPy vectorization trong `price_generator.py` và `portfolio_calc.py`
+- [ ] Thêm `@numba.jit(nopython=True)` cho `_apply_vn_tick_size()` và `calc_sharpe()`
+- [ ] Profile với `py-spy` hoặc `cProfile` để xác định hotspot thực tế trước khi viết lại
+
+---
+
+**Lộ trình dài hạn (P4 — Rust via PyO3)**
+
+Phương án ưu tiên: **Rust + PyO3** — gọi Rust từ Python như một extension module (`.pyd` / `.so`), không cần thay đổi gRPC interface hiện tại.
+
+Ưu điểm:
+- Không có GIL: song song thật sự với `rayon` (data-parallel crate của Rust)
+- Zero-copy: chia sẻ buffer NumPy ↔ Rust qua `pyo3-numpy`
+- Không cần thay đổi API: gRPC server Python vẫn giữ nguyên, chỉ thay phần tính toán bên trong
+
+Các module cần viết lại:
+```
+math_engine/
+├── _rust/                  # Rust crate (mới)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs          # PyO3 bindings
+│       ├── gbm.rs          # GBM price path (thay price_generator.py)
+│       ├── portfolio.rs    # NAV + PnL vectorized (thay portfolio_calc.py)
+│       └── risk.rs         # Sharpe, MaxDrawdown (thay risk_metrics.py)
+└── engine/
+    ├── pricing/
+    │   └── price_generator.py  # Gọi _rust.gbm nếu có, fallback Python
+    └── portfolio/
+        └── portfolio_calc.py   # Gọi _rust.portfolio nếu có, fallback Python
+```
+
+Pattern tích hợp graceful fallback:
+```python
+try:
+    from math_engine._rust import gbm as _gbm_rust
+    _HAS_RUST = True
+except ImportError:
+    _HAS_RUST = False  # dev machine không build Rust → dùng Python thuần
+
+def generate_price_path(S0, mu, sigma, dt, n_steps):
+    if _HAS_RUST:
+        return _gbm_rust.generate_path(S0, mu, sigma, dt, n_steps)
+    # ... Python/NumPy fallback
+```
+
+Build pipeline:
+```bash
+# Yêu cầu: rustup + maturin
+pip install maturin
+cd apps/math_engine/_rust
+maturin develop --release   # build và cài vào virtualenv hiện tại
+```
+
+---
+
+**Phương án thay thế: Go + cgo / gRPC**
+
+Nếu team quen Go hơn Rust:
+- Viết `math_engine_go/` như một gRPC service độc lập (thay thế `main.py` gRPC server hiện tại)
+- Ưu điểm: goroutine concurrency thật sự, deployment đơn giản (binary tĩnh)
+- Nhược điểm: cần maintain thêm một ngôn ngữ, binary lớn hơn Rust
+
+So sánh:
+
+| Tiêu chí            | Python + NumPy (hiện tại) | Rust + PyO3        | Go gRPC service    |
+|---------------------|--------------------------|--------------------|--------------------|
+| Triển khai          | ✅ Đã có                 | ⚙️ Cần build       | ⚙️ Cần refactor    |
+| Tốc độ GBM          | ~1× (baseline)           | ~10–50× (rayon)    | ~8–20× (goroutine) |
+| Tích hợp Python     | ✅ Native                | ✅ PyO3            | gRPC (network hop) |
+| Độ phức tạp         | Thấp                     | Trung bình         | Cao                |
+| Ngưỡng áp dụng      | < 10k sim/s              | > 10k sim/s        | > 50k sim/s        |
+
+---
+
+**Điều kiện kích hoạt (trigger)**
+
+Nâng cấp lên Rust/Go khi **một trong các điều kiện** sau được đáp ứng:
+1. P99 latency của gRPC `GeneratePricePath` vượt **200ms** ở load test thực tế
+2. CPU usage của `math_engine` worker vượt **70%** khi có < 1.000 user đồng thời
+3. Cần hỗ trợ > **500 công ty** được mô phỏng đồng thời (hiện tại: 20–50)
+
+### 5.2 — Database: TimescaleDB + pgvector
+
+Xem chi tiết tại:
+- [`docs/timescaledb_upgrade.md`](docs/timescaledb_upgrade.md) — Chuyển đổi bảng time-series sang hypertable
+- [`docs/pgvector_rag_upgrade.md`](docs/pgvector_rag_upgrade.md) — Tích hợp vector search cho Knowledge Base
+
+### 5.3 — Observability & Monitoring
+
+*(Kế hoạch — chưa triển khai)*
+
+- **Metrics**: Prometheus + Grafana (export từ FastAPI middleware + gRPC interceptor)
+- **Tracing**: OpenTelemetry (span across Gateway → AI Engine → Math Engine)
+- **Alerting**: cảnh báo khi market_sim tick latency > 2s hoặc rate limit bị kích hoạt > 10 lần/phút

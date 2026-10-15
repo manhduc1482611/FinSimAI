@@ -174,7 +174,12 @@ class MentorRouter(BaseAgent):
 
     # ── LLM lớp 2 (optional, khi MENTOR_LLM_MODE=on) ───────────────────────
     def llm_classify(self, message: str, **kw: Any) -> IntentResult | None:
-        """LLM phân loại khi quy tắc cứng confidence thấp; trả None nếu không."""
+        """LLM phân loại khi quy tắc cứng confidence thấp; trả None nếu không.
+
+        Model: ``gemini.fast_model`` (Flash) — routing/NER nhẹ (4 nhãn + score).
+        Latency thấp quan trọng hơn độ chính xác tuyệt đối; quy tắc cứng đã là
+        lớp đầu tiên nên LLM chỉ xử lý trường hợp mơ hồ thực sự.
+        """
         if not self.gemini.available:
             return None
         prompt = self._require_prompt("intent_llm", "user_prompt")
@@ -184,6 +189,7 @@ class MentorRouter(BaseAgent):
                 self._LLMIntent,
                 system_instruction=self._require_prompt("intent_llm", "system_prompt"),
                 user_content=rendered,
+                model_override=self.gemini.fast_model,
             )
         except Exception:  # noqa: BLE001 - thất bại LLM → fallback an toàn
             return None

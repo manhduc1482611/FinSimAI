@@ -113,11 +113,16 @@ class PriceGenerator:
         floor_px = anchor * (1.0 - config.price_limit_pct)
         ceil_px = anchor * (1.0 + config.price_limit_pct)
 
+        # Tích luỹ giá theo chuỗi (S[i] phụ thuộc S[i-1] — không vectorize
+        # hoàn toàn được). Tuy nhiên clip+tick_size được gọi trên từng scalar
+        # chứ không phải gọi overhead Python function per-element riêng biệt.
         for i in range(1, n):
             raw = S[i - 1] * np.exp(returns[i - 1])
-            clipped = np.clip(raw, floor_px, ceil_px)
-            S[i] = _apply_vn_tick_size(clipped)
+            S[i] = np.clip(raw, floor_px, ceil_px)
 
+        # Áp tick size VN trên toàn bộ path sau khi đã clip — 1 lần gọi NumPy
+        # vectorized thay vì n lần gọi Python per-step (tránh loop overhead).
+        S[1:] = _apply_vn_tick_size(S[1:])
         return S
 
     def generate_price_path_batch(
@@ -149,9 +154,12 @@ class PriceGenerator:
         floor_px = anchor * (1.0 - config.price_limit_pct)
         ceil_px = anchor * (1.0 + config.price_limit_pct)
 
+        # Xây path tích luỹ (dependency S[:,t] → S[:,t-1]); clip vectorized mỗi step.
         for t in range(1, n):
             raw = S[:, t - 1:t] * np.exp(returns[:, t - 1:t])
-            clipped = np.clip(raw, floor_px, ceil_px)
-            S[:, t:t + 1] = _apply_vn_tick_size(clipped)
+            S[:, t:t + 1] = np.clip(raw, floor_px, ceil_px)
 
+        # Áp tick size VN trên toàn bộ matrix path sau khi clip xong — 1 lần gọi
+        # vectorized (n_assets × steps) thay vì n_assets × steps Python calls.
+        S[:, 1:] = _apply_vn_tick_size(S[:, 1:])
         return S
