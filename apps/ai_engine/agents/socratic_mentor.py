@@ -476,8 +476,17 @@ class SocraticMentorAgent(BaseAgent):
     def _grounding_validator(context_text: str):
         """Validator cho generate_structured: mọi số dữ liệu phải có trong ngữ cảnh."""
 
-        def _validate(reply: SocraticReply) -> None:
-            assert_grounded([*reply.questions, reply.coaching_tip], context_text)
+        def _validate(reply: Any) -> None:
+            texts: list[str] = []
+            if hasattr(reply, "questions") and hasattr(reply, "coaching_tip"):
+                texts = [*reply.questions, reply.coaching_tip]
+            elif hasattr(reply, "definition") and hasattr(reply, "explanation"):
+                texts = [getattr(reply, "definition", ""), getattr(reply, "explanation", "")]
+                followup = getattr(reply, "followup_question", None)
+                if followup:
+                    texts.append(followup)
+            if texts:
+                assert_grounded(texts, context_text)
 
         return _validate
 

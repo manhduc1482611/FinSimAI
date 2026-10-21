@@ -97,6 +97,8 @@ class Settings(BaseSettings):
     # gọi Gemini — vẫn bị giới hạn lượt bởi token bucket phía ai_engine.
     ai_engine_url: str = ""
     mentor_llm_mode: str = "off"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.5-flash-lite"
     ai_engine_timeout_seconds: float = 25.0
     # Per-user rate limit cho WS mentor (docs/ai_mentor_3mode_plan.md, GĐ 1.6):
     # kiểm soát chi phí + chống spam áp cho cả 3 mode. Mặc định 10 câu/phút,
@@ -125,6 +127,10 @@ class Settings(BaseSettings):
     # Chu kỳ ticker thị trường mô phỏng (giây): mỗi nhịp dịch chuyển giá qua
     # Math Engine rồi khớp lệnh pending/partially_filled. Chỉ leader chạy.
     ws_market_tick_seconds: float = 3.0
+    # Bật/tắt ticker mô phỏng thị trường ngay trong process Backend Gateway.
+    # Khi deploy quy mô lớn, set False trên các API instances và chạy
+    # `python -m realtime.market_sim` như một background worker độc lập.
+    ws_market_sim_enabled: bool = True
     ws_trade_poll_seconds: float = 1.0
     ws_heartbeat_seconds: float = 30.0
     ws_max_queue_size: int = 256

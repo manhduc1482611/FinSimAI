@@ -51,13 +51,17 @@ from realtime.connection_manager import (
     connection_manager,
 )
 from realtime.mentor_engine import (
+    _normalize,
     concept_reply_text,
     detect_focus,
     reply_to_text,
     socratic_reply,
     strategy_reply_text,
+    SocraticFocus,
     trade_challenge_text,
 )
+
+from services.mentor_gemini import generate_gemini_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +100,21 @@ def _chunk_text(text: str, size: int = _CHUNK_SIZE) -> AsyncIterator[str]:
     return _generate()
 
 
+def _is_unanswerable_socratic_query(message: str) -> bool:
+    """Kiểm tra tin nhắn có phải câu hỏi cần giải đáp mà question bank không có keyword."""
+    if not message:
+        return False
+    norm = _normalize(message)
+    markers = (
+        "la gi", "nhu the nao", "the nao", "tai sao", "vi sao",
+        "lam sao", "lam the nao", "tinh the nao", "nghia la",
+        "giai thich", "khai niem", "y nghia", "khac nhau",
+    )
+    has_marker = any(marker in norm for marker in markers) or message.strip().endswith("?")
+    has_bias = detect_focus(message) != SocraticFocus.PROCESS
+    return has_marker and not has_bias
+
+
 class DeterministicMentorStream:
     """Phản hồi deterministic cho cả 3 chế độ (0 token Gemini).
 
@@ -127,6 +146,11 @@ class DeterministicMentorStream:
                 async for chunk in _chunk_text(text):
                     yield chunk
                 return
+            gemini_text = await generate_gemini_fallback(message, mode="concept")
+            if gemini_text:
+                async for chunk in _chunk_text(gemini_text):
+                    yield chunk
+                return
         if mode == "plan":
             # Khung chiến lược từ bank đã duyệt (0 token) — không rơi về socratic.
             portfolio_text = (snapshot or {}).get("text", "")
@@ -140,6 +164,15 @@ class DeterministicMentorStream:
             async for chunk in _chunk_text(challenge):
                 yield chunk
             return
+        if _is_unanswerable_socratic_query(message):
+            gemini_text = await generate_gemini_fallback(
+                message, mode="socratic", company=self._company
+            )
+            if gemini_text:
+                async for chunk in _chunk_text(gemini_text):
+                    yield chunk
+                return
+
         reply = socratic_reply(message, company=self._company)
         async for chunk in _chunk_text(reply_to_text(reply)):
             yield chunk
@@ -201,6 +234,18 @@ class HybridMentorStream:
                 tip = str(reply.get("coaching_tip") or "")
                 disclaimer = str(reply.get("disclaimer") or "")
                 text = "\n".join([*questions, "", f"Bài tập: {tip}", "", disclaimer])
+            elif reply and isinstance(reply.get("definition"), str):
+                concept = reply.get("concept") or ""
+                definition = reply.get("definition") or ""
+                explanation = reply.get("explanation") or ""
+                followup = reply.get("followup_question") or ""
+                disclaimer = reply.get("disclaimer") or ""
+                parts = [f"**{concept}**" if concept else "", definition, explanation]
+                if followup:
+                    parts.extend(["", followup])
+                if disclaimer:
+                    parts.extend(["", disclaimer])
+                text = "\n".join([p for p in parts if p])
         if text is None:
             async for chunk in self._deterministic.stream(
                 user_id=user_id,

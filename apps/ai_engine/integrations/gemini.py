@@ -53,12 +53,12 @@ class GeminiConfig(BaseSettings):
     gemini_api_key: str = ""
     # ── Model routing ────────────────────────────────────────────────────────
     # Default model cho tác vụ nhẹ (intent LLM, judge, grounding).
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.5-flash-lite"
     # Model nặng cho Socratic Mentor: context dài, suy luận tinh tế, hội thoại
     # giáo dục. Đặt thành "" để fallback về gemini_model.
-    gemini_mentor_model: str = "gemini-2.5-pro"
+    gemini_mentor_model: str = "gemini-3.5-flash-lite"
     # Model siêu nhẹ cho routing/NER (intent LLM layer, latency < 1s).
-    gemini_fast_model: str = "gemini-2.5-flash"
+    gemini_fast_model: str = "gemini-3.5-flash-lite"
     # ── Tham số sinh text ────────────────────────────────────────────────────
     # Mentor cần NHẤT QUÁN, không cần sáng tạo: temp thấp giảm biến động câu chữ
     # giữa các lần hỏi cùng một nội dung (improvement_plan A3.1).
