@@ -5,6 +5,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/common/Button";
@@ -14,7 +15,6 @@ import { OrderBook } from "@/components/trade/OrderBook";
 import { OrderTable } from "@/components/trade/OrderTable";
 import { Portfolio } from "@/components/trade/Portfolio";
 import { TradePanel } from "@/components/trade/TradePanel";
-import { PriceChart } from "@/components/companies/PriceChart";
 import { listCompanies } from "@/services/companies";
 import { isDemoMode } from "@/services/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
@@ -25,6 +25,18 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useMentorStore } from "@/store/useMentorStore";
 import type { CompanyResponse } from "@finsim/shared-types/generated/api-types";
 import type { AsyncStatus } from "@/types/api";
+
+const PriceChart = dynamic(
+  () => import("@/components/companies/PriceChart").then((m) => m.PriceChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[400px] items-center justify-center rounded-xl border border-ink-100 bg-paper dark:border-granite-800 dark:bg-granite-900">
+        <span className="text-xs text-ink-400 dark:text-granite-400">Đang tải biểu đồ nến…</span>
+      </div>
+    ),
+  },
+);
 
 export default function TradePage() {
   const token = useAuthStore((state) => state.token);
@@ -66,12 +78,35 @@ export default function TradePage() {
   const priceStream = usePriceStream(selectedSymbol ?? "");
   const isDemo = isDemoMode();
 
+  const effectiveSnapshot = useMemo(() => {
+    if (priceStream.snapshot !== null) {
+      return priceStream.snapshot;
+    }
+    if (selectedCompany !== null) {
+      const price = parseDecimal(selectedCompany.current_price);
+      return {
+        symbol: selectedCompany.symbol,
+        company_id: selectedCompany.id,
+        price,
+        open: price,
+        high: price,
+        low: price,
+        prev_close: price,
+        change: 0,
+        change_pct: 0,
+        sim_day: 1,
+        simulated_at: new Date().toISOString(),
+      };
+    }
+    return null;
+  }, [priceStream.snapshot, selectedCompany]);
+
   const livePrices = useMemo(() => {
-    if (priceStream.snapshot === null) {
+    if (effectiveSnapshot === null || !selectedSymbol) {
       return new Map<string, number>();
     }
-    return new Map<string, number>([[selectedSymbol ?? "", priceStream.snapshot.price]]);
-  }, [priceStream.snapshot, selectedSymbol]);
+    return new Map<string, number>([[selectedSymbol, effectiveSnapshot.price]]);
+  }, [effectiveSnapshot, selectedSymbol]);
 
   return (
     <div className="space-y-4">
@@ -177,7 +212,7 @@ export default function TradePage() {
             <PriceChart
               symbol={selectedCompany.symbol}
               companyName={selectedCompany.name}
-              snapshot={priceStream.snapshot}
+              snapshot={effectiveSnapshot}
               ticks={priceStream.ticks}
               noCandlesNotice={
                 isDemo
@@ -187,7 +222,7 @@ export default function TradePage() {
             />
           )}
         </div>
-        <OrderBook symbol={selectedSymbol ?? ""} price={priceStream.snapshot?.price ?? null} />
+        <OrderBook symbol={selectedSymbol ?? ""} price={effectiveSnapshot?.price ?? null} />
       </div>
 
       {/* Panel đặt lệnh + Danh mục */}

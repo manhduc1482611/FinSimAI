@@ -96,7 +96,7 @@ class Company(Base):
         from core.config import settings
 
         ratio = Decimal(str(settings.liquidity_ratio))
-        return (self.shares_outstanding or Decimal("0")) * ratio.quantize(Decimal("1"))
+        return ((self.shares_outstanding or Decimal("0")) * ratio).quantize(Decimal("1"))
 
     portfolios = relationship("Portfolio", back_populates="company")
     orders = relationship("Order", back_populates="company")

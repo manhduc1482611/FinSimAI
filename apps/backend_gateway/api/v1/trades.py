@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 from decimal import Decimal
 from uuid import UUID
@@ -18,6 +19,8 @@ from services import penalty_service, task_service
 from services.trading_service import is_price_within_band, price_band_bounds
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/trades", tags=["trades"])
 
@@ -195,6 +198,16 @@ async def create_order(
     await db.commit()
     await db.refresh(order)
     await task_service.record_event(db, current_user, "trade_placed")
+
+    # Khớp lệnh ngay lập tức (cho lệnh market hoặc limit có thể khớp ngay)
+    from services.trading_service import match_orders
+
+    try:
+        await match_orders(company.id, db)
+        await db.refresh(order)
+    except Exception:
+        logger.exception("Instant matching failed for order %s", order.id)
+
     return order
 
 
