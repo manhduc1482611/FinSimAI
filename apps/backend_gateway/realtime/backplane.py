@@ -38,6 +38,7 @@ import uuid
 from typing import Any, cast
 
 from core.cache import get_cache
+from core.config import settings
 
 from realtime.connection_manager import ConnectionManager, connection_manager
 
@@ -153,6 +154,11 @@ class Backplane:
         if self._task is not None and not self._task.done():
             return
         self._stopped = False
+        if settings.ws_local_mode:
+            self._fallback_mode = True
+            self._status = 'live'
+            logger.info('WS_LOCAL_MODE=true: backplane running in standalone local RAM mode')
+            return
         self._fallback_mode = False
         self._subscribed.clear()
         pubsub: Any = None
@@ -346,7 +352,7 @@ class Backplane:
             local_sent = self.manager.broadcast_local_room_reliable(room, payload)
         else:
             local_sent = self.manager.broadcast_local_room(room, payload)
-        if self._fallback_mode:
+        if self._fallback_mode or settings.ws_local_mode:
             return local_sent
         try:
             client = cast(Any, get_cache())
