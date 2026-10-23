@@ -15,36 +15,31 @@ import type { RequestError } from "@/types/api";
 
 const DEFAULT_API_URL = "http://localhost:8000";
 
+export type BackendTarget = "render" | "appscript";
+
+export interface FailoverEventDetail {
+  from: BackendTarget;
+  to: BackendTarget;
+  reason: string;
+}
+
 /**
  * Demo mode (KHÔNG cần backend) — chỉ bật khi khai báo tường minh:
  * - NEXT_PUBLIC_DEMO_MODE=true        : dùng Google Apps Script làm backend.
  * - NEXT_PUBLIC_SS_API_URL (BẮT BUỘC) : URL web app của Apps Script (doGet/doPost).
- *
- * KHÔNG có URL mặc định: thiếu NEXT_PUBLIC_SS_API_URL thì mọi request demo báo
- * lỗi rõ ràng thay vì âm thầm gọi một backend công khai ngoài dự án.
  */
 export function isDemoMode(): boolean {
   return process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 }
 
 export function getSsApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_SS_API_URL?.trim() ?? "";
+  return process.env.NEXT_PUBLIC_SS_API_URL?.trim().replace(/\/+$/, "") ?? "";
 }
 
-/**
- * Base URL của API — ưu tiên `NEXT_PUBLIC_API_URL` (cấu hình trên Vercel/Render
- * cho production). Nếu không set (dev): tự suy từ host của trang đang mở —
- * hỗ trợ test trên điện thoại cùng mạng LAN mà không cần sửa IP thủ công
- * (điện thoại mở `http://<IP-máy>:3000` thì API tự trỏ `http://<IP-máy>:8000`).
- */
-export function getApiBaseUrl(): string {
-  // Demo mode: trả về URL Google Apps Script, không phải backend thật.
-  if (isDemoMode()) {
-    return getSsApiBaseUrl();
-  }
+export function getRenderApiBaseUrl(): string {
   const apiUrlFromEnv = process.env.NEXT_PUBLIC_API_URL;
   if (apiUrlFromEnv) {
-    return apiUrlFromEnv;
+    return apiUrlFromEnv.trim().replace(/\/+$/, "");
   }
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
@@ -53,6 +48,38 @@ export function getApiBaseUrl(): string {
     }
   }
   return DEFAULT_API_URL;
+}
+
+/**
+ * Kiểm tra xem chế độ Hybrid Failover (Render <-> Apps Script) có được kích hoạt không.
+ * Tự động bật khi cả 2 URL đều được cấu hình (hoặc bật bằng NEXT_PUBLIC_FAILOVER_ENABLED=true).
+ */
+export function isFailoverEnabled(): boolean {
+  if (process.env.NEXT_PUBLIC_FAILOVER_ENABLED === "false") {
+    return false;
+  }
+  const hasRender = Boolean(getRenderApiBaseUrl());
+  const hasAppScript = Boolean(getSsApiBaseUrl());
+  return (
+    process.env.NEXT_PUBLIC_FAILOVER_ENABLED === "true" ||
+    (hasRender && hasAppScript && !isDemoMode())
+  );
+}
+
+export function getPreferredBackend(): BackendTarget {
+  return process.env.NEXT_PUBLIC_PRIMARY_BACKEND === "appscript"
+    ? "appscript"
+    : "render";
+}
+
+/**
+ * Base URL của API — ưu tiên `NEXT_PUBLIC_API_URL` (Render).
+ */
+export function getApiBaseUrl(): string {
+  if (isDemoMode()) {
+    return getSsApiBaseUrl();
+  }
+  return getRenderApiBaseUrl();
 }
 
 const TOKEN_STORAGE_KEY = "finsim.access_token";
@@ -196,17 +223,97 @@ export function buildQueryString<T extends object>(
   return raw ? `?${raw}` : "";
 }
 
+class FailoverEligibleError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "FailoverEligibleError";
+    this.status = status;
+  }
+}
+
 class ApiClient {
-  private resolveBaseUrl: () => string;
+  public readonly resolveBaseUrl: () => string;
   private accessToken: string | null;
   private refreshToken: string | null;
   /** Promise refresh đang chạy dở — nhiều request 401 cùng lúc chỉ gọi 1 lần. */
   private refreshing: Promise<string | null> | null = null;
 
+  /** Circuit breaker state cho từng backend */
+  private brokenUntil: Record<BackendTarget, number> = {
+    render: 0,
+    appscript: 0,
+  };
+  private breakerCooldownMs = 30000;
+
   constructor(resolveBaseUrl: () => string) {
     this.resolveBaseUrl = resolveBaseUrl;
     this.accessToken = null;
     this.refreshToken = null;
+  }
+
+  getCurrentBackend(): BackendTarget {
+    if (isDemoMode()) return "appscript";
+    if (!isFailoverEnabled()) return "render";
+
+    const preferred = getPreferredBackend();
+    const alternate: BackendTarget = preferred === "render" ? "appscript" : "render";
+    const now = Date.now();
+
+    if (this.brokenUntil[preferred] > now) {
+      if (this.brokenUntil[alternate] <= now) {
+        return alternate;
+      }
+    }
+    return preferred;
+  }
+
+  tripCircuitBreaker(target: BackendTarget, reason: string): void {
+    this.brokenUntil[target] = Date.now() + this.breakerCooldownMs;
+    const alternate: BackendTarget = target === "render" ? "appscript" : "render";
+    console.warn(
+      `[FinSim Failover] Backend "${target}" quá tải hoặc gián đoạn (${reason}). Tự động chuyển tải sang "${alternate}" (cooldown 30s).`,
+    );
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent<FailoverEventDetail>("finsim:backend-switched", {
+          detail: { from: target, to: alternate, reason },
+        }),
+      );
+    }
+  }
+
+  resetCircuitBreaker(target: BackendTarget): void {
+    this.brokenUntil[target] = 0;
+  }
+
+  private extractUserIdFromToken(): string | null {
+    const token = this.token;
+    if (!token) return null;
+    try {
+      const parts = token.split(".");
+      if (parts.length === 3) {
+        const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        if (typeof window !== "undefined" && typeof window.atob === "function") {
+          const json = decodeURIComponent(
+            window
+              .atob(base64)
+              .split("")
+              .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+              .join(""),
+          );
+          const payload = JSON.parse(json);
+          return payload.sub ?? payload.id ?? null;
+        } else if (typeof Buffer !== "undefined") {
+          const json = Buffer.from(base64, "base64").toString("utf-8");
+          const payload = JSON.parse(json);
+          return payload.sub ?? payload.id ?? null;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return null;
   }
 
   setAccessToken(token: string | null): void {
@@ -257,7 +364,7 @@ class ApiClient {
       this.refreshing = (async () => {
         try {
           const response = await fetch(
-            `${this.resolveBaseUrl().replace(/\/+$/, "")}/api/v1/auth/refresh`,
+            `${getRenderApiBaseUrl()}/api/v1/auth/refresh`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -286,36 +393,44 @@ class ApiClient {
     return this.refreshing;
   }
 
-  async request<T>(
+  /** Thực hiện request đến Google Apps Script (REST dạng Web App). */
+  private async fetchFromAppScript<T>(
     path: string,
-    init: RequestInit = {},
-    allowRetry = true,
+    init: RequestInit,
+    timeoutMs = 12000,
   ): Promise<T> {
-    // Demo mode (Apps Script backend): bỏ Authorization + custom headers để tránh
-    // CORS preflight; pack toàn bộ path (kèm query) vào param `path` trên webapp.
-    if (isDemoMode()) {
-      const base = this.resolveBaseUrl().replace(/\/+$/, "");
-      if (!base) {
-        throw new ApiClientError(
-          0,
-          "Demo mode đang bật nhưng thiếu NEXT_PUBLIC_SS_API_URL. Hãy khai báo URL Apps Script hoặc tắt NEXT_PUBLIC_DEMO_MODE.",
-        );
-      }
-      const body = init.body;
-      const originalMethod = init.method ?? "GET";
-      // Apps Script web app chỉ nhận GET/POST. Các method khác (PATCH/DELETE/…)
-      // được gửi dưới dạng POST và giấu method thật trong query param `method`.
-      let targetPath = path;
-      let method = originalMethod;
-      if (method !== "GET" && method !== "POST") {
-        targetPath = `${path}${path.includes("?") ? "&" : "?"}method=${method}`;
-        method = "POST";
-      }
-      const headers: Record<string, string> = {};
-      if (method !== "GET" && body !== undefined) {
-        // text/plain là "CORS-safelisted" → trình duyệt không gửi preflight.
-        headers["Content-Type"] = "text/plain;charset=UTF-8";
-      }
+    const base = getSsApiBaseUrl();
+    if (!base) {
+      throw new ApiClientError(
+        0,
+        "Chưa cấu hình URL Google Apps Script (NEXT_PUBLIC_SS_API_URL).",
+      );
+    }
+    const body = init.body;
+    const originalMethod = init.method ?? "GET";
+    let targetPath = path;
+    let method = originalMethod;
+    if (method !== "GET" && method !== "POST") {
+      targetPath = `${path}${path.includes("?") ? "&" : "?"}method=${method}`;
+      method = "POST";
+    }
+
+    const userId = this.extractUserIdFromToken();
+    if (userId && !targetPath.includes("demo_user=")) {
+      targetPath = `${targetPath}${targetPath.includes("?") ? "&" : "?"}demo_user=${encodeURIComponent(userId)}`;
+    }
+
+    const headers: Record<string, string> = {};
+    if (method !== "GET" && body !== undefined) {
+      headers["Content-Type"] = "text/plain;charset=UTF-8";
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+
+    try {
       const response = await fetch(
         `${base}?path=${encodeURIComponent(targetPath)}`,
         {
@@ -323,27 +438,54 @@ class ApiClient {
           method,
           headers,
           body: method !== "GET" ? body : undefined,
+          signal: controller.signal,
         },
       );
+
       if (!response.ok) {
-        let apiError: ApiError | null = null;
+        let errorDetail = response.statusText || `HTTP ${response.status}`;
         try {
-          apiError = (await response.json()) as ApiError;
+          const apiError = (await response.json()) as ApiError;
+          if (apiError?.detail) {
+            errorDetail = normalizeErrorDetail(apiError.detail);
+          }
         } catch {
           // ignore
         }
-        throw new ApiClientError(
-          response.status,
-          (apiError?.detail ?? response.statusText) ||
-            `HTTP ${response.status}`,
-        );
+        if (response.status === 429 || response.status >= 500) {
+          throw new FailoverEligibleError(response.status, errorDetail);
+        }
+        throw new ApiClientError(response.status, errorDetail);
       }
+
       if (response.status === 204) {
         return undefined as T;
       }
       return (await response.json()) as T;
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError || err instanceof FailoverEligibleError) {
+        throw err;
+      }
+      const isAbort = controller.signal.aborted;
+      const msg = isAbort
+        ? `Apps Script hết thời gian phản hồi (${timeoutMs / 1000}s)`
+        : err instanceof Error
+          ? err.message
+          : "Lỗi kết nối Apps Script";
+      throw new FailoverEligibleError(0, msg);
+    } finally {
+      clearTimeout(timer);
     }
+  }
 
+  /** Thực hiện request đến Backend Gateway trên Render (FastAPI). */
+  private async fetchFromRender<T>(
+    path: string,
+    init: RequestInit,
+    allowRetry: boolean,
+    timeoutMs = 7000,
+  ): Promise<T> {
+    const base = getRenderApiBaseUrl();
     const headers = new Headers(init.headers);
     const token = this.token;
     if (token) {
@@ -353,56 +495,133 @@ class ApiClient {
       headers.set("Content-Type", "application/json");
     }
 
-    const response = await fetch(
-      `${this.resolveBaseUrl().replace(/\/+$/, "")}${path}`,
-      {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+
+    try {
+      const response = await fetch(`${base}${path}`, {
         ...init,
         headers,
-      },
-    );
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      // Token hết hạn → thử refresh một lần rồi chạy lại request. Chỉ thất bại
-      // (refresh cũng 401 / refresh token hết hạn) mới đăng xuất.
-      // Loại trừ /auth/login để không phá luồng đăng nhập khi nhập sai mật khẩu.
-      if (
-        response.status === 401 &&
-        token !== null &&
-        !path.includes("/auth/login")
-      ) {
-        if (path.includes("/auth/refresh")) {
-          this.clearTokens();
-          this.emitUnauthorized();
-        } else if (allowRetry && (await this.tryRefresh())) {
-          return this.request<T>(path, init, false);
-        } else {
-          this.clearTokens();
-          this.emitUnauthorized();
+      if (!response.ok) {
+        if (
+          response.status === 429 ||
+          response.status === 502 ||
+          response.status === 503 ||
+          response.status === 504
+        ) {
+          throw new FailoverEligibleError(
+            response.status,
+            `Render phản hồi quá tải/lỗi cổng (HTTP ${response.status})`,
+          );
         }
-      }
-      let apiError: ApiError | null = null;
-      try {
-        const body = (await response.json()) as ApiError;
-        if (typeof body.detail === "string") {
-          apiError = body;
-        } else {
-          apiError = {
-            detail: normalizeErrorDetail(body.detail),
-          };
+
+        if (
+          response.status === 401 &&
+          token !== null &&
+          !path.includes("/auth/login")
+        ) {
+          if (path.includes("/auth/refresh")) {
+            this.clearTokens();
+            this.emitUnauthorized();
+          } else if (allowRetry && (await this.tryRefresh())) {
+            return this.fetchFromRender<T>(path, init, false, timeoutMs);
+          } else {
+            this.clearTokens();
+            this.emitUnauthorized();
+          }
         }
-      } catch {
-        // Response không phải JSON — dùng status text.
+
+        let apiError: ApiError | null = null;
+        try {
+          const body = (await response.json()) as ApiError;
+          if (typeof body.detail === "string") {
+            apiError = body;
+          } else {
+            apiError = {
+              detail: normalizeErrorDetail(body.detail),
+            };
+          }
+        } catch {
+          // Response không phải JSON
+        }
+        throw new ApiClientError(
+          response.status,
+          (apiError?.detail ?? response.statusText) || `HTTP ${response.status}`,
+        );
       }
-      throw new ApiClientError(
-        response.status,
-        (apiError?.detail ?? response.statusText) || `HTTP ${response.status}`,
-      );
+
+      if (response.status === 204) {
+        return undefined as T;
+      }
+      return (await response.json()) as T;
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError || err instanceof FailoverEligibleError) {
+        throw err;
+      }
+      const isAbort = controller.signal.aborted;
+      const msg = isAbort
+        ? `Render phản hồi quá lâu (${timeoutMs / 1000}s - có thể server đang cold start)`
+        : err instanceof Error
+          ? err.message
+          : "Lỗi kết nối mạng đến Render";
+      throw new FailoverEligibleError(0, msg);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async request<T>(
+    path: string,
+    init: RequestInit = {},
+    allowRetry = true,
+  ): Promise<T> {
+    if (isDemoMode() || (!isFailoverEnabled() && !getRenderApiBaseUrl())) {
+      return this.fetchFromAppScript<T>(path, init);
+    }
+    if (!isFailoverEnabled()) {
+      return this.fetchFromRender<T>(path, init, allowRetry);
     }
 
-    if (response.status === 204) {
-      return undefined as T;
+    const activeTarget = this.getCurrentBackend();
+    const backupTarget: BackendTarget =
+      activeTarget === "render" ? "appscript" : "render";
+
+    try {
+      const result =
+        activeTarget === "render"
+          ? await this.fetchFromRender<T>(path, init, allowRetry)
+          : await this.fetchFromAppScript<T>(path, init);
+
+      this.resetCircuitBreaker(activeTarget);
+      return result;
+    } catch (err: unknown) {
+      if (err instanceof FailoverEligibleError) {
+        this.tripCircuitBreaker(activeTarget, err.message);
+        try {
+          const backupResult =
+            backupTarget === "render"
+              ? await this.fetchFromRender<T>(path, init, allowRetry)
+              : await this.fetchFromAppScript<T>(path, init);
+          return backupResult;
+        } catch (backupErr: unknown) {
+          if (backupErr instanceof ApiClientError) {
+            throw backupErr;
+          }
+          throw new ApiClientError(
+            err.status,
+            `${err.message}. Dự phòng (${backupTarget}) cũng thất bại: ${
+              backupErr instanceof Error ? backupErr.message : String(backupErr)
+            }`,
+          );
+        }
+      }
+      throw err;
     }
-    return (await response.json()) as T;
   }
 
   private emitUnauthorized(): void {

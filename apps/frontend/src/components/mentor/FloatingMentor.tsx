@@ -8,11 +8,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { IconLock, IconMentor } from "@/components/common/Icon";
 import { MentorChat } from "@/components/mentor/MentorChat";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useMentorStore } from "@/store/useMentorStore";
+import { cn } from "@/utils/cn";
 
 const Capybara3D = dynamic(
   () => import("@/components/mentor/Capybara3D").then((m) => m.Capybara3D),
@@ -23,6 +27,7 @@ const Capybara3D = dynamic(
 );
 
 export function FloatingMentor() {
+  const token = useAuthStore((state) => state.token);
   const pathname = usePathname();
   const focusRequest = useMentorStore((state) => state.focusRequest);
   const isStreaming = useMentorStore((state) => state.isStreaming);
@@ -75,12 +80,68 @@ export function FloatingMentor() {
             <CloseIcon className="h-4 w-4" />
           </button>
           <div className="min-h-0 flex-1">
-            <MentorChat fixedSymbol={selectedSymbol} compact />
+            {!token ? (
+              <div className="flex h-full flex-col items-center justify-center p-6 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-accent-500/30 bg-accent-500/10 text-accent-600 dark:text-accent-400">
+                  <IconMentor className="h-7 w-7" />
+                </div>
+                <h3 className="mt-3 text-base font-black text-ink-900 dark:text-slip">
+                  Chào bạn, tôi là AI Mentor!
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-ink-500 dark:text-granite-300">
+                  Tôi là trợ lý Socratic của Capia, giúp bạn rèn luyện tư duy đầu tư qua các câu hỏi phản biện. Để trò chuyện cùng tôi, vui lòng đăng nhập tài khoản nhé!
+                </p>
+                <div className="mt-5 flex w-full flex-col gap-2">
+                  <Link
+                    href="/login"
+                    className="btn-primary w-full py-2 text-center text-xs font-bold"
+                    onClick={() => setOpen(false)}
+                  >
+                    Đăng nhập ngay
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="btn-secondary w-full py-2 text-center text-xs font-semibold"
+                    onClick={() => setOpen(false)}
+                  >
+                    Tạo tài khoản miễn phí
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <MentorChat fixedSymbol={selectedSymbol} compact />
+            )}
           </div>
         </div>
       )}
 
       <div className="group relative">
+        {/* Bong bóng gợi ý xinh xắn khi hover hoặc khi AI đang suy nghĩ */}
+        <div
+          className={cn(
+            "pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-full border border-line bg-paper/95 px-3 py-1 text-xs font-semibold text-ink-800 shadow-md backdrop-blur-sm transition-all duration-300 dark:border-granite-700 dark:bg-granite-900/95 dark:text-slip",
+            isStreaming
+              ? "opacity-100 scale-100 translate-y-0 text-accent-600 dark:text-accent-400"
+              : "opacity-0 scale-95 translate-y-1 group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0",
+          )}
+        >
+          {!token ? (
+            <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300">
+              <IconLock className="h-3 w-3" />
+              AI Mentor (Cần đăng nhập)
+            </span>
+          ) : isStreaming ? (
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 animate-ping rounded-full bg-accent-500" />
+              Đang trả lời...
+            </span>
+          ) : open ? (
+            "Thu nhỏ Mentor"
+          ) : (
+            "Hỏi Capia ✨"
+          )}
+        </div>
+
         <button
           type="button"
           onClick={toggle}
@@ -88,7 +149,7 @@ export function FloatingMentor() {
             open ? "Đóng chat với Mentor tài chính" : "Mở chat với Mentor tài chính"
           }
           className="relative flex shrink-0 cursor-pointer items-center justify-center transition-transform duration-200 hover:scale-105 active:scale-95"
-          style={{ background: "transparent", width: 112, height: 112 }}
+          style={{ background: "transparent", width: 116, height: 116 }}
         >
           <Capybara3D excited={isStreaming} />
         </button>
@@ -97,22 +158,66 @@ export function FloatingMentor() {
   );
 }
 
-/** SVG capybara dạng mặt — fallback nhẹ trong lúc 3D đang tải. */
+/** SVG Capybara Chibi đứng 2 chân — fallback siêu cute nhẹ nhàng trong lúc 3D tải */
 function CapybaraFallback() {
   return (
-    <svg viewBox="0 0 120 120" className="h-3/5 w-3/5" aria-hidden="true">
-      <circle cx="28" cy="30" r="13" fill="#7C5126" />
-      <circle cx="92" cy="30" r="13" fill="#7C5126" />
-      <ellipse cx="35" cy="24" rx="7" ry="8" fill="#5C3A1C" />
-      <ellipse cx="85" cy="24" rx="7" ry="8" fill="#5C3A1C" />
-      <circle cx="60" cy="62" r="44" fill="#9A6B3F" />
-      <ellipse cx="60" cy="76" rx="24" ry="15" fill="#CBA57E" />
-      <ellipse cx="48" cy="58" rx="5.5" ry="7" fill="#2E1F12" />
-      <ellipse cx="72" cy="58" rx="5.5" ry="7" fill="#2E1F12" />
-      <circle cx="49.5" cy="55.5" r="2" fill="#FFFFFF" />
-      <circle cx="73.5" cy="55.5" r="2" fill="#FFFFFF" />
-      <ellipse cx="60" cy="38" rx="10" ry="4" fill="#7C5126" />
-      <path d="M48 84 Q60 92 72 84" stroke="#5C3A1C" strokeWidth="3" strokeLinecap="round" fill="none" />
+    <svg viewBox="0 0 120 130" className="h-4/5 w-4/5 drop-shadow-sm" aria-hidden="true">
+      {/* Bóng tiếp đất */}
+      <ellipse cx="60" cy="122" rx="30" ry="5" fill="#3D2614" opacity="0.18" />
+
+      {/* Hai bàn chân đứng thẳng */}
+      <rect x="36" y="112" width="16" height="10" rx="5" fill="#8A5428" />
+      <rect x="68" y="112" width="16" height="10" rx="5" fill="#8A5428" />
+
+      {/* Thân béo tròn */}
+      <ellipse cx="60" cy="88" rx="27" ry="25" fill="#C88746" />
+      {/* Bụng sữa kem */}
+      <ellipse cx="60" cy="90" rx="18" ry="17" fill="#FDF1DC" />
+
+      {/* Đồng tiền vàng FinSimAI */}
+      <circle cx="60" cy="88" r="9" fill="#FFC107" stroke="#FFA000" strokeWidth="1.2" />
+      <circle cx="60" cy="88" r="6.2" fill="#FFE082" />
+      <circle cx="60" cy="88" r="2" fill="#FFFFFF" />
+
+      {/* Hai tay ngắn ôm đồng xu */}
+      <circle cx="48" cy="88" r="5.5" fill="#8A5428" />
+      <circle cx="72" cy="88" r="5.5" fill="#8A5428" />
+
+      {/* Hai tai tròn */}
+      <ellipse cx="36" cy="38" rx="7" ry="8" fill="#8A5428" />
+      <ellipse cx="36" cy="38" rx="4" ry="5" fill="#F2A79D" />
+      <ellipse cx="84" cy="38" rx="7" ry="8" fill="#8A5428" />
+      <ellipse cx="84" cy="38" rx="4" ry="5" fill="#F2A79D" />
+
+      {/* Đầu sọ vuông tròn */}
+      <rect x="34" y="32" width="52" height="42" rx="18" fill="#C88746" />
+      {/* Má phúng phính */}
+      <circle cx="36" cy="56" r="10" fill="#C88746" />
+      <circle cx="84" cy="56" r="10" fill="#C88746" />
+      {/* Má hồng đào */}
+      <circle cx="38" cy="58" r="4.5" fill="#FFAAA6" opacity="0.9" />
+      <circle cx="82" cy="58" r="4.5" fill="#FFAAA6" opacity="0.9" />
+
+      {/* Mõm kem */}
+      <rect x="42" y="48" width="36" height="24" rx="10" fill="#FDF1DC" />
+      {/* Mũi hạt nút */}
+      <rect x="53" y="49" width="14" height="8" rx="3.5" fill="#352014" />
+      {/* Miệng cười chúm chím */}
+      <path d="M57 63 Q60 66 63 63" stroke="#352014" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+
+      {/* Đôi mắt kawaii đen láy long lanh */}
+      <ellipse cx="46" cy="46" rx="4.5" ry="5" fill="#1C140E" />
+      <circle cx="44.5" cy="44.5" r="1.8" fill="#FFFFFF" />
+      <circle cx="47" cy="47.5" r="0.8" fill="#FFFFFF" />
+
+      <ellipse cx="74" cy="46" rx="4.5" ry="5" fill="#1C140E" />
+      <circle cx="72.5" cy="44.5" r="1.8" fill="#FFFFFF" />
+      <circle cx="75" cy="47.5" r="0.8" fill="#FFFFFF" />
+
+      {/* Quả cam yuzu trên đầu */}
+      <ellipse cx="60" cy="22" rx="11" ry="9.5" fill="#FF9500" />
+      <line x1="60" y1="13" x2="60" y2="9" stroke="#5D4037" strokeWidth="2" strokeLinecap="round" />
+      <ellipse cx="65" cy="11" rx="4.5" ry="2" fill="#4CAF50" transform="rotate(20 65 11)" />
     </svg>
   );
 }

@@ -18,6 +18,7 @@ import { Card, CardBody, CardHeader } from "@/components/common/Card";
 import {
   IconBuilding,
   IconGrid,
+  IconLock,
   IconMentor,
   IconNews,
   IconRisk,
@@ -74,8 +75,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let active = true;
-    if (!user) return;
-    void fetchTasks();
+    if (user) {
+      void fetchTasks();
+    }
     void listCompanies({ limit: 100 })
       .then((res) => active && setCompanies(res.items))
       .catch(() => {});
@@ -113,6 +115,27 @@ export default function DashboardPage() {
         title={user ? `Xin chào, ${user.display_name ?? user.username}!` : "Bảng điều khiển"}
         description="Tổng quan vốn, danh mục, tin tức và nhiệm vụ — môi trường mô phỏng an toàn."
       />
+
+      {!user && (
+        <div className="mb-6 flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300">
+              <IconLock className="h-4 w-4" />
+            </div>
+            <p className="text-xs text-amber-800 dark:text-amber-200">
+              <strong>Chế độ khách:</strong> Bạn đang xem tổng quan ở chế độ khách. Để cấp vốn 100tr, theo dõi hiệu suất danh mục và trò chuyện cùng AI Mentor, vui lòng đăng nhập.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/login" className="btn-primary text-xs px-3 py-1.5">
+              Đăng nhập
+            </Link>
+            <Link href="/register" className="btn-secondary text-xs px-3 py-1.5">
+              Đăng ký
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* 1) KPI board */}
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -50,6 +50,16 @@ interface MentorState {
   lastError: string | null;
   /** Đã nạp lịch sử từ DB cho phiên hiện tại (chống nạp lặp). */
   historyLoaded: boolean;
+  /** Câu hỏi/nội dung đang chờ đưa vào ô chat từ các trang khác (trade, news, social). */
+  pendingPrompt: string | null;
+  /** Tự động gửi câu hỏi ngay khi mở (true) hoặc chỉ điền vào ô nhập (false). */
+  autoSendPending: boolean;
+  openWithPrompt: (
+    prompt: string,
+    context?: Partial<MentorContext>,
+    autoSend?: boolean,
+  ) => void;
+  clearPendingPrompt: () => void;
   /** Bắt đầu phiên mới, xoá tin nhắn cũ. */
   startSession: () => void;
   resetSession: () => void;
@@ -93,6 +103,21 @@ export const useMentorStore = create<MentorState>()((set, get) => ({
   isReady: false,
   lastError: null,
   historyLoaded: false,
+  pendingPrompt: null,
+  autoSendPending: false,
+
+  openWithPrompt: (prompt, context, autoSend = false) => {
+    set({
+      tradeContext: { ...get().tradeContext, ...(context ?? {}) },
+      pendingPrompt: prompt,
+      autoSendPending: autoSend,
+      focusRequest: get().focusRequest + 1,
+    });
+  },
+
+  clearPendingPrompt: () => {
+    set({ pendingPrompt: null, autoSendPending: false });
+  },
 
   startSession: () => {
     set({

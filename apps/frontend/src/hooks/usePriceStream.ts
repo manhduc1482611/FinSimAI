@@ -114,34 +114,6 @@ export function usePriceStream(symbol: string): UsePriceStreamResult {
     };
   }, [isDemo, user, symbol]);
 
-  // Demo mode: poll REST giá THẬT của backend (không sinh tick phía client).
-  useEffect(() => {
-    if (!isDemo) {
-      return;
-    }
-    let cancelled = false;
-    const pollNow = async (): Promise<void> => {
-      if (cancelled) {
-        return;
-      }
-      try {
-        const res = await listCompanies({ limit: 100 });
-        const company = res.items.find((item) => item.symbol === symbolRef.current);
-        if (company !== undefined && !cancelled) {
-          setSnapshot(buildPollSnapshot(company.symbol, company));
-        }
-      } catch {
-        // Giữ giá gần nhất — lỗi mạng/hết quota không làm vỡ terminal.
-      }
-    };
-    void pollNow();
-    const timer = window.setInterval(() => void pollNow(), DEMO_POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [isDemo, symbol]);
-
   const { status, lastError, sendMessage } = useWebSocket({
     url: ticketUrl,
     enabled: ticketUrl !== null,
@@ -169,9 +141,39 @@ export function usePriceStream(symbol: string): UsePriceStreamResult {
     },
   });
 
+  // Polling fallback: chạy khi ở Demo mode HOẶC khi WebSocket Render chưa kết nối được
+  // (Render đang ngủ / cold start / mất kết nối). Khi WebSocket 'open', tạm dừng poll.
+  useEffect(() => {
+    if (status === "open") {
+      return;
+    }
+    let cancelled = false;
+    const pollNow = async (): Promise<void> => {
+      if (cancelled) {
+        return;
+      }
+      try {
+        const res = await listCompanies({ limit: 100 });
+        const company = res.items.find((item) => item.symbol === symbolRef.current);
+        if (company !== undefined && !cancelled) {
+          setSnapshot(buildPollSnapshot(company.symbol, company));
+        }
+      } catch {
+        // Giữ giá gần nhất — lỗi mạng/hết quota không làm vỡ terminal.
+      }
+    };
+    void pollNow();
+    const timer = window.setInterval(() => void pollNow(), DEMO_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [status, symbol]);
+
   sendRef.current = sendMessage;
 
-  const source: PriceSource = snapshot === null ? "none" : isDemo ? "poll" : "live";
+  const source: PriceSource =
+    snapshot === null ? "none" : status === "open" ? "live" : "poll";
 
   return { snapshot, ticks, status, lastError, source };
 }

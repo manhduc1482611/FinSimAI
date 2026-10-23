@@ -3,12 +3,14 @@
 
 import { useEffect, useState } from "react";
 
+import { LoggedOutPrompt } from "@/components/common/LoggedOutPrompt";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Skeleton } from "@/components/common/Skeleton";
 import { ErrorPanel } from "@/components/common/ErrorPanel";
 import { NewsCard } from "@/components/news/NewsCard";
 import { SocialPostCard } from "@/components/social/SocialPostCard";
 import { listCompanies } from "@/services/companies";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useSavedStore } from "@/store/useSavedStore";
 import type {
   CompanyResponse,
@@ -16,6 +18,7 @@ import type {
 } from "@finsim/shared-types/generated/api-types";
 
 export default function SavedPage() {
+  const token = useAuthStore((state) => state.token);
   const savedNews = useSavedStore((state) => state.news);
   const savedPosts = useSavedStore((state) => state.social);
   const status = useSavedStore((state) => state.status);
@@ -26,12 +29,28 @@ export default function SavedPage() {
   const [companies, setCompanies] = useState<CompanyResponse[]>([]);
 
   useEffect(() => {
+    if (!token) return;
     void loadNews();
     void loadSocial();
     listCompanies()
       .then((response) => setCompanies(response.items))
       .catch(() => setCompanies([]));
-  }, [loadNews, loadSocial]);
+  }, [token, loadNews, loadSocial]);
+
+  if (!token) {
+    return (
+      <div>
+        <PageHeader
+          title="Đã lưu"
+          description="Tin tức và bài đăng bạn đã bookmark — đọc lại bất cứ lúc nào."
+        />
+        <LoggedOutPrompt
+          title="Đăng nhập để xem nội dung đã lưu"
+          description="Bookmark các tin tức quan trọng và bài viết cộng đồng để lưu lại và đọc lại bất cứ lúc nào."
+        />
+      </div>
+    );
+  }
 
   if (status === "loading" && savedNews.length === 0 && savedPosts.length === 0) {
     return (

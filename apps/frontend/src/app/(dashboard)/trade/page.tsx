@@ -4,10 +4,11 @@
  */
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/common/Button";
-import { IconChat } from "@/components/common/Icon";
+import { IconChat, IconLock } from "@/components/common/Icon";
 import { PageHeader } from "@/components/common/PageHeader";
 import { OrderBook } from "@/components/trade/OrderBook";
 import { OrderTable } from "@/components/trade/OrderTable";
@@ -20,11 +21,13 @@ import { usePriceStream } from "@/hooks/usePriceStream";
 import { useTrade } from "@/hooks/useTrade";
 import { parseDecimal } from "@/utils/format";
 import { cn } from "@/utils/cn";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useMentorStore } from "@/store/useMentorStore";
 import type { CompanyResponse } from "@finsim/shared-types/generated/api-types";
 import type { AsyncStatus } from "@/types/api";
 
 export default function TradePage() {
+  const token = useAuthStore((state) => state.token);
   const trade = useTrade();
 
   const [companies, setCompanies] = useState<CompanyResponse[]>([]);
@@ -93,6 +96,27 @@ export default function TradePage() {
           </Button>
         }
       />
+
+      {!token && (
+        <div className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300">
+              <IconLock className="h-4 w-4" />
+            </div>
+            <p className="text-xs text-amber-800 dark:text-amber-200">
+              <strong>Chế độ xem trước Bàn giao dịch:</strong> Bạn đang xem ở chế độ khách. Biểu đồ nến real-time, đặt lệnh và trợ lý AI Mentor yêu cầu tài khoản đã đăng nhập.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/login" className="btn-primary text-xs px-3 py-1.5">
+              Đăng nhập
+            </Link>
+            <Link href="/register" className="btn-secondary text-xs px-3 py-1.5">
+              Đăng ký
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Thanh chọn mã */}
       <div className="flex flex-wrap items-center gap-2">

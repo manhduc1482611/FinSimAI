@@ -199,5 +199,33 @@ class MarketSim:
         await self._release_settlements()
         await self._apply_corporate_events()
 
+    async def run_forever(self) -> None:
+        """Chạy vòng lặp mô phỏng liên tục dưới dạng standalone background worker.
+
+        Giúp tách hoàn toàn tiến trình tính toán giá và khớp lệnh ra khỏi
+        FastAPI event loop của Backend Gateway khi triển khai sản xuất.
+        """
+        logger.info(
+            "MarketSim standalone background worker khởi động (tick=%.1fs, leader_key=%s)",
+            self.tick_seconds,
+            self._leader_lock_key,
+        )
+        await self._run_loop()
+
 
 market_sim = MarketSim()
+
+
+if __name__ == "__main__":
+    import sys
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+    sim = MarketSim()
+    try:
+        asyncio.run(sim.run_forever())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("MarketSim standalone worker đã dừng.")
+        sys.exit(0)

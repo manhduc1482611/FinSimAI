@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Button } from "@/components/common/Button";
 import { Card, CardBody } from "@/components/common/Card";
 import { TextField } from "@/components/common/Field";
+import { IconEye } from "@/components/common/Icon";
 import { toRequestError } from "@/services/api";
 import { useAuthStore } from "@/store/useAuthStore";
 import { homePathForRole } from "@/utils/roles";
@@ -99,6 +100,16 @@ export default function LoginPage() {
             Đăng ký
           </Link>
         </p>
+
+        <div className="border-t border-line pt-4 text-center dark:border-granite-800">
+          <Link
+            href="/news"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:underline dark:text-brand-300"
+          >
+            <IconEye className="h-4 w-4" />
+            <span>Vào xem web không cần đăng nhập (Chế độ khách) →</span>
+          </Link>
+        </div>
       </CardBody>
     </Card>
   );

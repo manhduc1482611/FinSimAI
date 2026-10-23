@@ -152,13 +152,13 @@ store.setTradeContext({ mode, selected_symbol: selectedSymbol });
   };
 }
 
-/** Dựng phản hồi demo cho Mentor theo mode (một phần dùng glossary local). */
+/** Dựng phản hồi demo cho Mentor theo mode (dùng glossary local & template chiến lược). */
 function buildDemoMentorReply(
   text: string,
   mode: MentorMode,
   selectedSymbol: string | undefined,
 ): Omit<MentorMessage, "id" | "ts"> {
-  const intro = "Mentor (Demo):";
+  const intro = "Mentor:";
 
   if (mode === "concept") {
     const match = lookupConceptLocal(text);
@@ -181,30 +181,172 @@ function buildDemoMentorReply(
         },
       };
     }
+
+    const lower = text.toLowerCase();
+    if (
+      lower.includes("lua ga") ||
+      lower.includes("fomo") ||
+      lower.includes("kiem chung") ||
+      lower.includes("mxh") ||
+      lower.includes("bai viet") ||
+      lower.includes("bai dang")
+    ) {
+      const fomoConcept = lookupConceptLocal("fomo");
+      return {
+        role: "mentor",
+        content: `Khi đọc các bài viết khuyến nghị trên mạng xã hội, bạn nên giữ tư duy phản biện độc lập:\n\n1. Phát hiện tâm lý bầy đàn & FOMO: Các bài viết dùng từ ngữ giật gân thường nhằm kích hoạt lòng tham để xả hàng.\n2. Đối chiếu số liệu: Luôn kiểm tra báo cáo tài chính (doanh thu, lợi nhuận ròng, P/E, ROE) trên trang Doanh nghiệp thay vì tin vào tin đồn.\n3. Kỷ luật giao dịch: Không bao giờ mua theo cảm xúc nếu chưa có kế hoạch dừng lỗ rõ ràng.`,
+        kind: fomoConcept ? "concept" : undefined,
+        concept: fomoConcept
+          ? {
+              id: fomoConcept.id,
+              name: fomoConcept.concept,
+              definition: fomoConcept.definition,
+              explanation: fomoConcept.explanation,
+              example: fomoConcept.example,
+              formula: fomoConcept.formula,
+              interpretation: fomoConcept.interpretation,
+              related: fomoConcept.related,
+              followup_question:
+                "Bạn thấy bài viết này có điểm nào đáng ngờ so với dữ liệu kinh doanh thực tế không?",
+            }
+          : undefined,
+      };
+    }
+
+    if (
+      lower.includes("bai bao") ||
+      lower.includes("tin tuc") ||
+      lower.includes("phan tich")
+    ) {
+      return {
+        role: "mentor",
+        content: `Để phân tích một tin tức tài chính theo phương pháp Socratic, hãy tự đặt ra 3 câu hỏi:\n\n1. Nguồn tin & Độ tin cậy: Tin tức này đến từ cơ quan quản lý chính thống hay là tin đồn thổi?\n2. Tác động chu kỳ ngành: Tin tức này có làm thay đổi doanh thu hoặc chi phí của các doanh nghiệp trong ngành không?\n3. Thị trường đã phản ánh chưa: Liệu đây có phải là hiện tượng "mua vì tin đồn, bán khi tin ra"?`,
+      };
+    }
+
     return {
       role: "mentor",
-      content: `${intro} Glossary demo chưa có khái niệm này. Hãy thử hỏi về một thuật ngữ như P/E, ROE, net margin, cắt lỗ, lãi kép, FOMO, hỗ trợ/kháng cự...`,
+      content: `${intro} Glossary chưa có khái niệm này. Hãy thử hỏi về một thuật ngữ như P/E, ROE, net margin, cắt lỗ, lãi kép, FOMO, hỗ trợ/kháng cự...`,
     };
   }
 
-  if (mode === "trade_now" && selectedSymbol !== undefined) {
-    const matches = matchKnowledgeLocal(text);
-    const riskLine =
-      matches.length > 0
-        ? `Về mặt kiến thức liên quan (${matches
-            .map((m) => m.concept)
-            .join(", ")}), hãy đối chiếu quyết định của bạn với nguyên tắc quản trị rủi ro.`
-        : "Hãy đối chiếu quyết định của bạn với nguyên tắc quản trị rủi ro.";
+  if (mode === "trade_now") {
+    const sym = selectedSymbol ?? "mã này";
     return {
       role: "mentor",
-      content: `${intro} Bạn đang cân nhắc giao dịch ${selectedSymbol}. ${riskLine}\nNhững câu hỏi để tự phản biện: bạn đã xác định mức lỗ tối đa chấp nhận cho mã này chưa? Tỷ trọng vị thế dự kiến là bao nhiêu so với tổng tài sản?`,
+      content: `Dưới đây là các góc nhìn phản biện theo phương pháp Socrates để bạn tự rà soát quyết định vào lệnh với ${sym}:`,
+      kind: "challenge",
+      challenge: {
+        focus: sym,
+        risk_flags: [
+          "Tỷ trọng phân bổ danh mục",
+          "Kế hoạch dừng lỗ (Stop-Loss)",
+          "Bẫy tâm lý FOMO / Bắt đáy",
+        ],
+        questions: [
+          `Lệnh giao dịch này chiếm bao nhiêu % tổng vốn của bạn? Bạn có đang dồn vốn quá 20% vào một mã duy nhất?`,
+          `Nếu thị trường đảo chiều giảm 5% - 7%, điểm cắt lỗ cụ thể của bạn nằm ở mức giá nào?`,
+          `Lý do bạn vào lệnh là gì: dựa trên báo cáo tài chính/chỉ số hay chỉ vì thấy giá hoặc tin tức gần đây biến động mạnh?`,
+          `Bạn dự định nắm giữ vị thế này trong bao lâu (lướt sóng ngắn hạn hay đầu tư trung hạn)?`,
+        ],
+        coaching_tip:
+          "Hãy trả lời trung thực các câu hỏi trên trước khi nhấn xác nhận. Kỷ luật cắt lỗ quan trọng hơn việc tìm kiếm lợi nhuận.",
+      },
     };
   }
 
   if (mode === "plan") {
+    const isIncome = /cổ tức|thu nhập|bảo toàn|an toàn/i.test(text);
+    const isGrowth = /tăng trưởng|rủi ro cao|nhanh/i.test(text);
+
+    if (isIncome) {
+      return {
+        role: "mentor",
+        content:
+          "Dưới đây là khung chiến lược đầu tư phòng thủ / cổ tức được đề xuất:",
+        kind: "strategy",
+        strategy: {
+          framework_id: "dividend_investing",
+          framework_name:
+            "Chiến lược Thu nhập & Cổ tức Bền vững (Dividend Investing)",
+          criteria: [
+            "Doanh nghiệp có lịch sử trả cổ tức tiền mặt đều đặn ít nhất 3 năm liên tiếp.",
+            "Tỷ suất cổ tức / thị giá (Dividend Yield) > lãi suất tiết kiệm ngân hàng.",
+            "Mô hình kinh doanh thiết yếu, dòng tiền kinh doanh (CFO) dương và ổn định.",
+          ],
+          allocation_rule:
+            "Phân bổ 70% vào 3-4 cổ phiếu chia cổ tức tiền mặt cao, 20% trái phiếu/tiết kiệm, 10% tiền mặt linh hoạt.",
+          risk_rule:
+            "Cắt giảm tỷ trọng nếu doanh nghiệp chuyển sang nợ vay tăng đột biến hoặc lợi nhuận kinh doanh cốt lõi sụt giảm.",
+          how_to_trade: [
+            "Mua tích lũy trong các đợt điều chỉnh giảm của thị trường chung.",
+            "Tái đầu tư cổ tức tiền mặt nhận được vào danh mục để tận dụng lãi kép.",
+          ],
+          questions: [
+            "Dòng tiền bạn dùng đầu tư là tiền nhàn rỗi trong bao lâu?",
+            "Doanh nghiệp có duy trì được lợi thế cạnh tranh khi kinh tế vĩ mô biến động không?",
+          ],
+        },
+      };
+    }
+
+    if (isGrowth) {
+      return {
+        role: "mentor",
+        content: "Dưới đây là khung chiến lược tăng trưởng có kiểm soát:",
+        kind: "strategy",
+        strategy: {
+          framework_id: "growth_investing",
+          framework_name:
+            "Chiến lược Tăng trưởng Có Chọn Lọc (Growth with Discipline)",
+          criteria: [
+            "Tốc độ tăng trưởng doanh thu và lợi nhuận ròng hàng năm > 20%.",
+            "Biên lợi nhuận gộp và ROE duy trì trên 15%.",
+            "Quy mô thị trường của ngành còn nhiều dư địa mở rộng.",
+          ],
+          allocation_rule:
+            "Tối đa 15-20% vốn cho mỗi cổ phiếu tăng trưởng; luôn giữ 15% tiền mặt dự phòng.",
+          risk_rule:
+            "Đặt mức dừng lỗ nghiêm ngặt (7-8% từ điểm mua) để bảo toàn vốn.",
+          how_to_trade: [
+            "Giải ngân thăm dò 30% khi cổ phiếu tạo nền tích lũy vững chắc.",
+            "Gia tăng vị thế khi xu hướng tăng được xác nhận kèm thanh khoản lớn.",
+          ],
+          questions: [
+            "Kỳ vọng P/E hiện tại có đang phản ánh quá mức sự lạc quan tương lai?",
+            "Nếu tăng trưởng quý tới chậm lại, bạn sẽ xử lý vị thế thế nào?",
+          ],
+        },
+      };
+    }
+
     return {
       role: "mentor",
-      content: `${intro} Ở chế độ đề xuất hướng đầu tư, hãy cho mình biết thêm: mục tiêu của bạn là tăng trưởng, thu nhập hay bảo toàn vốn? Nhịp đầu tư dài bao lâu, và bạn chấp nhận rủi ro ở mức nào? Dựa trên đó mình sẽ gợi ý một khung chiến lược để bạn tự đánh giá.`,
+      content:
+        "Dưới đây là khung chiến lược tích sản trung - dài hạn (DCA) phổ quát:",
+      kind: "strategy",
+      strategy: {
+        framework_id: "dca_investing",
+        framework_name: "Khung Chiến lược Tích sản Trung - Dài hạn (DCA)",
+        criteria: [
+          "Doanh nghiệp đầu ngành có lợi thế cạnh tranh bền vững (Moat).",
+          "Ban lãnh đạo minh bạch, nợ vay an toàn (D/E < 1.0).",
+          "Định giá P/E, P/B ở vùng hợp lý so với lịch sử phát triển.",
+        ],
+        allocation_rule:
+          "Chia đều vào 3-5 ngành kinh tế trọng điểm (Ngân hàng, Bán lẻ, Công nghệ).",
+        risk_rule:
+          "Mua định kỳ theo tháng/quý không phụ thuộc biến động ngắn hạn; tái cân bằng 6 tháng/lần.",
+        how_to_trade: [
+          "Xác định khoản tiền nhàn rỗi cố định hàng tháng.",
+          "Mua đúng ngày quy định, giữ tỷ trọng kỷ luật.",
+          "Chỉ bán khi luận điểm kinh doanh dài hạn của doanh nghiệp bị phá vỡ.",
+        ],
+        questions: [
+          "Bạn có cam kết duy trì kế hoạch này trong ít nhất 1-3 năm tới không?",
+          "Cảm xúc của bạn sẽ ra sao nếu thị trường chung giảm 20% trong ngắn hạn?",
+        ],
+      },
     };
   }
 

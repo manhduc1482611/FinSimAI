@@ -9,8 +9,9 @@ import { BookmarkButton } from "@/components/common/BookmarkButton";
 import { Card, CardBody, CardHeader } from "@/components/common/Card";
 import { Spinner } from "@/components/common/Spinner";
 import { ErrorPanel } from "@/components/common/ErrorPanel";
-import { IconTrendDown, IconTrendUp } from "@/components/common/Icon";
+import { IconMentor, IconTrendDown, IconTrendUp } from "@/components/common/Icon";
 import { useKnowledge } from "@/hooks/useKnowledge";
+import { useMentorStore } from "@/store/useMentorStore";
 import { getNews, listNews } from "@/services/news";
 import type { NewsResponse } from "@finsim/shared-types/generated/api-types";
 import type { AsyncStatus } from "@/types/api";
@@ -144,6 +145,26 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
         </header>
 
         <div className="space-y-4 border-t border-line pt-6 whitespace-pre-line text-sm leading-relaxed text-ink-800 dark:border-granite-800 dark:text-slip">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-dashed border-accent-500/40 bg-accent-500/5 p-4 not-prose">
+            <div>
+              <p className="text-sm font-bold text-ink-900 dark:text-slip">Cùng Mentor đào sâu bài viết</p>
+              <p className="text-xs text-ink-500 dark:text-granite-400">Hỏi Mentor phân tích tác động tài chính và liên hệ thực tế tới các mã cổ phiếu.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                useMentorStore.getState().openWithPrompt(
+                  `Hãy phân tích bài báo này giúp tôi: "${news.title}". Bài viết này tác động thế nào tới thị trường và nhà đầu tư cần chú ý điều gì?`,
+                  { mode: "concept" },
+                  true,
+                );
+              }}
+              className="flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent-500 px-3.5 py-2 text-xs font-semibold text-granite-950 transition-colors hover:bg-accent-400"
+            >
+              <IconMentor className="h-4 w-4" />
+              Hỏi Mentor phân tích
+            </button>
+          </div>
           <p className="text-base leading-relaxed text-ink-900 first-letter:text-3xl first-letter:font-bold first-letter:text-brand-600 dark:text-slip dark:first-letter:text-brand-400">
             {sanitizeTemplateVars(news.content)}
           </p>
@@ -189,6 +210,23 @@ export default function NewsDetailPage({ params }: { params: { id: string } }) {
                   <Badge variant="info">Độ khó {item.difficulty}</Badge>
                 </div>
                 <p className="mt-1 text-sm text-ink-600 dark:text-granite-300">{item.definition}</p>
+                <div className="mt-2 flex items-center justify-between border-t border-dashed border-line pt-2 dark:border-granite-700">
+                  <span className="text-xs text-ink-400">Muốn hiểu sâu hơn?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      useMentorStore.getState().openWithPrompt(
+                        `Giải thích khái niệm "${item.concept}" và cho tôi ví dụ áp dụng thực tế trong bối cảnh bài báo "${news.title}".`,
+                        { mode: "concept" },
+                        true,
+                      );
+                    }}
+                    className="flex items-center gap-1 text-xs font-semibold text-accent-700 hover:underline dark:text-accent-300"
+                  >
+                    <IconMentor className="h-3.5 w-3.5" />
+                    Hỏi Mentor giải thích
+                  </button>
+                </div>
               </div>
             ))}
           </CardBody>

@@ -7,8 +7,9 @@
 import { useEffect } from "react";
 
 import { Button } from "@/components/common/Button";
-import { IconClose } from "@/components/common/Icon";
+import { IconClose, IconMentor } from "@/components/common/Icon";
 import { formatNumber, formatQuantity } from "@/utils/format";
+import { useMentorStore } from "@/store/useMentorStore";
 import { cn } from "@/utils/cn";
 
 export interface OrderConfirmData {
@@ -44,6 +45,20 @@ export function OrderConfirmModal({ order, submitting, onConfirm, onCancel }: Or
   if (order === null) return null;
 
   const isBuy = order.side === "buy";
+
+  const handleConsultMentor = () => {
+    const sideText = isBuy ? "MUA" : "BÁN";
+    const prompt = `Tôi chuẩn bị xác nhận lệnh ${sideText} ${order.quantity} CP ${order.symbol} (${order.companyName}) với tổng giá trị ${formatNumber(order.net, 0)} ₫. Quyết định này có rủi ro tiềm ẩn nào tôi nên rà soát lại không?`;
+    useMentorStore.getState().openWithPrompt(
+      prompt,
+      {
+        mode: "trade_now",
+        selected_symbol: order.symbol,
+      },
+      true,
+    );
+    onCancel();
+  };
 
   return (
     <div
@@ -102,6 +117,18 @@ export function OrderConfirmModal({ order, submitting, onConfirm, onCancel }: Or
             <span className="board-label">{isBuy ? "Tổng chi tiêu" : "Thực nhận"}</span>
             <span className="board-num text-base">{formatNumber(order.net, 0)} ₫</span>
           </div>
+        </div>
+
+        <div className="mx-4 mb-3 flex items-center justify-between rounded-lg border border-dashed border-accent-500/40 bg-accent-500/5 px-3 py-2 text-xs">
+          <span className="text-ink-600 dark:text-granite-300">Chưa chắc chắn về lệnh này?</span>
+          <button
+            type="button"
+            onClick={handleConsultMentor}
+            className="flex items-center gap-1 font-semibold text-accent-700 hover:underline dark:text-accent-300"
+          >
+            <IconMentor className="h-3.5 w-3.5" />
+            Hỏi Mentor phản biện
+          </button>
         </div>
 
         <div className="flex gap-2 border-t border-line px-4 py-3 dark:border-granite-700">

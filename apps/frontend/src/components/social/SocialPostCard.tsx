@@ -13,11 +13,12 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/common/Badge";
 import { Avatar } from "@/components/common/Avatar";
 import { BookmarkButton } from "@/components/common/BookmarkButton";
-import { IconChat, IconHeart, IconTrendDown, IconTrendUp } from "@/components/common/Icon";
+import { IconChat, IconHeart, IconMentor, IconTrendDown, IconTrendUp } from "@/components/common/Icon";
 import { Spinner } from "@/components/common/Spinner";
 import { toRequestError } from "@/services/api";
 import { createSocialComment, listSocialComments } from "@/services/social";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useMentorStore } from "@/store/useMentorStore";
 import { personaLabel, sentimentLabel, sentimentVariant } from "@/utils/domain";
 import { formatNumber, formatRelativeTime, formatViral, parseDecimal } from "@/utils/format";
 import { cn } from "@/utils/cn";
@@ -60,6 +61,21 @@ export function SocialPostCard({ post, companies, onToggleLike, onCommentAdded, 
       return false;
     }
     return true;
+  };
+
+  const handleVerifyWithMentor = () => {
+    const sym = linkedCompany?.symbol;
+    const author = post.author_name;
+    const snippet = post.content.length > 120 ? `${post.content.slice(0, 120)}...` : post.content;
+    const prompt = `Hãy kiểm chứng và phản biện bài viết này từ tác giả "${author}"${sym ? ` nhắc đến mã ${sym}` : ""}: "${snippet}". Bài đăng này có dấu hiệu lùa gà, FOMO, thổi phồng hay thông tin sai lệch không?`;
+    useMentorStore.getState().openWithPrompt(
+      prompt,
+      {
+        mode: sym ? "trade_now" : "concept",
+        selected_symbol: sym,
+      },
+      true,
+    );
   };
 
   const loadComments = async () => {
@@ -200,6 +216,15 @@ export function SocialPostCard({ post, companies, onToggleLike, onCommentAdded, 
             <IconShare className="h-4 w-4" />
             {post.shares_count > 0 ? `${post.shares_count} chia sẻ` : "Chia sẻ"}
           </span>
+          <button
+            type="button"
+            onClick={handleVerifyWithMentor}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-accent-700 transition-colors hover:bg-accent-500/10 dark:text-accent-300 dark:hover:bg-accent-500/10"
+            title="Nhờ AI Mentor kiểm chứng rủi ro, FOMO hoặc dấu hiệu lùa gà"
+          >
+            <IconMentor className="h-4 w-4 text-accent-600 dark:text-accent-400" />
+            Kiểm chứng
+          </button>
           <BookmarkButton
             contentId={post.id}
             contentType="social"

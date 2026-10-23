@@ -4,6 +4,7 @@
  */
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { IconMenu, IconMoon, IconSun } from "@/components/common/Icon";
@@ -116,9 +117,15 @@ export function Header({ onOpenSidebar }: HeaderProps) {
           {getPageTitle(pathname)}
         </h2>
         {!token && (
-          <p className="hidden text-xs text-amber-700 dark:text-amber-400 sm:block">
-            Chế độ xem thử — đăng nhập để có dữ liệu thật
-          </p>
+          <div className="hidden items-center gap-1.5 sm:flex">
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              Chế độ khách
+            </span>
+            <span className="text-xs text-ink-500 dark:text-granite-400">
+              (Biểu đồ chứng khoán & AI Mentor cần đăng nhập)
+            </span>
+          </div>
         )}
       </div>
 
@@ -172,6 +179,14 @@ export function Header({ onOpenSidebar }: HeaderProps) {
         </div>
 
         <QuestPopover />
+        {!token && (
+          <Link
+            href="/register"
+            className="btn-secondary hidden px-3 py-1.5 text-xs font-semibold sm:inline-flex"
+          >
+            Đăng ký
+          </Link>
+        )}
         <UserMenu />
       </div>
     </header>

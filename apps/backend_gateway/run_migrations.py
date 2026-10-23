@@ -48,7 +48,7 @@ def run_migrations() -> None:
 
     cfg = Config(str(ALEMBIC_INI))
     cfg.set_main_option("script_location", str((DATABASE_PKG / "migrations").resolve()))
-    cfg.set_main_option("sqlalchemy.url", url)
+    cfg.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
 
     logger.info("Đang chạy alembic upgrade head…")
     command.upgrade(cfg, "head")

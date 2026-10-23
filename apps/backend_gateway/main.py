@@ -40,7 +40,7 @@ async def _check_database(timeout: float | None = None) -> bool:
                 await conn.execute(text("SELECT 1"))
         return True
     except Exception as e:
-        logger.error("Database health check failed: %s", e)
+        logger.error("Database health check failed: %r", e)
         return False
 
 

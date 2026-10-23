@@ -6,6 +6,8 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from core.config import settings
+
 from realtime.connection_manager import (
     SERVER_RESTART_CLOSE_CODE,
     ConnectionManager,
@@ -58,11 +60,12 @@ async def start_ws_background(app: FastAPI) -> dict[str, Any]:
 
     connection_manager.attach_backplane(backplane.backplane)
     await backplane.backplane.start()
-    await market_sim.market_sim.start()
+    if settings.ws_market_sim_enabled:
+        await market_sim.market_sim.start()
     await price_ws.price_broadcaster.start()
     await trade_ws.trade_notifier.start()
     return {
-        "market_sim": market_sim.market_sim,
+        "market_sim": market_sim.market_sim if settings.ws_market_sim_enabled else None,
         "price_broadcaster": price_ws.price_broadcaster,
         "trade_notifier": trade_ws.trade_notifier,
         "backplane": backplane.backplane,
@@ -80,6 +83,8 @@ async def stop_ws_background(handles: dict[str, Any]) -> None:
         reason="server restart — reconnect",
     )
     for name, component in handles.items():
+        if component is None:
+            continue
         try:
             stop = getattr(component, "stop")
             if callable(stop):

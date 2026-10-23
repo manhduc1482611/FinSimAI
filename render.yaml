@@ -89,6 +89,10 @@ services:
       - key: WS_LOCAL_MODE
         value: "true"
 
+      # --- Gemini AI (Mentor fallback & insights) ---
+      - key: GEMINI_API_KEY
+        sync: false
+
       # --- Auth / Security ---
       - key: JWT_SECRET
         sync: false
@@ -104,6 +108,8 @@ services:
       # --- CORS (phải bao gồm domain Vercel frontend) ---
       - key: CORS_ORIGINS
         sync: false
+      - key: CORS_ORIGIN_REGEX
+        value: "https://.*\\.vercel\\.app"
       - key: FRONTEND_URL
         sync: false
 

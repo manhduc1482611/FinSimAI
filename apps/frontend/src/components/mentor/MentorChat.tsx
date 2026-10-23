@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
-import { IconMentor, IconRisk, IconTrendUp } from "@/components/common/Icon";
+import { IconLock, IconRisk, IconTrendUp } from "@/components/common/Icon";
 import { useAuthStore } from "@/store/useAuthStore";
 import {
   useMentorStore,
@@ -75,6 +75,9 @@ export function MentorChat({ fixedSymbol, initialMode, compact }: MentorChatProp
   const seedHistory = useMentorStore((state) => state.seedHistory);
   const tradeContext = useMentorStore((state) => state.tradeContext);
   const focusRequest = useMentorStore((state) => state.focusRequest);
+  const pendingPrompt = useMentorStore((state) => state.pendingPrompt);
+  const autoSendPending = useMentorStore((state) => state.autoSendPending);
+  const clearPendingPrompt = useMentorStore((state) => state.clearPendingPrompt);
 
   const [mode, setMode] = useState<MentorMode>(initialMode ?? "concept");
   const [draft, setDraft] = useState("");
@@ -122,25 +125,54 @@ export function MentorChat({ fixedSymbol, initialMode, compact }: MentorChatProp
     }
   }, [mentor.messages, mentor.isStreaming]);
 
-  // Yêu cầu focus từ bên ngoài (nút "Hỏi Mentor" trên trade page) — scroll + focus.
+  // Đồng bộ mode khi store thay đổi từ các nút gọi ngoài (Trade, News, Social,...)
+  useEffect(() => {
+    if (tradeContext.mode && tradeContext.mode !== "socratic") {
+      setMode(tradeContext.mode);
+    }
+  }, [tradeContext.mode]);
+
+  // Yêu cầu focus từ bên ngoài (nút "Hỏi Mentor" trên trade page) — scroll + focus + nạp pendingPrompt.
   useEffect(() => {
     if (focusRequest <= 0) {
       return;
     }
     rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     inputRef.current?.focus();
+
+    if (pendingPrompt) {
+      const promptText = pendingPrompt;
+      clearPendingPrompt();
+      if (autoSendPending) {
+        mentor.sendAsk(promptText, {
+          mode: tradeContext.mode || mode,
+          selected_symbol: fixedSymbol ?? tradeContext.selected_symbol,
+        });
+      } else {
+        setDraft(promptText);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest]);
 
   if (token === null) {
     return (
-      <div className="rounded-xl border border-dashed border-line bg-paper px-6 py-16 text-center dark:border-granite-600 dark:bg-granite-900">
-        <h3 className="text-sm font-black text-ink-900 dark:text-slip">Cần đăng nhập</h3>
-        <p className="mt-1 text-sm text-ink-500 dark:text-granite-400">
-          Đăng nhập để bắt đầu phiên hỏi đáp với Mentor.
+      <div className="rounded-xl border border-line bg-paper px-6 py-12 text-center shadow-card dark:border-granite-700 dark:bg-granite-900">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-accent-500/30 bg-accent-500/10 text-accent-600 dark:text-accent-400">
+          <IconLock className="h-6 w-6" />
+        </div>
+        <h3 className="mt-3 text-base font-black text-ink-900 dark:text-slip">
+          AI Mentor yêu cầu đăng nhập
+        </h3>
+        <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-ink-500 dark:text-granite-400">
+          Bạn cần đăng nhập tài khoản để đặt câu hỏi, nhận phản biện Socratic và lưu lịch sử hội thoại.
         </p>
-        <div className="mt-4">
-          <Link href="/login">
-            <Button>Đăng nhập</Button>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <Link href="/login" className="btn-primary px-4 py-2 text-xs">
+            Đăng nhập ngay
+          </Link>
+          <Link href="/register" className="btn-secondary px-4 py-2 text-xs">
+            Tạo tài khoản
           </Link>
         </div>
       </div>
@@ -161,26 +193,43 @@ export function MentorChat({ fixedSymbol, initialMode, compact }: MentorChatProp
       >
       <div className="border-b border-line px-5 py-3 dark:border-granite-700">
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-base font-black text-ink-900 dark:text-slip">
-              <IconMentor className="h-4 w-4 text-accent-600 dark:text-accent-400" />
-              Mentor tài chính
-            </h2>
-            <p className="text-xs text-ink-500 dark:text-granite-400">
-              Hướng dẫn theo phương pháp Socratic — Mentor hỏi ngược để bạn tự tư duy.
-            </p>
+          <div className="flex items-center gap-3">
+            <CapybaraMiniAvatar className="h-10 w-10 shadow-sm" />
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black text-ink-900 dark:text-slip">
+                  Capia — AI Mentor
+                </h2>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
+                  Capybara 🍊
+                </span>
+              </div>
+              <p className="text-xs text-ink-500 dark:text-granite-400">
+                Linh vật Socratic — đặt câu hỏi gợi mở để bạn tự ra quyết định đầu tư đúng đắn.
+              </p>
+            </div>
           </div>
-          {mentor.isConnected && mentor.isReady ? (
-            <span className="stamp stamp-success animate-flicker-on">
-              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-mkt-up" />
-              Sẵn sàng
-            </span>
-          ) : (
-            <span className="stamp">
-              <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand-600 dark:bg-brand-400" />
-              Đang kết nối
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {mentor.isConnected && mentor.isReady ? (
+              <span className="stamp stamp-success animate-flicker-on">
+                <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-mkt-up" />
+                Sẵn sàng
+              </span>
+            ) : (
+              <span className="stamp">
+                <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand-600 dark:bg-brand-400" />
+                Đang kết nối
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={mentor.reset}
+              className="rounded-md border border-line px-2 py-1 text-[11px] font-medium text-ink-500 transition-colors hover:border-ink-300 hover:text-ink-900 dark:border-granite-700 dark:text-granite-400 dark:hover:text-slip"
+              title="Đặt lại phiên trò chuyện mới"
+            >
+              Làm mới
+            </button>
+          </div>
         </div>
 
         {/* Mode selector — 3 chế độ v2.0 */}
@@ -189,7 +238,10 @@ export function MentorChat({ fixedSymbol, initialMode, compact }: MentorChatProp
             <button
               key={option.id}
               type="button"
-              onClick={() => setMode(option.id)}
+              onClick={() => {
+                setMode(option.id);
+                useMentorStore.getState().setTradeContext({ mode: option.id });
+              }}
               className={cn(
                 "rounded-full border px-3 py-1 text-xs transition-colors",
                 mode === option.id
@@ -239,8 +291,14 @@ export function MentorChat({ fixedSymbol, initialMode, compact }: MentorChatProp
 
         {mentor.messages.length === 0 ? (
           <div className="py-8 text-center">
-            <p className="text-sm text-ink-500 dark:text-granite-400">
-              Bắt đầu phiên tư vấn bằng một câu hỏi — hoặc chọn một gợi ý bên dưới.
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/40 bg-gradient-to-b from-amber-100 to-amber-200/80 p-1.5 shadow-sm dark:border-amber-500/30 dark:from-amber-950/60 dark:to-amber-900/40">
+              <CapybaraMiniAvatar className="h-11 w-11 border-0 bg-transparent shadow-none" />
+            </div>
+            <h3 className="text-sm font-bold text-ink-900 dark:text-slip">
+              Chào bạn, mình là Capia 🍊
+            </h3>
+            <p className="mx-auto mt-1 max-w-sm text-xs text-ink-500 dark:text-granite-400">
+              Chuột lang AI Mentor tài chính. Chọn một gợi ý bên dưới hoặc đặt câu hỏi bất kỳ để rèn luyện tư duy đầu tư nhé!
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {SUGGESTIONS_BY_MODE[mode].map((suggestion) => (
@@ -264,10 +322,13 @@ export function MentorChat({ fixedSymbol, initialMode, compact }: MentorChatProp
               <div
                 key={message.id}
                 className={cn(
-                  "flex",
-                  message.role === "user" ? "justify-end" : "justify-start",
+                  "flex gap-2.5",
+                  message.role === "user" ? "justify-end" : "items-start justify-start",
                 )}
               >
+                {message.role === "mentor" && (
+                  <CapybaraMiniAvatar className="mt-0.5 h-7 w-7" />
+                )}
                 {message.role === "mentor" && message.kind !== undefined ? (
                   <MentorCard
                     message={message}
@@ -544,6 +605,47 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
         {label}
       </span>
       {children}
+    </div>
+  );
+}
+
+/** Avatar Capybara mini siêu cute đồng bộ linh vật 3D */
+export function CapybaraMiniAvatar({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border border-amber-300/50 bg-gradient-to-b from-amber-100 to-amber-200/90 p-0.5 shadow-sm dark:border-amber-500/40 dark:from-amber-950/70 dark:to-amber-900/50",
+        className,
+      )}
+      title="Capia — AI Mentor"
+    >
+      <svg viewBox="0 0 120 120" className="h-full w-full drop-shadow-sm" aria-hidden="true">
+        {/* Tai */}
+        <ellipse cx="36" cy="38" rx="7" ry="8" fill="#8A5428" />
+        <ellipse cx="36" cy="38" rx="4" ry="5" fill="#F2A79D" />
+        <ellipse cx="84" cy="38" rx="7" ry="8" fill="#8A5428" />
+        <ellipse cx="84" cy="38" rx="4" ry="5" fill="#F2A79D" />
+        {/* Đầu */}
+        <rect x="34" y="32" width="52" height="42" rx="18" fill="#C88746" />
+        <circle cx="36" cy="56" r="10" fill="#C88746" />
+        <circle cx="84" cy="56" r="10" fill="#C88746" />
+        {/* Má hồng đào */}
+        <circle cx="38" cy="58" r="4.5" fill="#FFAAA6" opacity="0.9" />
+        <circle cx="82" cy="58" r="4.5" fill="#FFAAA6" opacity="0.9" />
+        {/* Mõm & mũi */}
+        <rect x="42" y="48" width="36" height="24" rx="10" fill="#FDF1DC" />
+        <rect x="53" y="49" width="14" height="8" rx="3.5" fill="#352014" />
+        <path d="M57 63 Q60 66 63 63" stroke="#352014" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+        {/* Mắt to tròn có đốm sáng */}
+        <ellipse cx="46" cy="46" rx="4.5" ry="5" fill="#1C140E" />
+        <circle cx="44.5" cy="44.5" r="1.8" fill="#FFFFFF" />
+        <ellipse cx="74" cy="46" rx="4.5" ry="5" fill="#1C140E" />
+        <circle cx="72.5" cy="44.5" r="1.8" fill="#FFFFFF" />
+        {/* Quả cam yuzu trên đầu */}
+        <ellipse cx="60" cy="22" rx="11" ry="9.5" fill="#FF9500" />
+        <line x1="60" y1="13" x2="60" y2="9" stroke="#5D4037" strokeWidth="2" strokeLinecap="round" />
+        <ellipse cx="65" cy="11" rx="4.5" ry="2" fill="#4CAF50" transform="rotate(20 65 11)" />
+      </svg>
     </div>
   );
 }
