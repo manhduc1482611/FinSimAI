@@ -133,6 +133,8 @@ services:
         value: production
       - key: DEBUG
         value: "false"
+      - key: HEALTH_CHECK_TIMEOUT
+        value: "15.0"
       # Uvicorn chỉ tin X-Forwarded-For từ các IP trong danh sách này. Render chèn
       # proxy ở biên với IP không cố định → phải tin mọi peer nội bộ (service chỉ
       # truy cập được qua proxy Render). Nhờ vậy `request.client.host` là IP thật

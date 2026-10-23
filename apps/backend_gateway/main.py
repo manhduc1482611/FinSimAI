@@ -49,7 +49,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Running database migrations (alembic upgrade head)…")
     await asyncio.to_thread(run_migrations)
 
-    if not await _check_database():
+    db_ok = False
+    for attempt in range(1, 4):
+        logger.info("Checking database connectivity (attempt %d/3)...", attempt)
+        if await _check_database(timeout=15.0):
+            db_ok = True
+            break
+        await asyncio.sleep(2)
+    if not db_ok:
         raise RuntimeError("Database unreachable at startup")
     logger.info("Database connectivity confirmed at startup")
 

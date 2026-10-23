@@ -111,7 +111,7 @@ class Settings(BaseSettings):
     # ``/api/v1/ai/content``. Khi để trống endpoint bị khoá (403) — fail-closed.
     internal_api_key: str = ""
 
-    health_check_timeout: float = 2.0
+    health_check_timeout: float = 15.0
 
     # Admin toàn hệ thống — danh sách email được phép mang role "admin"
     # (env: ADMIN_EMAILS, phân tách bằng dấu phẩy). Kẻ ra ngoài danh sách này
