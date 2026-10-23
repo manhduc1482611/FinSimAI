@@ -219,6 +219,9 @@ export default function LandingPage() {
               {theme === "dark" ? <IconSun className="h-4 w-4" /> : <IconMoon className="h-4 w-4" />}
             </button>
 
+            <Link href="/login" className="btn-ghost text-sm">
+              Đăng nhập
+            </Link>
             <Link href="/register" className="btn-primary text-sm shadow-sm">
               Đăng ký miễn phí
             </Link>
@@ -260,9 +263,6 @@ export default function LandingPage() {
             </Link>
             <Link href="/register" className="btn-primary w-full px-7 py-3 text-base sm:w-auto shadow-md">
               Bắt đầu mô phỏng (Cấp vốn 100tr)
-            </Link>
-            <Link href="/login" className="btn-ghost w-full px-6 py-3 text-base sm:w-auto">
-              Đăng nhập
             </Link>
           </div>
           <p className="mt-3 text-xs text-ink-500 dark:text-granite-400">
