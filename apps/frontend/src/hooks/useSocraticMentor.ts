@@ -133,11 +133,16 @@ store.setTradeContext({ mode, selected_symbol: selectedSymbol });
     if (sessionId && wsStatus === "open") {
       sendMessage({ action: "cancel", session_id: sessionId });
     }
-    store.setReady(false);
+    useMentorStore.setState({ isStreaming: false });
   };
 
   const reset = (): void => {
-    useMentorStore.getState().resetSession();
+    const store = useMentorStore.getState();
+    const sessionId = store.sessionId;
+    if (sessionId && wsStatus === "open" && store.isStreaming) {
+      sendMessage({ action: "cancel", session_id: sessionId });
+    }
+    store.resetSession();
   };
 
   return {

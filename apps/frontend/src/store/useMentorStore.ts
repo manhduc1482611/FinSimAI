@@ -130,13 +130,14 @@ export const useMentorStore = create<MentorState>()((set, get) => ({
 
   resetSession: () => {
     set({
-      sessionId: null,
+      sessionId: createId(),
       messages: [],
       tradeContext: { ...DEFAULT_CONTEXT },
       isStreaming: false,
-      isReady: false,
       lastError: null,
-      historyLoaded: false,
+      historyLoaded: true,
+      pendingPrompt: null,
+      autoSendPending: false,
     });
   },
 

@@ -223,7 +223,11 @@ export function MentorChat({ fixedSymbol, initialMode, compact }: MentorChatProp
             )}
             <button
               type="button"
-              onClick={mentor.reset}
+              onClick={() => {
+                mentor.reset();
+                setDraft("");
+                inputRef.current?.focus();
+              }}
               className="rounded-md border border-line px-2 py-1 text-[11px] font-medium text-ink-500 transition-colors hover:border-ink-300 hover:text-ink-900 dark:border-granite-700 dark:text-granite-400 dark:hover:text-slip"
               title="Đặt lại phiên trò chuyện mới"
             >

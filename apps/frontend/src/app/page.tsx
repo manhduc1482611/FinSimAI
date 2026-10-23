@@ -219,16 +219,6 @@ export default function LandingPage() {
               {theme === "dark" ? <IconSun className="h-4 w-4" /> : <IconMoon className="h-4 w-4" />}
             </button>
 
-            <Link
-              href="/news"
-              className="btn-secondary text-sm flex items-center gap-1.5 font-semibold"
-            >
-              <IconEye className="h-4 w-4" />
-              <span>Vào xem web</span>
-            </Link>
-            <Link href="/login" className="btn-ghost text-sm">
-              Đăng nhập
-            </Link>
             <Link href="/register" className="btn-primary text-sm shadow-sm">
               Đăng ký miễn phí
             </Link>

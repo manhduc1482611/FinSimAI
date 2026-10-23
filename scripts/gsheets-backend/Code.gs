@@ -457,30 +457,30 @@ function seedIfEmpty_() {
     tasks.getRange(1, 1, 1, tHeaders.length).setValues([tHeaders]);
     // Nguon du lieu: su dung lai danh sach nhiem vu cua he thong cu (seed_db.py _TASKS)
     var tRows = [
-      ["t-1", "profile_complete", "Ho\u00e0n thi\u1ec7n h\u1ed3 s\u01a1 c\u00e1 nh\u00e2n", "C\u1eadp nh\u1eadt \u0111\u1ea7y \u0111\u1ee7 th\u00f4ng tin h\u1ed3 s\u01a1 \u0111\u1ec3 b\u1eaft \u0111\u1ea7u h\u00e0nh tr\u00ecnh \u0111\u1ea7u t\u01b0.", "onboarding", "500000", "1", "none", true, "100", now, now],
-      ["t-2", "first_trade", "\u0110\u1eb7t l\u1ec7nh giao d\u1ecbch \u0111\u1ea7u ti\u00ean", "\u0110\u1eb7t th\u00e0nh c\u00f4ng l\u1ec7nh mua ho\u1eb7c b\u00e1n \u0111\u1ea7u ti\u00ean c\u1ee7a b\u1ea1n.", "onboarding", "200000", "1", "none", true, "110", now, now],
-      ["t-3", "first_knowledge_read", "\u0110\u1ecdc b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u1ea7u ti\u00ean", "Kh\u00e1m ph\u00e1 kho ki\u1ebfn th\u1ee9c ch\u1ee9ng kho\u00e1n c\u1ee7a Capia.", "onboarding", "100000", "1", "none", true, "120", now, now],
-      ["t-4", "first_news_read", "\u0110\u1ecdc tin t\u1ee9c \u0111\u1ea7u ti\u00ean", "C\u1eadp nh\u1eadt tin t\u1ee9c th\u1ecb tr\u01b0\u1eddng m\u1edbi nh\u1ea5t trong ng\u00e0y.", "onboarding", "100000", "1", "none", true, "130", now, now],
-      ["t-5", "first_company_view", "Xem h\u1ed3 s\u01a1 c\u00f4ng ty \u0111\u1ea7u ti\u00ean", "T\u00ecm hi\u1ec3u th\u00f4ng tin m\u1ed9t doanh nghi\u1ec7p ni\u00eam y\u1ebft.", "onboarding", "100000", "1", "none", true, "140", now, now],
-      ["t-6", "first_mentor_chat", "Tr\u00f2 chuy\u1ec7n Mentor l\u1ea7n \u0111\u1ea7u", "\u0110\u1eb7t c\u00e2u h\u1ecfi \u0111\u1ea7u ti\u00ean cho Mentor AI c\u1ee7a b\u1ea1n.", "onboarding", "200000", "1", "none", true, "150", now, now],
-      ["t-7", "scenario_1_done", "Ho\u00e0n th\u00e0nh k\u1ecbch b\u1ea3n \u0111\u1ea7u ti\u00ean", "V\u01b0\u1ee3t qua k\u1ecbch b\u1ea3n m\u00f4 ph\u1ecfng \u0111\u1ea7u ti\u00ean trong ch\u1ebf \u0111\u1ed9 luy\u1ec7n t\u1eadp.", "onboarding", "300000", "1", "none", true, "160", now, now],
-      ["t-8", "onboarding_complete", "Ho\u00e0n t\u1ea5t \u0111\u1ecbnh h\u01b0\u1edbng", "Ho\u00e0n th\u00e0nh T\u1ea4T C\u1ea2 nhi\u1ec7m v\u1ee5 \u0111\u1ecbnh h\u01b0\u1edbng \u0111\u1ec3 nh\u1eadn th\u01b0\u1edfng l\u1edbn.", "onboarding", "1000000", "1", "none", true, "190", now, now],
-      ["t-9", "read_5_knowledge", "\u0110\u1ecdc 5 b\u00e0i ki\u1ebfn th\u1ee9c", "T\u00edch l\u0169y 5 b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u00e3 \u0111\u1ecdc (c\u1ed9ng d\u1ed3n).", "learning", "300000", "5", "none", true, "200", now, now],
-      ["t-10", "read_10_knowledge", "\u0110\u1ecdc 10 b\u00e0i ki\u1ebfn th\u1ee9c", "T\u00edch l\u0169y 10 b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u00e3 \u0111\u1ecdc (c\u1ed9ng d\u1ed3n).", "learning", "500000", "10", "none", true, "210", now, now],
-      ["t-11", "read_10_news", "\u0110\u1ecdc 10 tin t\u1ee9c", "C\u1eadp nh\u1eadt 10 tin t\u1ee9c th\u1ecb tr\u01b0\u1eddng (c\u1ed9ng d\u1ed3n).", "learning", "400000", "10", "none", true, "220", now, now],
-      ["t-12", "analyze_3_companies", "Ph\u00e2n t\u00edch 3 c\u00f4ng ty", "Xem h\u1ed3 s\u01a1 chi ti\u1ebft c\u1ee7a 3 doanh nghi\u1ec7p (c\u1ed9ng d\u1ed3n).", "learning", "300000", "3", "none", true, "230", now, now],
-      ["t-13", "mentor_3_chats", "Tr\u00f2 chuy\u1ec7n Mentor 3 l\u1ea7n", "Trao \u0111\u1ed5i 3 l\u01b0\u1ee3t v\u1edbi Mentor AI (c\u1ed9ng d\u1ed3n).", "learning", "400000", "3", "none", true, "240", now, now],
-      ["t-14", "daily_checkin", "\u0110i\u1ec3m danh h\u1eb1ng ng\u00e0y", "\u0110\u0103ng nh\u1eadp v\u00e0 \u0111i\u1ec3m danh m\u1ed7i ng\u00e0y \u0111\u1ec3 gi\u1eef chu\u1ed7i ng\u00e0y li\u00ean ti\u1ebfp.", "daily", "50000", "1", "daily", true, "300", now, now],
-      ["t-15", "daily_trade_1", "Giao d\u1ecbch trong ng\u00e0y", "\u0110\u1eb7t \u00edt nh\u1ea5t 1 l\u1ec7nh giao d\u1ecbch trong ng\u00e0y h\u00f4m nay.", "daily", "100000", "1", "daily", true, "310", now, now],
-      ["t-16", "daily_read_3_knowledge", "\u0110\u1ecdc 3 b\u00e0i ki\u1ebfn th\u1ee9c trong ng\u00e0y", "\u0110\u1ecdc 3 b\u00e0i ki\u1ebfn th\u1ee9c trong ng\u00e0y h\u00f4m nay.", "daily", "100000", "3", "daily", true, "320", now, now],
-      ["t-17", "daily_read_2_news", "\u0110\u1ecdc 2 tin t\u1ee9c trong ng\u00e0y", "\u0110\u1ecdc 2 tin t\u1ee9c trong ng\u00e0y h\u00f4m nay.", "daily", "100000", "2", "daily", true, "330", now, now],
-      ["t-18", "daily_mentor_1", "Tr\u00f2 chuy\u1ec7n Mentor trong ng\u00e0y", "Tr\u00f2 chuy\u1ec7n v\u1edbi Mentor \u00edt nh\u1ea5t 1 l\u1ea7n trong ng\u00e0y.", "daily", "100000", "1", "daily", true, "340", now, now],
-      ["t-19", "daily_all_4", "Ho\u00e0n th\u00e0nh 4/5 nhi\u1ec7m v\u1ee5 h\u1eb1ng ng\u00e0y", "Ho\u00e0n th\u00e0nh 4 trong 5 nhi\u1ec7m v\u1ee5 h\u1eb1ng ng\u00e0y \u0111\u1ec3 nh\u1eadn th\u01b0\u1edfng l\u1edbn.", "daily", "500000", "1", "daily", true, "390", now, now],
-      ["t-20", "streak_3", "Chu\u1ed7i 3 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 3 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "200000", "3", "none", true, "400", now, now],
-      ["t-21", "streak_7", "Chu\u1ed7i 7 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 7 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "500000", "7", "none", true, "410", now, now],
-      ["t-22", "streak_30", "Chu\u1ed7i 30 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 30 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "2000000", "30", "none", true, "420", now, now],
-      ["t-23", "contest_join_1", "Tham gia cu\u1ed9c thi \u0111\u1ea7u ti\u00ean", "Gia nh\u1eadp m\u1ed9t cu\u1ed9c thi \u0111\u1ea7u t\u01b0 \u1ea3o \u0111\u1ec3 c\u1ea1nh tranh th\u1ee9 h\u1ea1ng.", "contest", "200000", "1", "none", true, "500", now, now],
-      ["t-24", "contest_top10", "L\u1ecdt top 10 cu\u1ed9c thi", "\u0110\u1ee9ng trong top 10 b\u1ea3ng x\u1ebfp h\u1ea1ng m\u1ed9t cu\u1ed9c thi \u2014 nh\u1eadn th\u01b0\u1edfng th\u1ee7 c\u00f4ng.", "contest", "2000000", "1", "none", true, "510", now, now]
+      ["t-1", "profile_complete", "Ho\u00e0n thi\u1ec7n h\u1ed3 s\u01a1 c\u00e1 nh\u00e2n", "C\u1eadp nh\u1eadt \u0111\u1ea7y \u0111\u1ee7 th\u00f4ng tin h\u1ed3 s\u01a1 \u0111\u1ec3 b\u1eaft \u0111\u1ea7u h\u00e0nh tr\u00ecnh \u0111\u1ea7u t\u01b0.", "onboarding", "2000000", "1", "none", true, "100", now, now],
+      ["t-2", "first_trade", "\u0110\u1eb7t l\u1ec7nh giao d\u1ecbch \u0111\u1ea7u ti\u00ean", "\u0110\u1eb7t th\u00e0nh c\u00f4ng l\u1ec7nh mua ho\u1eb7c b\u00e1n \u0111\u1ea7u ti\u00ean c\u1ee7a b\u1ea1n.", "onboarding", "2000000", "1", "none", true, "110", now, now],
+      ["t-3", "first_knowledge_read", "\u0110\u1ecdc b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u1ea7u ti\u00ean", "Kh\u00e1m ph\u00e1 kho ki\u1ebfn th\u1ee9c ch\u1ee9ng kho\u00e1n c\u1ee7a Capia.", "onboarding", "1000000", "1", "none", true, "120", now, now],
+      ["t-4", "first_news_read", "\u0110\u1ecdc tin t\u1ee9c \u0111\u1ea7u ti\u00ean", "C\u1eadp nh\u1eadt tin t\u1ee9c th\u1ecb tr\u01b0\u1eddng m\u1edbi nh\u1ea5t trong ng\u00e0y.", "onboarding", "1000000", "1", "none", true, "130", now, now],
+      ["t-5", "first_company_view", "Xem h\u1ed3 s\u01a1 c\u00f4ng ty \u0111\u1ea7u ti\u00ean", "T\u00ecm hi\u1ec3u th\u00f4ng tin m\u1ed9t doanh nghi\u1ec7p ni\u00eam y\u1ebft.", "onboarding", "1000000", "1", "none", true, "140", now, now],
+      ["t-6", "first_mentor_chat", "Tr\u00f2 chuy\u1ec7n Mentor l\u1ea7n \u0111\u1ea7u", "\u0110\u1eb7t c\u00e2u h\u1ecfi \u0111\u1ea7u ti\u00ean cho Mentor AI c\u1ee7a b\u1ea1n.", "onboarding", "1000000", "1", "none", true, "150", now, now],
+      ["t-7", "scenario_1_done", "Ho\u00e0n th\u00e0nh k\u1ecbch b\u1ea3n \u0111\u1ea7u ti\u00ean", "V\u01b0\u1ee3t qua k\u1ecbch b\u1ea3n m\u00f4 ph\u1ecfng \u0111\u1ea7u ti\u00ean trong ch\u1ebf \u0111\u1ed9 luy\u1ec7n t\u1eadp.", "onboarding", "2000000", "1", "none", true, "160", now, now],
+      ["t-8", "onboarding_complete", "Ho\u00e0n t\u1ea5t \u0111\u1ecbnh h\u01b0\u1edbng", "Ho\u00e0n th\u00e0nh T\u1ea4T C\u1ea2 nhi\u1ec7m v\u1ee5 \u0111\u1ecbnh h\u01b0\u1edbng \u0111\u1ec3 nh\u1eadn th\u01b0\u1edfng l\u1edbn.", "onboarding", "10000000", "1", "none", true, "190", now, now],
+      ["t-9", "read_5_knowledge", "\u0110\u1ecdc 5 b\u00e0i ki\u1ebfn th\u1ee9c", "T\u00edch l\u0169y 5 b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u00e3 \u0111\u1ecdc (c\u1ed9ng d\u1ed3n).", "learning", "2000000", "5", "none", true, "200", now, now],
+      ["t-10", "read_10_knowledge", "\u0110\u1ecdc 10 b\u00e0i ki\u1ebfn th\u1ee9c", "T\u00edch l\u0169y 10 b\u00e0i ki\u1ebfn th\u1ee9c \u0111\u00e3 \u0111\u1ecdc (c\u1ed9ng d\u1ed3n).", "learning", "5000000", "10", "none", true, "210", now, now],
+      ["t-11", "read_10_news", "\u0110\u1ecdc 10 tin t\u1ee9c", "C\u1eadp nh\u1eadt 10 tin t\u1ee9c th\u1ecb tr\u01b0\u1eddng (c\u1ed9ng d\u1ed3n).", "learning", "3000000", "10", "none", true, "220", now, now],
+      ["t-12", "analyze_3_companies", "Ph\u00e2n t\u00edch 3 c\u00f4ng ty", "Xem h\u1ed3 s\u01a1 chi ti\u1ebft c\u1ee7a 3 doanh nghi\u1ec7p (c\u1ed9ng d\u1ed3n).", "learning", "2000000", "3", "none", true, "230", now, now],
+      ["t-13", "mentor_3_chats", "Tr\u00f2 chuy\u1ec7n Mentor 3 l\u1ea7n", "Trao \u0111\u1ed5i 3 l\u01b0\u1ee3t v\u1edbi Mentor AI (c\u1ed9ng d\u1ed3n).", "learning", "3000000", "3", "none", true, "240", now, now],
+      ["t-14", "daily_checkin", "\u0110i\u1ec3m danh h\u1eb1ng ng\u00e0y", "\u0110\u0103ng nh\u1eadp v\u00e0 \u0111i\u1ec3m danh m\u1ed7i ng\u00e0y \u0111\u1ec3 gi\u1eef chu\u1ed7i ng\u00e0y li\u00ean ti\u1ebfp.", "daily", "500000", "1", "daily", true, "300", now, now],
+      ["t-15", "daily_trade_1", "Giao d\u1ecbch trong ng\u00e0y", "\u0110\u1eb7t \u00edt nh\u1ea5t 1 l\u1ec7nh giao d\u1ecbch trong ng\u00e0y h\u00f4m nay.", "daily", "1000000", "1", "daily", true, "310", now, now],
+      ["t-16", "daily_read_3_knowledge", "\u0110\u1ecdc 3 b\u00e0i ki\u1ebfn th\u1ee9c trong ng\u00e0y", "\u0110\u1ecdc 3 b\u00e0i ki\u1ebfn th\u1ee9c trong ng\u00e0y h\u00f4m nay.", "daily", "1000000", "3", "daily", true, "320", now, now],
+      ["t-17", "daily_read_2_news", "\u0110\u1ecdc 2 tin t\u1ee9c trong ng\u00e0y", "\u0110\u1ecdc 2 tin t\u1ee9c trong ng\u00e0y h\u00f4m nay.", "daily", "1000000", "2", "daily", true, "330", now, now],
+      ["t-18", "daily_mentor_1", "Tr\u00f2 chuy\u1ec7n Mentor trong ng\u00e0y", "Tr\u00f2 chuy\u1ec7n v\u1edbi Mentor \u00edt nh\u1ea5t 1 l\u1ea7n trong ng\u00e0y.", "daily", "1000000", "1", "daily", true, "340", now, now],
+      ["t-19", "daily_all_4", "Ho\u00e0n th\u00e0nh 4/5 nhi\u1ec7m v\u1ee5 h\u1eb1ng ng\u00e0y", "Ho\u00e0n th\u00e0nh 4 trong 5 nhi\u1ec7m v\u1ee5 h\u1eb1ng ng\u00e0y \u0111\u1ec3 nh\u1eadn th\u01b0\u1edfng l\u1edbn.", "daily", "3000000", "1", "daily", true, "390", now, now],
+      ["t-20", "streak_3", "Chu\u1ed7i 3 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 3 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "2000000", "3", "none", true, "400", now, now],
+      ["t-21", "streak_7", "Chu\u1ed7i 7 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 7 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "5000000", "7", "none", true, "410", now, now],
+      ["t-22", "streak_30", "Chu\u1ed7i 30 ng\u00e0y li\u00ean ti\u1ebfp", "Duy tr\u00ec chu\u1ed7i \u0111i\u1ec3m danh 30 ng\u00e0y li\u00ean ti\u1ebfp.", "streak", "20000000", "30", "none", true, "420", now, now],
+      ["t-23", "contest_join_1", "Tham gia cu\u1ed9c thi \u0111\u1ea7u ti\u00ean", "Gia nh\u1eadp m\u1ed9t cu\u1ed9c thi \u0111\u1ea7u t\u01b0 \u1ea3o \u0111\u1ec3 c\u1ea1nh tranh th\u1ee9 h\u1ea1ng.", "contest", "2000000", "1", "none", true, "500", now, now],
+      ["t-24", "contest_top10", "L\u1ecdt top 10 cu\u1ed9c thi", "\u0110\u1ee9ng trong top 10 b\u1ea3ng x\u1ebfp h\u1ea1ng m\u1ed9t cu\u1ed9c thi \u2014 nh\u1eadn th\u01b0\u1edfng th\u1ee7 c\u00f4ng.", "contest", "20000000", "1", "none", true, "510", now, now]
     ];
     for (var i = 0; i < tRows.length; i++) tasks.appendRow(tRows[i]);
   }
@@ -585,14 +585,14 @@ function patchTaskRewards_() {
   if (codeIdx < 0 || rewardIdx < 0) return;
   var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
   var map = {
-    profile_complete: '500000', first_trade: '200000', first_knowledge_read: '100000',
-    first_news_read: '100000', first_company_view: '100000', first_mentor_chat: '200000',
-    scenario_1_done: '300000', onboarding_complete: '1000000', read_5_knowledge: '300000',
-    read_10_knowledge: '500000', read_10_news: '400000', analyze_3_companies: '300000',
-    mentor_3_chats: '400000', daily_checkin: '50000', daily_trade_1: '100000',
-    daily_read_3_knowledge: '100000', daily_read_2_news: '100000', daily_mentor_1: '100000',
-    daily_all_4: '500000', streak_3: '200000', streak_7: '500000', streak_30: '2000000',
-    contest_join_1: '200000', contest_top10: '2000000'
+    profile_complete: '2000000', first_trade: '2000000', first_knowledge_read: '1000000',
+    first_news_read: '1000000', first_company_view: '1000000', first_mentor_chat: '1000000',
+    scenario_1_done: '2000000', onboarding_complete: '10000000', read_5_knowledge: '2000000',
+    read_10_knowledge: '5000000', read_10_news: '3000000', analyze_3_companies: '2000000',
+    mentor_3_chats: '3000000', daily_checkin: '500000', daily_trade_1: '1000000',
+    daily_read_3_knowledge: '1000000', daily_read_2_news: '1000000', daily_mentor_1: '1000000',
+    daily_all_4: '3000000', streak_3: '2000000', streak_7: '5000000', streak_30: '20000000',
+    contest_join_1: '2000000', contest_top10: '20000000'
   };
   for (var r = 0; r < values.length; r++) {
     var code = String(values[r][codeIdx]);
