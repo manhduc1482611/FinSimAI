@@ -144,3 +144,23 @@ class TestFallback:
     def test_fallback_sets_disclaimer(self, agent):
         reply = agent.generate("test")
         assert reply.disclaimer.startswith("Capia là môi trường mô phỏng")
+
+
+class TestConceptAndStrategy:
+    def test_lookup_concept_known(self, agent):
+        reply = agent.generate_concept("P/E là gì?")
+        assert "P/E" in reply.concept
+        assert reply.definition != ""
+        assert "?" in reply.followup_question
+        assert scan_policy(reply.definition, reply.explanation, reply.example, reply.interpretation) == []
+
+    def test_lookup_concept_roe(self, agent):
+        reply = agent.generate_concept("Giải thích về ROE")
+        assert "ROE" in reply.concept
+
+    def test_generate_strategy_growth(self, agent):
+        reply = agent.generate_strategy("Tôi muốn đầu tư tăng trưởng")
+        assert reply.framework_name != ""
+        assert reply.criteria != []
+        assert reply.questions != []
+

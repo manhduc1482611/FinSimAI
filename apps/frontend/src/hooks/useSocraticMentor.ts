@@ -91,24 +91,54 @@ export function useSocraticMentor(): SocraticMentor {
       tradeContext?.selected_symbol ??
       store.tradeContext.selected_symbol;
 
-    // Demo mode: không có WebSocket → trả lời bằng glossary local.
-    if (isDemoMode()) {
-store.setTradeContext({ mode, selected_symbol: selectedSymbol });
+    // Demo mode hoặc WebSocket chưa mở: gọi Gemini AI qua /api/mentor/chat
+    if (isDemoMode() || wsStatus !== "open") {
+      store.setTradeContext({ mode, selected_symbol: selectedSymbol });
       store.pushUserMessage(trimmed);
+      useMentorStore.setState({ isStreaming: true });
       void reportTaskEvent("mentor_chat").catch(() => {
         // bỏ qua lỗi tracking
       });
-      // Simulate nhỏ để có cảm giác stream.
-      setTimeout(() => {
-        const reply = buildDemoMentorReply(trimmed, mode, selectedSymbol);
-        useMentorStore.setState({ isStreaming: false });
-        useMentorStore.getState().pushMentorMessage(reply);
-      }, 600);
-      return;
-    }
 
-    if (wsStatus !== "open") {
-      store.setError("Chưa kết nối được tới Mentor — vui lòng thử lại sau giây lát.");
+      const history = store.messages.slice(-6).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      fetch("/api/mentor/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: trimmed,
+          mode,
+          selectedSymbol,
+          history,
+        }),
+      })
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (data?.content) {
+            useMentorStore.getState().pushMentorMessage({
+              role: "mentor",
+              content: data.content,
+            });
+          } else {
+            const fallbackReply = buildDemoMentorReply(trimmed, mode, selectedSymbol);
+            useMentorStore.getState().pushMentorMessage(fallbackReply);
+          }
+        })
+        .catch(() => {
+          const fallbackReply = buildDemoMentorReply(trimmed, mode, selectedSymbol);
+          useMentorStore.getState().pushMentorMessage(fallbackReply);
+        })
+        .finally(() => {
+          useMentorStore.setState({ isStreaming: false });
+        });
       return;
     }
     store.setTradeContext({ mode, selected_symbol: selectedSymbol });
@@ -229,9 +259,31 @@ function buildDemoMentorReply(
       };
     }
 
+    if (
+      /^(alo|hi|hello|chào|xin chào|hey|hé lô)/i.test(lower) ||
+      lower === "alo" ||
+      lower === "hi"
+    ) {
+      return {
+        role: "mentor",
+        content: `Chào bạn! Tôi là Capia AI Mentor — trợ lý đồng hành giúp bạn rèn luyện tư duy và kỷ luật đầu tư chứng khoán theo phương pháp phản biện Socratic.\n\nHôm nay bạn đang muốn tìm hiểu về điều gì:\n1. **Giải thích thuật ngữ**: Hỏi tôi về P/E, ROE, Net Margin, Cắt lỗ, Lãi kép, FOMO...\n2. **Khung chiến lược**: Hỏi về chiến lược Tích sản (DCA), Đầu tư Tăng trưởng, hay Cổ tức.\n3. **Phản biện giao dịch**: Đưa ra quyết định bạn đang dự định vào lệnh để chúng ta cùng mổ xẻ rủi ro.\n\nHãy nhắn cho tôi bất kỳ câu hỏi nào của bạn nhé!`,
+      };
+    }
+
+    if (
+      /dạy.*đầu tư|học.*đầu tư|bắt đầu.*như thế nào|người mới.*làm gì|hướng dẫn.*đầu tư/i.test(
+        lower,
+      )
+    ) {
+      return {
+        role: "mentor",
+        content: `Chào mừng bạn bắt đầu hành trình tìm hiểu đầu tư tài chính! Để đi đường dài an toàn trên thị trường chứng khoán, Capia đề xuất bạn tiếp cận theo 3 trụ cột cốt lõi:\n\n1. **Hiểu bản chất doanh nghiệp (Cơ bản)**: Học cách đọc báo cáo tài chính đơn giản (Doanh thu, Lợi nhuận, P/E, ROE). Tránh mua theo tin đồn trên mạng xã hội.\n2. **Quản trị rủi ro & Bảo toàn vốn (Sống còn)**: Luôn xác định mức cắt lỗ trước khi mua (tối đa lỗ 7% là cắt) và không bao giờ dồn toàn bộ vốn ("all-in") vào một cổ phiếu.\n3. **Kiểm soát tâm lý (Kỷ luật)**: Nhận diện bẫy tâm lý FOMO và tâm lý gồng lỗ chờ về bờ.\n\n**Câu hỏi dành cho bạn**: Bạn dự định đầu tư với số vốn nhàn rỗi trong bao lâu (dưới 6 tháng, 1 năm hay tích lũy dài hạn)?`,
+      };
+    }
+
     return {
       role: "mentor",
-      content: `${intro} Glossary chưa có khái niệm này. Hãy thử hỏi về một thuật ngữ như P/E, ROE, net margin, cắt lỗ, lãi kép, FOMO, hỗ trợ/kháng cự...`,
+      content: `${intro} Tôi đã ghi nhận câu hỏi của bạn: "${text}".\n\nĐể cùng nhìn nhận vấn đề theo phương pháp Socratic, hãy thử xem xét:\n1. Mục tiêu và giả định chính của bạn trong vấn đề này là gì?\n2. Nguồn thông tin bạn dựa vào đã được kiểm chứng độc lập chưa?\n3. Nếu thị trường hoặc tình huống diễn biến ngược lại với giả định, kế hoạch dự phòng của bạn là gì?\n\nBạn có thể hỏi tôi chi tiết hơn về các chỉ số tài chính (P/E, ROE, Margin) hoặc chia sẻ tình huống đầu tư cụ thể để cùng thảo luận.`,
     };
   }
 

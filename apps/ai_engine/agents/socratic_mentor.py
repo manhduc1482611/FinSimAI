@@ -35,7 +35,7 @@ from integrations.gemini import GeminiError
 logger = logging.getLogger(__name__)
 
 # Đường dẫn cơ sở tri thức khái niệm (docs v2.0, mục 3.2.1).
-_KB_PATH = Path(__file__).resolve().parents[2] / "data" / "knowledge_base.yaml"
+_KB_PATH = Path(__file__).resolve().parents[1] / "data" / "knowledge_base.yaml"
 
 _concept_cache: dict[str, dict[str, Any]] | None = None
 

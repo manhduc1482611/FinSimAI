@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
@@ -246,6 +247,14 @@ class HybridMentorStream:
                 if disclaimer:
                     parts.extend(["", disclaimer])
                 text = "\n".join([p for p in parts if p])
+        # Fallback Gemini trực tiếp tại Gateway nếu có GEMINI_API_KEY và ngoài môi trường test
+        if text is None and os.environ.get("PYTEST_CURRENT_TEST") is None:
+            gemini_text = await generate_gemini_fallback(
+                message, mode=mode, company=getattr(self._deterministic, "_company", "")
+            )
+            if gemini_text:
+                text = gemini_text
+
         if text is None:
             async for chunk in self._deterministic.stream(
                 user_id=user_id,
